@@ -1,4 +1,4 @@
-project_id = "dzdihyddvgfiplglweiy"
+project_id = "rfzfsmpsuempafhkqhra"
 
 [functions.create-super-admin]
 verify_jwt = false
@@ -28,4 +28,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-assistant]
+verify_jwt = false
+
+[functions.subscriber-lookup]
 verify_jwt = false

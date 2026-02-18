@@ -1,0 +1,30 @@
+{
+  "name": "AgriCapital Pay",
+  "short_name": "AgriCapital Pay",
+  "description": "Portail de paiement et gestion pour les souscripteurs AgriCapital - Consultez vos plantations et effectuez vos paiements de redevance mensuelle en toute sécurité",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#00643C",
+  "theme_color": "#00643C",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-pay.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-pay.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["finance", "lifestyle"],
+  "lang": "fr-FR",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "related_applications": []
+}

@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Couleurs de base - Fond blanc pour les interfaces */
+    --background: 0 0% 100%;
+    --foreground: 210 2% 35%;
+
+    /* Cartes et popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 210 2% 35%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 2% 35%;
+
+    /* Vert Agricole #00643C (from logo) - Couleur principale */
+    --primary: 158 100% 20%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Variante plus claire du vert pour les états hover */
+    --primary-hover: 158 100% 25%;
+
+    /* Gris Clair #C7C8CA - Pour les éléments secondaires */
+    --secondary: 210 3% 79%;
+    --secondary-foreground: 210 2% 35%;
+
+    /* Zones atténuées */
+    --muted: 210 5% 96%;
+    --muted-foreground: 210 3% 50%;
+
+    /* Or/Doré #E89C31 (from logo) - Couleur d'accent */
+    --accent: 38 77% 55%;
+    --accent-foreground: 210 2% 10%;
+
+    /* Couleurs de destruction */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Bordures et inputs - Gris Clair */
+    --border: 210 3% 79%;
+    --input: 210 3% 88%;
+    --ring: 124 55% 24%;
+
+    --radius: 0.75rem;
+    
+    /* Gradients avec les couleurs de la marque */
+    --gradient-primary: linear-gradient(135deg, hsl(124 55% 24%), hsl(124 55% 30%));
+    --gradient-accent: linear-gradient(135deg, hsl(37 56% 61%), hsl(37 56% 70%));
+    --gradient-hero: linear-gradient(135deg, hsl(124 55% 24%) 0%, hsl(124 55% 28%) 50%, hsl(37 56% 61%) 100%);
+    
+    /* Ombres avec le vert agricole */
+    --shadow-soft: 0 4px 20px -4px hsl(124 55% 24% / 0.15);
+    --shadow-medium: 0 8px 30px -6px hsl(124 55% 24% / 0.25);
+    --shadow-strong: 0 12px 40px -8px hsl(124 55% 24% / 0.35);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Mode sombre - Fond gris très foncé */
+    --background: 210 10% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 210 10% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 210 10% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Vert plus clair pour le mode sombre */
+    --primary: 158 100% 30%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 158 100% 35%;
+
+    --secondary: 210 3% 25%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 210 3% 25%;
+    --muted-foreground: 210 3% 70%;
+
+    /* Or/Doré en mode sombre */
+    --accent: 38 77% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 210 3% 25%;
+    --input: 210 3% 25%;
+    --ring: 37 56% 61%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Better touch targets on mobile */
+  @media (max-width: 640px) {
+    button, 
+    a, 
+    [role="button"],
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    input, 
+    select, 
+    textarea {
+      font-size: 16px !important; /* Prevent iOS zoom on focus */
+    }
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

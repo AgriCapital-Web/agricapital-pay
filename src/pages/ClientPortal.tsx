@@ -8,7 +8,6 @@ import ClientPaymentHistory from "./client/ClientPaymentHistory";
 import ClientStatistics from "./client/ClientStatistics";
 import PaymentReturn from "./client/PaymentReturn";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
-import AIAssistant from "@/components/ai/AIAssistant";
 
 type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return';
 
@@ -30,21 +29,31 @@ const ClientPortal = () => {
     }
   }, [searchParams]);
 
-  // Mettre le titre et le manifest pour le portail souscripteur
+  // Restore session from sessionStorage
+  useEffect(() => {
+    const savedSouscripteur = sessionStorage.getItem('agri_souscripteur');
+    const savedPlantations = sessionStorage.getItem('agri_plantations');
+    const savedPaiements = sessionStorage.getItem('agri_paiements');
+    
+    if (savedSouscripteur && view === 'home') {
+      try {
+        setSouscripteur(JSON.parse(savedSouscripteur));
+        setPlantations(JSON.parse(savedPlantations || '[]'));
+        setPaiements(JSON.parse(savedPaiements || '[]'));
+        setView('dashboard');
+      } catch (e) {
+        sessionStorage.removeItem('agri_souscripteur');
+      }
+    }
+  }, []);
+
+  // PWA meta
   useEffect(() => {
     document.title = "Portail Souscripteur | AgriCapital";
-    
-    // Changer le manifest pour le PWA
     const manifestLink = document.querySelector('link[rel="manifest"]');
-    if (manifestLink) {
-      manifestLink.setAttribute('href', '/manifest-client.json');
-    }
-
-    // Changer le theme-color
-    let themeColor = document.querySelector('meta[name="theme-color"]');
-    if (themeColor) {
-      themeColor.setAttribute('content', '#00643C');
-    }
+    if (manifestLink) manifestLink.setAttribute('href', '/manifest-client.json');
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.setAttribute('content', '#00643C');
   }, []);
 
   const handleLogin = (sous: any, plants: any[], paies: any[]) => {
@@ -58,11 +67,13 @@ const ClientPortal = () => {
     setSouscripteur(null);
     setPlantations([]);
     setPaiements([]);
+    sessionStorage.removeItem('agri_souscripteur');
+    sessionStorage.removeItem('agri_plantations');
+    sessionStorage.removeItem('agri_paiements');
     setView('home');
   };
 
   const handleBackFromPaymentReturn = () => {
-    // Clear URL params and go to home or dashboard
     window.history.replaceState({}, '', window.location.pathname);
     if (souscripteur) {
       setView('dashboard');
@@ -71,18 +82,11 @@ const ClientPortal = () => {
     }
   };
 
-  // Construire le contexte IA pour le souscripteur
-  const aiContext = souscripteur
-    ? `Souscripteur: ${souscripteur.nom_complet || ''}, Téléphone: ${souscripteur.telephone || ''}, ID: ${souscripteur.id_unique || ''}, Plantations: ${plantations.length}, Total DA versé: ${souscripteur.total_da_verse || 0} FCFA, Paiements validés: ${paiements.filter((p: any) => p.statut === 'valide').length}`
-    : "";
-
   return (
     <>
       <InstallPrompt />
       
-      {view === 'home' && (
-        <ClientHome onLogin={handleLogin} />
-      )}
+      {view === 'home' && <ClientHome onLogin={handleLogin} />}
       
       {view === 'dashboard' && (
         <ClientDashboard
@@ -135,11 +139,6 @@ const ClientPortal = () => {
 
       {view === 'payment-return' && (
         <PaymentReturn onBack={handleBackFromPaymentReturn} />
-      )}
-
-      {/* Assistant IA uniquement quand le souscripteur est connecté */}
-      {souscripteur && view !== 'home' && (
-        <AIAssistant mode="subscriber" context={aiContext} />
       )}
     </>
   );

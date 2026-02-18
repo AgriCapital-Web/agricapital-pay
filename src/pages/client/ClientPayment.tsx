@@ -75,16 +75,25 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack }: ClientP
     return plantations.find(p => p.id === selectedPlantation);
   }, [selectedPlantation, plantations]);
 
-  // Déterminer les tarifs en fonction de l'offre du souscripteur
+  // Déterminer les tarifs dynamiquement depuis l'offre en BDD
   const TARIFS = useMemo(() => {
+    const offre = souscripteur?.offres;
+    if (offre) {
+      const contribMensuelle = offre.contribution_mensuelle_par_ha || 0;
+      return {
+        jour: Math.round(contribMensuelle / 30),
+        mois: contribMensuelle,
+        trimestre: contribMensuelle * 3,
+        annee: contribMensuelle * 12,
+        da_par_hectare: offre.montant_da_par_ha || 0
+      };
+    }
+    // Fallback PalmElite
     const offreCode = souscripteur?.offres?.code || 'PALMELITE';
     switch (offreCode) {
-      case 'PALMINVEST':
-        return TARIFS_PALMINVEST;
-      case 'TERRAPALM':
-        return TARIFS_TERRAPALM;
-      default:
-        return TARIFS_PALMELITE;
+      case 'PALMINVEST': return TARIFS_PALMINVEST;
+      case 'TERRAPALM': return TARIFS_TERRAPALM;
+      default: return TARIFS_PALMELITE;
     }
   }, [souscripteur]);
 
@@ -139,22 +148,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack }: ClientP
             }
           }
           
-          // Mettre à jour le total DA versé du souscripteur
-          if (paiementData && paiementData.type_paiement === 'DA' && paiementData.souscripteur_id) {
-            const { data: allDAPaiements } = await supabase
-              .from('paiements')
-              .select('montant_paye')
-              .eq('souscripteur_id', paiementData.souscripteur_id)
-              .eq('type_paiement', 'DA')
-              .eq('statut', 'valide');
-            
-            const totalDA = allDAPaiements?.reduce((sum, p) => sum + (p.montant_paye || 0), 0) || 0;
-            
-            await supabase
-              .from('souscripteurs')
-              .update({ total_da_verse: totalDA })
-              .eq('id', paiementData.souscripteur_id);
-          }
+          // Note: total_da_verse n'existe pas comme colonne, il est calculé côté edge function
         }
       }
 

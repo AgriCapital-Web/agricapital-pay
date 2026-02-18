@@ -173,22 +173,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
           })
           .eq('id', paiement.plantation_id);
 
-        // Update souscripteur total DA
-        if (paiement.souscripteur_id) {
-          const { data: allDA } = await supabase
-            .from('paiements')
-            .select('montant_paye')
-            .eq('souscripteur_id', paiement.souscripteur_id)
-            .eq('type_paiement', 'DA')
-            .eq('statut', 'valide');
-          
-          const totalDA = allDA?.reduce((sum, p) => sum + (p.montant_paye || 0), 0) || 0;
-          
-          await supabase
-            .from('souscripteurs')
-            .update({ total_da_verse: totalDA })
-            .eq('id', paiement.souscripteur_id);
-        }
+        // Note: total_da_verse calculé côté edge function subscriber-lookup
       }
     } catch (error) {
       console.error('PaymentReturn: Error activating plantation:', error);

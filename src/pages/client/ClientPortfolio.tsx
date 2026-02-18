@@ -288,7 +288,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Type</p>
-                        <p className="font-medium">{plantation.type_culture || 'Hévéa'}</p>
+                        <p className="font-medium">Palmier à huile</p>
                       </div>
                     </div>
 
@@ -410,7 +410,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
       <footer className="border-t bg-white py-4 mt-6">
         <div className="container mx-auto px-4 text-center">
           <p className="text-xs text-muted-foreground">
-            © 2025 AgriCapital - Tous droits réservés
+            © {new Date().getFullYear()} AgriCapital - Tous droits réservés
           </p>
         </div>
       </footer>

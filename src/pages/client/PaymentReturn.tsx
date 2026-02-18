@@ -39,7 +39,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
         if (reference) {
           query = query.eq('reference', reference);
         } else if (transactionId) {
-          query = query.or(`fedapay_transaction_id.eq.${transactionId},metadata->>kkiapay_transaction_id.eq.${transactionId}`);
+          query = query.or(`metadata->>kkiapay_transaction_id.eq.${transactionId},reference.eq.${transactionId}`);
         }
 
         const { data: dbPaiement, error: dbError } = await query.maybeSingle();
@@ -82,7 +82,6 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                     .from('paiements')
                     .update({
                       statut: newStatus,
-                      fedapay_transaction_id: transactionId,
                       montant_paye: isSuccess ? (data.transaction?.amount ?? dbPaiement.montant) : 0,
                       date_paiement: isSuccess ? new Date().toISOString() : null,
                       metadata: {
@@ -302,7 +301,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
 
       <footer className="py-4 text-center text-white/90 text-sm">
         <p>Support: +225 05 64 55 17 17</p>
-        <p className="text-xs text-white/70 mt-1">© 2025 AgriCapital</p>
+        <p className="text-xs text-white/70 mt-1">© {new Date().getFullYear()} AgriCapital</p>
       </footer>
     </div>
   );

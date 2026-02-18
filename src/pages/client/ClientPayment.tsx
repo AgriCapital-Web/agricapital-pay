@@ -115,7 +115,6 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack }: ClientP
           .from('paiements')
           .update({
             statut: 'valide',
-            fedapay_transaction_id: response.transactionId, // réutilise la colonne existante pour stocker l'ID KKiaPay
             date_paiement: new Date().toISOString(),
             montant_paye: response.amount || paiementData?.montant || 0,
             metadata: {

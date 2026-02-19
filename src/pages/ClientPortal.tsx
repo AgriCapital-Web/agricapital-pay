@@ -11,12 +11,18 @@ import InstallPrompt from "@/components/pwa/InstallPrompt";
 
 type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return';
 
+interface PaymentOptions {
+  prefillAmount?: number;
+  prefillType?: 'arriere' | 'avance';
+}
+
 const ClientPortal = () => {
   const [searchParams] = useSearchParams();
   const [view, setView] = useState<View>('home');
   const [souscripteur, setSouscripteur] = useState<any>(null);
   const [plantations, setPlantations] = useState<any[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
+  const [paymentOptions, setPaymentOptions] = useState<PaymentOptions>({});
 
   // Check if returning from payment
   useEffect(() => {
@@ -93,7 +99,10 @@ const ClientPortal = () => {
           souscripteur={souscripteur}
           plantations={plantations}
           paiements={paiements}
-          onPayment={() => setView('payment')}
+          onPayment={(opts?: PaymentOptions) => {
+            setPaymentOptions(opts || {});
+            setView('payment');
+          }}
           onPortfolio={() => setView('portfolio')}
           onHistory={() => setView('history')}
           onStatistics={() => setView('statistics')}
@@ -107,6 +116,8 @@ const ClientPortal = () => {
           plantations={plantations}
           paiements={paiements}
           onBack={() => setView('dashboard')}
+          prefillAmount={paymentOptions.prefillAmount}
+          prefillType={paymentOptions.prefillType}
         />
       )}
       

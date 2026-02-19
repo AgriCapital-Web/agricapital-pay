@@ -135,8 +135,8 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
         <main className="flex-1 flex items-start justify-center px-4 py-4 relative z-10">
           <Card className={`w-full max-w-[95vw] sm:max-w-md shadow-2xl border-0 overflow-hidden transition-all duration-700 delay-200 ${animateIn ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
             
-            {/* Gold accent header */}
-            <div className="bg-gradient-to-r from-yellow-500 via-yellow-400 to-amber-400 py-5 sm:py-6 px-4 sm:px-6 text-center relative overflow-hidden">
+            {/* Gold accent header - orange-amber gradient */}
+            <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-400 py-5 sm:py-6 px-4 sm:px-6 text-center relative overflow-hidden">
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16" />
                 <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-12 translate-y-12" />

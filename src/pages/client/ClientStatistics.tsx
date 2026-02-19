@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +9,11 @@ import {
   Calendar,
   AlertTriangle,
   CheckCircle,
-  BarChart3
+  BarChart3,
+  Wallet
 } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -24,8 +23,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Area,
   AreaChart
 } from "recharts";
@@ -39,292 +36,247 @@ interface ClientStatisticsProps {
   onBack: () => void;
 }
 
-const COLORS = ['#00643C', '#16a34a', '#22c55e', '#86efac', '#f59e0b', '#ef4444'];
+const PIE_COLORS = ['#00643C', '#EAB308'];
 
 const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: ClientStatisticsProps) => {
-  
-  // Calcul des statistiques par type de paiement
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setVisible(true), 80);
+  }, []);
+
+  const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F";
+
+  // Stats par type
   const paiementStats = useMemo(() => {
-    const daTotal = paiements
-      .filter(p => p.type_paiement === 'DA' && p.statut === 'valide')
-      .reduce((sum, p) => sum + (p.montant_paye || 0), 0);
-    
-    const redevanceTotal = paiements
-      .filter(p => p.type_paiement === 'REDEVANCE' && p.statut === 'valide')
-      .reduce((sum, p) => sum + (p.montant_paye || 0), 0);
-
+    const daTotal = paiements.filter(p => p.type_paiement === 'DA' && p.statut === 'valide').reduce((sum, p) => sum + (p.montant_paye || 0), 0);
+    const redevanceTotal = paiements.filter(p => p.type_paiement === 'REDEVANCE' && p.statut === 'valide').reduce((sum, p) => sum + (p.montant_paye || 0), 0);
     return [
-      { name: "Droits d'Accès (DA)", value: daTotal, fill: '#00643C' },
-      { name: "Redevances", value: redevanceTotal, fill: '#16a34a' }
-    ];
+      { name: "Droits d'Accès", value: daTotal },
+      { name: "Redevances",     value: redevanceTotal }
+    ].filter(d => d.value > 0);
   }, [paiements]);
 
-  // Évolution mensuelle des paiements (12 derniers mois)
+  // Évolution mensuelle 12 mois
   const evolutionMensuelle = useMemo(() => {
-    const data = [];
-    for (let i = 11; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
+    return Array.from({ length: 12 }, (_, i) => {
+      const date  = subMonths(new Date(), 11 - i);
       const debut = startOfMonth(date);
-      const fin = endOfMonth(date);
-      
-      const paiementsMois = paiements.filter(p => {
+      const fin   = endOfMonth(date);
+      const moisPaiements = paiements.filter(p => {
         if (!p.date_paiement || p.statut !== 'valide') return false;
-        const datePaiement = parseISO(p.date_paiement);
-        return isWithinInterval(datePaiement, { start: debut, end: fin });
+        try { return isWithinInterval(parseISO(p.date_paiement), { start: debut, end: fin }); }
+        catch { return false; }
       });
-
-      const da = paiementsMois
-        .filter(p => p.type_paiement === 'DA')
-        .reduce((sum, p) => sum + (p.montant_paye || 0), 0);
-      
-      const redevance = paiementsMois
-        .filter(p => p.type_paiement === 'REDEVANCE')
-        .reduce((sum, p) => sum + (p.montant_paye || 0), 0);
-
-      data.push({
-        mois: format(date, 'MMM yy', { locale: fr }),
-        DA: da,
-        Redevance: redevance,
-        Total: da + redevance
-      });
-    }
-    return data;
+      const da       = moisPaiements.filter(p => p.type_paiement === 'DA').reduce((s, p) => s + (p.montant_paye || 0), 0);
+      const redevance= moisPaiements.filter(p => p.type_paiement === 'REDEVANCE').reduce((s, p) => s + (p.montant_paye || 0), 0);
+      return { mois: format(date, 'MMM yy', { locale: fr }), DA: da, Redevance: redevance, Total: da + redevance };
+    });
   }, [paiements]);
 
-  // Calcul des arriérés par plantation
+  // Arriérés
   const arrieresData = useMemo(() => {
-    const TARIF_JOUR = 65; // Tarif par défaut PalmElite
-    
+    const TARIF_JOUR = 65;
     return plantations.map(plant => {
       if (!plant.date_activation || plant.statut_global === 'en_attente_da') {
-        return { 
-          nom: plant.nom_plantation || plant.id_unique,
-          arrieres: 0,
-          joursArrieres: 0,
-          enAvance: false 
-        };
+        return { nom: plant.nom_plantation || plant.id_unique, arrieres: 0, enAvance: false, enAttente: true };
       }
-      
-      const dateActivation = new Date(plant.date_activation);
-      const joursDepuisActivation = Math.floor((new Date().getTime() - dateActivation.getTime()) / (1000 * 60 * 60 * 24));
-      const montantAttendu = joursDepuisActivation * TARIF_JOUR * (plant.superficie_activee || 0);
-      
-      const paiementsContrib = paiements.filter(
-        p => p.plantation_id === plant.id && p.type_paiement === 'REDEVANCE' && p.statut === 'valide'
-      );
-      const montantPaye = paiementsContrib.reduce((sum, p) => sum + (p.montant_paye || 0), 0);
-      
-      const difference = montantAttendu - montantPaye;
-      
-      if (difference > 0) {
-        const joursArrieres = Math.floor(difference / (TARIF_JOUR * (plant.superficie_activee || 1)));
-        return { 
-          nom: plant.nom_plantation || plant.id_unique,
-          arrieres: difference,
-          joursArrieres,
-          enAvance: false 
-        };
-      } else {
-        return { 
-          nom: plant.nom_plantation || plant.id_unique,
-          arrieres: 0,
-          avance: Math.abs(difference),
-          enAvance: true 
-        };
+      const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
+      const attendu = jours * TARIF_JOUR * (plant.superficie_activee || 0);
+      const paye    = paiements.filter(p => p.plantation_id === plant.id && p.type_paiement === 'REDEVANCE' && p.statut === 'valide').reduce((s, p) => s + (p.montant_paye || 0), 0);
+      const diff    = attendu - paye;
+      if (diff > 0) {
+        return { nom: plant.nom_plantation || plant.id_unique, arrieres: diff, joursArrieres: Math.floor(diff / (TARIF_JOUR * (plant.superficie_activee || 1))), enAvance: false, enAttente: false };
       }
+      return { nom: plant.nom_plantation || plant.id_unique, arrieres: 0, avance: Math.abs(diff), enAvance: true, enAttente: false };
     });
   }, [plantations, paiements]);
 
-  // Stats totales
-  const totalPaye = paiements
-    .filter(p => p.statut === 'valide')
-    .reduce((sum, p) => sum + (p.montant_paye || 0), 0);
+  const totalPaye    = paiements.filter(p => p.statut === 'valide').reduce((s, p) => s + (p.montant_paye || 0), 0);
+  const totalArrieres= arrieresData.filter(a => !a.enAvance && !a.enAttente).reduce((s, a) => s + a.arrieres, 0);
 
-  const totalArrieres = arrieresData
-    .filter(a => !a.enAvance)
-    .reduce((sum, a) => sum + a.arrieres, 0);
-
-  const formatMontant = (m: number) => {
-    return new Intl.NumberFormat("fr-FR").format(m) + " F";
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs">
+        <p className="font-semibold text-gray-700 mb-1.5">{label}</p>
+        {payload.map((entry: any, i: number) => (
+          <p key={i} style={{ color: entry.color }} className="flex justify-between gap-4">
+            <span>{entry.name}</span>
+            <span className="font-bold">{formatMontant(entry.value)}</span>
+          </p>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-primary text-white py-3 px-4 shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onBack}
-            className="text-white hover:bg-white/20"
-          >
+        <div className="container mx-auto flex items-center gap-3 max-w-4xl">
+          <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/20 shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-3">
-            <img src={logoWhite} alt="AgriCapital" className="h-8 object-contain" />
-            <span className="font-medium">Mes Statistiques</span>
-          </div>
+          <img src={logoWhite} alt="AgriCapital" className="h-7 object-contain" />
+          <span className="font-semibold text-sm sm:text-base">Mes Statistiques</span>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
-        {/* Résumé */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="bg-primary text-white">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-5 w-5" />
-                <span className="text-sm opacity-80">Total payé</span>
+      <main className="container mx-auto px-3 sm:px-4 py-5 space-y-4 max-w-4xl">
+
+        {/* RÉSUMÉ CARDS */}
+        <div className={`grid grid-cols-2 gap-3 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <Card className="border-l-4 border-l-primary bg-gradient-to-br from-green-50 to-white overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <span className="text-xs text-gray-500">Total payé</span>
               </div>
-              <p className="text-2xl font-bold">{formatMontant(totalPaye)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-primary">{formatMontant(totalPaye)}</p>
             </CardContent>
           </Card>
-          
-          <Card className={totalArrieres > 0 ? "bg-red-500 text-white" : "bg-green-500 text-white"}>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 mb-2">
-                {totalArrieres > 0 ? (
-                  <AlertTriangle className="h-5 w-5" />
-                ) : (
-                  <CheckCircle className="h-5 w-5" />
-                )}
-                <span className="text-sm opacity-80">
-                  {totalArrieres > 0 ? "Arriérés" : "Statut"}
-                </span>
+          <Card className={`border-l-4 overflow-hidden ${totalArrieres > 0 ? 'border-l-red-500 bg-gradient-to-br from-red-50 to-white' : 'border-l-green-500 bg-gradient-to-br from-green-50 to-white'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                {totalArrieres > 0 ? <AlertTriangle className="h-4 w-4 text-red-500" /> : <CheckCircle className="h-4 w-4 text-green-500" />}
+                <span className="text-xs text-gray-500">{totalArrieres > 0 ? "Arriérés" : "Statut"}</span>
               </div>
-              <p className="text-2xl font-bold">
+              <p className={`text-xl sm:text-2xl font-bold ${totalArrieres > 0 ? 'text-red-600' : 'text-green-600'}`}>
                 {totalArrieres > 0 ? formatMontant(totalArrieres) : "À jour ✓"}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Répartition DA vs Redevances */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Répartition des paiements
-            </CardTitle>
-            <CardDescription>Droits d'accès vs Redevances mensuelles</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={paiementStats}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, value }) => value > 0 ? formatMontant(value) : ''}
-                  >
-                    {paiementStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => formatMontant(value)}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        {/* PIE CHART */}
+        {paiementStats.length > 0 && (
+          <Card className={`transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Répartition des paiements
+              </CardTitle>
+              <CardDescription className="text-xs">Droits d'accès vs Redevances mensuelles</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={paiementStats}
+                      cx="50%" cy="50%"
+                      innerRadius={55} outerRadius={85}
+                      paddingAngle={4}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {paiementStats.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend iconType="circle" iconSize={10} formatter={(v) => <span className="text-xs text-gray-600">{v}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Montants sous le graphe */}
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                {paiementStats.map((s, i) => (
+                  <div key={i} className="text-center p-3 rounded-xl" style={{ background: `${PIE_COLORS[i]}15`, border: `1px solid ${PIE_COLORS[i]}30` }}>
+                    <p className="text-xs text-gray-500 mb-0.5">{s.name}</p>
+                    <p className="font-bold text-sm" style={{ color: PIE_COLORS[i] }}>{formatMontant(s.value)}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Évolution mensuelle */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
+        {/* AREA CHART */}
+        <Card className={`transition-all duration-500 delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
               Évolution mensuelle
             </CardTitle>
-            <CardDescription>Historique des 12 derniers mois</CardDescription>
+            <CardDescription className="text-xs">Historique des 12 derniers mois</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-72">
+            <div className="h-56 sm:h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={evolutionMensuelle}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="mois" tick={{ fontSize: 12 }} />
-                  <YAxis 
-                    tickFormatter={(v) => v >= 1000 ? `${v/1000}k` : v}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => formatMontant(value)}
-                  />
-                  <Legend />
-                  <Area 
-                    type="monotone" 
-                    dataKey="DA" 
-                    stackId="1"
-                    stroke="#00643C" 
-                    fill="#00643C"
-                    name="Droits d'Accès"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="Redevance" 
-                    stackId="1"
-                    stroke="#16a34a" 
-                    fill="#16a34a"
-                    name="Redevances"
-                  />
+                <AreaChart data={evolutionMensuelle} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="gradDA" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00643C" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#00643C" stopOpacity={0.0} />
+                    </linearGradient>
+                    <linearGradient id="gradRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#EAB308" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#EAB308" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="mois" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" iconSize={8} formatter={v => <span className="text-[10px] text-gray-600">{v}</span>} />
+                  <Area type="monotone" dataKey="DA"        stackId="1" stroke="#00643C" fill="url(#gradDA)"  name="Droits d'Accès" strokeWidth={2} />
+                  <Area type="monotone" dataKey="Redevance" stackId="1" stroke="#EAB308" fill="url(#gradRev)" name="Redevances"     strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* État par plantation */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {totalArrieres > 0 ? (
-                <TrendingDown className="h-5 w-5 text-red-500" />
-              ) : (
-                <TrendingUp className="h-5 w-5 text-green-500" />
-              )}
-              État par plantation
-            </CardTitle>
-            <CardDescription>Arriérés et avances de paiement</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {arrieresData.map((item, index) => (
-              <div 
-                key={index}
-                className={`p-4 rounded-lg border ${
-                  item.enAvance 
-                    ? 'bg-green-50 border-green-200' 
-                    : item.arrieres > 0 
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">{item.nom}</span>
-                  {item.enAvance ? (
-                    <Badge className="bg-green-500">
-                      En avance: {formatMontant(item.avance || 0)}
-                    </Badge>
-                  ) : item.arrieres > 0 ? (
-                    <Badge variant="destructive">
-                      Arriéré: {formatMontant(item.arrieres)} ({item.joursArrieres}j)
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">En attente DA</Badge>
-                  )}
+        {/* ÉTAT PAR PLANTATION */}
+        {arrieresData.length > 0 && (
+          <Card className={`transition-all duration-500 delay-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                {totalArrieres > 0 ? <TrendingDown className="h-4 w-4 text-red-500" /> : <TrendingUp className="h-4 w-4 text-green-500" />}
+                État par plantation
+              </CardTitle>
+              <CardDescription className="text-xs">Arriérés et avances de paiement</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {arrieresData.map((item, index) => (
+                <div
+                  key={index}
+                  className={`p-3 sm:p-4 rounded-xl border transition-all hover:shadow-sm ${
+                    item.enAttente ? 'bg-gray-50 border-gray-200' :
+                    item.enAvance  ? 'bg-green-50 border-green-200' :
+                    item.arrieres > 0 ? 'bg-red-50 border-red-200' :
+                    'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-gray-800">{item.nom}</span>
+                    {item.enAttente ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                        <Wallet className="h-3 w-3" />En attente DA
+                      </span>
+                    ) : item.enAvance ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-100 text-green-800 border border-green-200">
+                        <CheckCircle className="h-3 w-3" />En avance : {formatMontant(item.avance || 0)}
+                      </span>
+                    ) : item.arrieres > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 border border-red-200">
+                        <AlertTriangle className="h-3 w-3" />Arriéré : {formatMontant(item.arrieres)} ({item.joursArrieres}j)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                        <CheckCircle className="h-3 w-3" />À jour
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

@@ -692,42 +692,78 @@ export type Database = {
       profiles: {
         Row: {
           actif: boolean | null
+          adresse_mail_secondaire: string | null
+          contact_urgence_nom: string | null
+          contact_urgence_photo_url: string | null
+          contact_urgence_prenom: string | null
+          contact_urgence_telephone1: string | null
+          contact_urgence_telephone2: string | null
           created_at: string | null
           email: string | null
           equipe_id: string | null
           id: string
           nom_complet: string
+          numero_piece_identite: string | null
           photo_url: string | null
+          piece_identite_url: string | null
+          quartier: string | null
           telephone: string | null
+          telephone_secondaire: string | null
+          type_piece_identite: string | null
           updated_at: string | null
           user_id: string | null
           username: string | null
+          ville: string | null
         }
         Insert: {
           actif?: boolean | null
+          adresse_mail_secondaire?: string | null
+          contact_urgence_nom?: string | null
+          contact_urgence_photo_url?: string | null
+          contact_urgence_prenom?: string | null
+          contact_urgence_telephone1?: string | null
+          contact_urgence_telephone2?: string | null
           created_at?: string | null
           email?: string | null
           equipe_id?: string | null
           id?: string
           nom_complet: string
+          numero_piece_identite?: string | null
           photo_url?: string | null
+          piece_identite_url?: string | null
+          quartier?: string | null
           telephone?: string | null
+          telephone_secondaire?: string | null
+          type_piece_identite?: string | null
           updated_at?: string | null
           user_id?: string | null
           username?: string | null
+          ville?: string | null
         }
         Update: {
           actif?: boolean | null
+          adresse_mail_secondaire?: string | null
+          contact_urgence_nom?: string | null
+          contact_urgence_photo_url?: string | null
+          contact_urgence_prenom?: string | null
+          contact_urgence_telephone1?: string | null
+          contact_urgence_telephone2?: string | null
           created_at?: string | null
           email?: string | null
           equipe_id?: string | null
           id?: string
           nom_complet?: string
+          numero_piece_identite?: string | null
           photo_url?: string | null
+          piece_identite_url?: string | null
+          quartier?: string | null
           telephone?: string | null
+          telephone_secondaire?: string | null
+          type_piece_identite?: string | null
           updated_at?: string | null
           user_id?: string | null
           username?: string | null
+          ville?: string | null
         }
         Relationships: [
           {

@@ -78,7 +78,7 @@ serve(async (req) => {
       .eq("souscripteur_id", souscripteur.id)
       .order("created_at", { ascending: false });
 
-    // Fetch paiements
+    // Fetch paiements - include all types (DA, REDEVANCE, contribution)
     const plantationIds = (plantations || []).map((p: any) => p.id);
     let paiements: any[] = [];
     
@@ -91,7 +91,6 @@ serve(async (req) => {
       
       paiements = paiementsData || [];
     } else {
-      // Also check paiements by souscripteur_id alone
       const { data: paiementsData } = await supabase
         .from("paiements")
         .select("*")
@@ -101,12 +100,12 @@ serve(async (req) => {
       paiements = paiementsData || [];
     }
 
-    // Calculate total_da_verse from paiements (column doesn't exist in DB)
+    // Calculate total_da_verse from paiements
     const totalDAVerse = paiements
       .filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((sum: number, p: any) => sum + (p.montant_paye || p.montant || 0), 0);
 
-    // Calculate total redevances
+    // Calculate total redevances (include both REDEVANCE and contribution types)
     const totalRedevances = paiements
       .filter((p: any) => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
       .reduce((sum: number, p: any) => sum + (p.montant_paye || p.montant || 0), 0);
@@ -114,14 +113,39 @@ serve(async (req) => {
     // Enrich souscripteur with computed fields
     souscripteur.total_da_verse = totalDAVerse;
     souscripteur.total_redevances = totalRedevances;
+    souscripteur.total_paiements = paiements.filter((p: any) => p.statut === 'valide').length;
+    souscripteur.total_paye = totalDAVerse + totalRedevances;
 
-    console.log(`Subscriber data: ${plantations?.length || 0} plantations, ${paiements.length} paiements, DA=${totalDAVerse}`);
+    // Compute per-plantation arrears data
+    const tarifJour = souscripteur.offres?.contribution_mensuelle_par_ha 
+      ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) 
+      : 65;
+
+    let totalArrieres = 0;
+    const plantationsEnriched = (plantations || []).map((p: any) => {
+      if (p.date_activation && (p.superficie_activee || 0) > 0) {
+        const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
+        const attendu = jours * tarifJour * (p.superficie_activee || 0);
+        const paye = paiements
+          .filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')
+          .reduce((sum: number, pay: any) => sum + (pay.montant_paye || pay.montant || 0), 0);
+        
+        const arriere = Math.max(0, attendu - paye);
+        totalArrieres += arriere;
+        return { ...p, _arriere: arriere, _jours_retard: arriere > 0 ? Math.floor(arriere / (tarifJour * (p.superficie_activee || 1))) : 0 };
+      }
+      return { ...p, _arriere: 0, _jours_retard: 0 };
+    });
+
+    souscripteur.total_arrieres = totalArrieres;
+
+    console.log(`Subscriber data: ${plantationsEnriched.length} plantations, ${paiements.length} paiements, DA=${totalDAVerse}, Arriérés=${totalArrieres}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         souscripteur,
-        plantations: plantations || [],
+        plantations: plantationsEnriched,
         paiements
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }

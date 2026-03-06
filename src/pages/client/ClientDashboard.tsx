@@ -131,7 +131,7 @@ const ClientDashboard = ({
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 35%, #f5f5f0 35.1%, #f5f5f0 100%)' }}>
       {/* Header */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 100%)' }}>
-        <div className="container mx-auto flex items-center justify-between max-w-lg">
+        <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-4xl">
           <img src={logoWhite} alt="AgriCapital" className="h-8 object-contain" />
           <div className="flex items-center gap-1">
             {isSupported && permission !== 'granted' && (
@@ -155,7 +155,7 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 space-y-3 max-w-lg pb-8" style={{ marginTop: '-1rem' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 space-y-3 max-w-lg lg:max-w-4xl pb-8" style={{ marginTop: '-1rem' }}>
         
         {/* Profile Card - Glassmorphism */}
         <Card className="border-0 shadow-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>

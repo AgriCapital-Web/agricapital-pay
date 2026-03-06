@@ -134,6 +134,17 @@ const ClientDashboard = ({
         <div className="container mx-auto flex items-center justify-between max-w-lg">
           <img src={logoWhite} alt="AgriCapital" className="h-8 object-contain" />
           <div className="flex items-center gap-1">
+            {isSupported && permission !== 'granted' && (
+              <Button variant="ghost" size="icon" onClick={requestPermission} className="text-white hover:bg-white/15 h-9 w-9 relative">
+                <Bell className="h-4 w-4" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-orange-400 rounded-full animate-pulse" />
+              </Button>
+            )}
+            {permission === 'granted' && (
+              <div className="text-white/60 h-9 w-9 flex items-center justify-center">
+                <Bell className="h-4 w-4" />
+              </div>
+            )}
             <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="text-white hover:bg-white/15 h-9 w-9">
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>

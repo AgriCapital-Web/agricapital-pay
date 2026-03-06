@@ -1,13 +1,14 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import logoWhite from "@/assets/logo-white.png";
 import { 
-  MapPin, Phone, Sprout, CreditCard, Wallet,
+  MapPin, Phone, Sprout, CreditCard, Wallet, Bell,
   ArrowRight, LogOut, CheckCircle, AlertTriangle, Clock, History, BarChart2,
   RefreshCw, TrendingUp, Leaf, ChevronRight, Zap, Target
 } from "lucide-react";

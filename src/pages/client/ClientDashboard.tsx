@@ -33,10 +33,18 @@ const ClientDashboard = ({
   onPayment, onPortfolio, onHistory, onStatistics, onLogout 
 }: ClientDashboardProps) => {
   const { toast } = useToast();
+  const { permission, isSupported, requestPermission, checkAndNotifyArrears } = usePushNotifications();
   const [souscripteur, setSouscripteur] = useState(initialSouscripteur);
   const [plantations, setPlantations] = useState(initialPlantations);
   const [paiements, setPaiements] = useState(initialPaiements);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Check and notify arrears on mount
+  useEffect(() => {
+    if (permission === 'granted') {
+      checkAndNotifyArrears(plantations, souscripteur);
+    }
+  }, [permission, plantations, souscripteur, checkAndNotifyArrears]);
 
   const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F CFA";
 

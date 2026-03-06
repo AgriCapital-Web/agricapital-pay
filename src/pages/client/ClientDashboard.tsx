@@ -1,13 +1,14 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import logoWhite from "@/assets/logo-white.png";
 import { 
-  MapPin, Phone, Sprout, CreditCard, Wallet,
+  MapPin, Phone, Sprout, CreditCard, Wallet, Bell,
   ArrowRight, LogOut, CheckCircle, AlertTriangle, Clock, History, BarChart2,
   RefreshCw, TrendingUp, Leaf, ChevronRight, Zap, Target
 } from "lucide-react";
@@ -32,10 +33,18 @@ const ClientDashboard = ({
   onPayment, onPortfolio, onHistory, onStatistics, onLogout 
 }: ClientDashboardProps) => {
   const { toast } = useToast();
+  const { permission, isSupported, requestPermission, checkAndNotifyArrears } = usePushNotifications();
   const [souscripteur, setSouscripteur] = useState(initialSouscripteur);
   const [plantations, setPlantations] = useState(initialPlantations);
   const [paiements, setPaiements] = useState(initialPaiements);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Check and notify arrears on mount
+  useEffect(() => {
+    if (permission === 'granted') {
+      checkAndNotifyArrears(plantations, souscripteur);
+    }
+  }, [permission, plantations, souscripteur, checkAndNotifyArrears]);
 
   const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F CFA";
 
@@ -125,6 +134,17 @@ const ClientDashboard = ({
         <div className="container mx-auto flex items-center justify-between max-w-lg">
           <img src={logoWhite} alt="AgriCapital" className="h-8 object-contain" />
           <div className="flex items-center gap-1">
+            {isSupported && permission !== 'granted' && (
+              <Button variant="ghost" size="icon" onClick={requestPermission} className="text-white hover:bg-white/15 h-9 w-9 relative">
+                <Bell className="h-4 w-4" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-orange-400 rounded-full animate-pulse" />
+              </Button>
+            )}
+            {permission === 'granted' && (
+              <div className="text-white/60 h-9 w-9 flex items-center justify-center">
+                <Bell className="h-4 w-4" />
+              </div>
+            )}
             <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="text-white hover:bg-white/15 h-9 w-9">
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>

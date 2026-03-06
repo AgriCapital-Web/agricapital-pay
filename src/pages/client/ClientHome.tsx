@@ -54,14 +54,34 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
         body: { telephone: cleanPhone }
       });
 
-      if (error) throw new Error(error.message || "Erreur de connexion");
+      if (error) {
+        // Handle rate limiting
+        if (error.message?.includes('429') || error.message?.includes('Trop de tentatives')) {
+          toast({
+            variant: "destructive",
+            title: "Trop de tentatives",
+            description: "Veuillez patienter quelques minutes avant de réessayer."
+          });
+          return;
+        }
+        throw new Error(error.message || "Erreur de connexion");
+      }
       
       if (!data?.success) {
-        toast({
-          variant: "destructive",
-          title: "Compte non trouvé",
-          description: "Aucun compte trouvé avec ce numéro. Contactez AgriCapital au 05 64 55 17 17."
-        });
+        const errorMsg = data?.error || "Aucun compte trouvé avec ce numéro.";
+        if (errorMsg.includes('Trop de tentatives')) {
+          toast({
+            variant: "destructive",
+            title: "⏳ Trop de tentatives",
+            description: errorMsg
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Compte non trouvé",
+            description: "Aucun compte trouvé avec ce numéro. Contactez AgriCapital au 05 64 55 17 17."
+          });
+        }
         return;
       }
 

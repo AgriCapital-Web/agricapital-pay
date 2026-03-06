@@ -817,6 +817,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          action: string
+          attempts: number
+          blocked_until: string | null
+          created_at: string | null
+          first_attempt_at: string
+          id: string
+          identifier: string
+        }
+        Insert: {
+          action?: string
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string | null
+          first_attempt_at?: string
+          id?: string
+          identifier: string
+        }
+        Update: {
+          action?: string
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string | null
+          first_attempt_at?: string
+          id?: string
+          identifier?: string
+        }
+        Relationships: []
+      }
       regions: {
         Row: {
           code: string | null
@@ -1315,6 +1345,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_rate_limits: { Args: never; Returns: undefined }
       current_profile_id: { Args: never; Returns: string }
       generate_plantation_id: { Args: never; Returns: string }
       generate_souscripteur_id: { Args: never; Returns: string }

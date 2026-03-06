@@ -327,7 +327,7 @@ const ClientDashboard = ({
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
           {[
             { icon: CheckCircle, label: "DA versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Redevances", value: fmt(totalRedevances), color: "text-accent" },
@@ -335,12 +335,12 @@ const ClientDashboard = ({
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-primary" }
           ].map((card, i) => (
             <Card key={i} className="border-0 shadow-sm bg-card">
-              <CardContent className="p-3">
+              <CardContent className="p-3 lg:p-4">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
-                  <span className="text-[10px] text-muted-foreground">{card.label}</span>
+                  <card.icon className={`h-3.5 w-3.5 lg:h-4 lg:w-4 ${card.color}`} />
+                  <span className="text-[10px] lg:text-xs text-muted-foreground">{card.label}</span>
                 </div>
-                <p className="text-sm font-bold truncate">{card.value}</p>
+                <p className="text-sm lg:text-base font-bold truncate">{card.value}</p>
               </CardContent>
             </Card>
           ))}

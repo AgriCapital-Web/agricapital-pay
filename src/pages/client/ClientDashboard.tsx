@@ -131,7 +131,7 @@ const ClientDashboard = ({
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 35%, #f5f5f0 35.1%, #f5f5f0 100%)' }}>
       {/* Header */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 100%)' }}>
-        <div className="container mx-auto flex items-center justify-between max-w-lg">
+        <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-4xl">
           <img src={logoWhite} alt="AgriCapital" className="h-8 object-contain" />
           <div className="flex items-center gap-1">
             {isSupported && permission !== 'granted' && (
@@ -155,7 +155,7 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 space-y-3 max-w-lg pb-8" style={{ marginTop: '-1rem' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 space-y-3 max-w-lg lg:max-w-4xl pb-8" style={{ marginTop: '-1rem' }}>
         
         {/* Profile Card - Glassmorphism */}
         <Card className="border-0 shadow-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
@@ -305,20 +305,20 @@ const ClientDashboard = ({
         </Button>
 
         {/* Navigation */}
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
           {[
             { action: onPortfolio, icon: Wallet, label: "Mon portefeuille", desc: "Plantations & profil" },
             { action: onHistory, icon: History, label: "Historique paiements", desc: "Toutes vos transactions" },
             { action: onStatistics, icon: BarChart2, label: "Mes statistiques", desc: "Graphiques & analyses" }
           ].map((btn, i) => (
             <Card key={i} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-card" onClick={btn.action}>
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-                  <btn.icon className="h-5 w-5 text-primary" />
+              <CardContent className="p-3 lg:p-4 flex items-center gap-3">
+                <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+                  <btn.icon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{btn.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{btn.desc}</p>
+                  <p className="text-sm lg:text-base font-semibold">{btn.label}</p>
+                  <p className="text-[10px] lg:text-xs text-muted-foreground">{btn.desc}</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
               </CardContent>
@@ -327,7 +327,7 @@ const ClientDashboard = ({
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
           {[
             { icon: CheckCircle, label: "DA versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Redevances", value: fmt(totalRedevances), color: "text-accent" },
@@ -335,12 +335,12 @@ const ClientDashboard = ({
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-primary" }
           ].map((card, i) => (
             <Card key={i} className="border-0 shadow-sm bg-card">
-              <CardContent className="p-3">
+              <CardContent className="p-3 lg:p-4">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
-                  <span className="text-[10px] text-muted-foreground">{card.label}</span>
+                  <card.icon className={`h-3.5 w-3.5 lg:h-4 lg:w-4 ${card.color}`} />
+                  <span className="text-[10px] lg:text-xs text-muted-foreground">{card.label}</span>
                 </div>
-                <p className="text-sm font-bold truncate">{card.value}</p>
+                <p className="text-sm lg:text-base font-bold truncate">{card.value}</p>
               </CardContent>
             </Card>
           ))}

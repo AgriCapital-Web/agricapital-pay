@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface NotificationPayload {
@@ -17,10 +16,8 @@ export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
 
   useEffect(() => {
-    // Vérifier si les notifications sont supportées
     const supported = 'Notification' in window && 'serviceWorker' in navigator;
     setIsSupported(supported);
-    
     if (supported) {
       setPermission(Notification.permission);
     }
@@ -62,33 +59,35 @@ export const usePushNotifications = () => {
 
   const showNotification = useCallback(async (payload: NotificationPayload) => {
     if (permission !== 'granted') {
-      console.log('Notifications non autorisées');
+      // Fallback: show as toast
+      toast({ title: payload.title, description: payload.body });
       return;
     }
 
     try {
-      // Essayer d'utiliser le service worker pour les notifications
       const registration = await navigator.serviceWorker.ready;
-      
       await registration.showNotification(payload.title, {
         body: payload.body,
         icon: payload.icon || '/logo-agricapital.png',
-        badge: payload.badge || '/icons/icon-96x96.png',
+        badge: payload.badge || '/icons/icon-192x192.png',
         tag: payload.tag,
-        data: payload.data
+        data: payload.data,
+        vibrate: [200, 100, 200],
       } as NotificationOptions);
-    } catch (error) {
-      // Fallback: notification classique
-      console.log('Utilisation notification classique');
-      new Notification(payload.title, {
-        body: payload.body,
-        icon: payload.icon || '/logo-agricapital.png',
-        tag: payload.tag
-      });
+    } catch {
+      // Fallback: classic notification or toast
+      try {
+        new Notification(payload.title, {
+          body: payload.body,
+          icon: payload.icon || '/logo-agricapital.png',
+          tag: payload.tag
+        });
+      } catch {
+        toast({ title: payload.title, description: payload.body });
+      }
     }
-  }, [permission]);
+  }, [permission, toast]);
 
-  // Notification de paiement validé
   const notifyPaymentSuccess = useCallback((montant: number, reference: string) => {
     const formatted = new Intl.NumberFormat('fr-FR').format(montant);
     showNotification({
@@ -99,7 +98,6 @@ export const usePushNotifications = () => {
     });
   }, [showNotification]);
 
-  // Notification de paiement échoué
   const notifyPaymentFailed = useCallback((reference: string, reason?: string) => {
     showNotification({
       title: '❌ Paiement échoué',
@@ -109,16 +107,53 @@ export const usePushNotifications = () => {
     });
   }, [showNotification]);
 
-  // Notification de rappel d'arriérés
   const notifyArrears = useCallback((montant: number, jours: number) => {
     const formatted = new Intl.NumberFormat('fr-FR').format(montant);
     showNotification({
       title: '⚠️ Rappel de paiement',
-      body: `Vous avez ${jours} jour(s) d'arriérés pour un montant de ${formatted} F CFA. Régularisez votre situation.`,
+      body: `Vous avez ${jours} jour(s) d'arriérés pour un montant de ${formatted} F CFA.`,
       tag: 'arrears-reminder',
       data: { type: 'arrears_reminder', montant, jours }
     });
   }, [showNotification]);
+
+  const notifyDeadline = useCallback((plantation: string, joursRestants: number, montant: number) => {
+    const formatted = new Intl.NumberFormat('fr-FR').format(montant);
+    showNotification({
+      title: '📅 Échéance de paiement',
+      body: `Plantation ${plantation}: ${formatted} F CFA à payer dans ${joursRestants} jour(s).`,
+      tag: `deadline-${plantation}`,
+      data: { type: 'payment_deadline', plantation, joursRestants }
+    });
+  }, [showNotification]);
+
+  // Check arrears and send notifications
+  const checkAndNotifyArrears = useCallback((plantations: any[], souscripteur: any) => {
+    if (permission !== 'granted') return;
+
+    const tarifJour = souscripteur?.offres?.contribution_mensuelle_par_ha
+      ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) : 65;
+
+    let totalArrears = 0;
+    let maxJoursRetard = 0;
+
+    plantations.forEach((p: any) => {
+      const arriere = p._arriere || 0;
+      const jours = p._jours_retard || 0;
+      totalArrears += arriere;
+      if (jours > maxJoursRetard) maxJoursRetard = jours;
+    });
+
+    if (totalArrears > 1000) {
+      // Only notify once per session
+      const lastNotif = sessionStorage.getItem('last_arrears_notif');
+      const now = Date.now();
+      if (!lastNotif || now - parseInt(lastNotif) > 3600000) {
+        notifyArrears(totalArrears, maxJoursRetard);
+        sessionStorage.setItem('last_arrears_notif', now.toString());
+      }
+    }
+  }, [permission, notifyArrears]);
 
   return {
     permission,
@@ -127,7 +162,9 @@ export const usePushNotifications = () => {
     showNotification,
     notifyPaymentSuccess,
     notifyPaymentFailed,
-    notifyArrears
+    notifyArrears,
+    notifyDeadline,
+    checkAndNotifyArrears
   };
 };
 

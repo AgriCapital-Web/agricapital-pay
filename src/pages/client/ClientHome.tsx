@@ -26,7 +26,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    document.title = "Portail Souscripteur | AgriCapital";
+    document.title = "Portail Client | AgriCapital";
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (manifestLink) manifestLink.setAttribute('href', '/manifest-client.json');
     const themeColor = document.querySelector('meta[name="theme-color"]');

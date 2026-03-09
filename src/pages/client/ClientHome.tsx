@@ -182,10 +182,10 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   return (
     <>
       <Helmet>
-        <title>Portail Souscripteur | AgriCapital - Paiement et suivi de vos plantations</title>
-        <meta name="description" content="Accédez à votre espace souscripteur AgriCapital. Consultez vos plantations, effectuez vos paiements et suivez votre portefeuille en Côte d'Ivoire." />
-        <meta name="keywords" content="AgriCapital, portail souscripteur, paiement plantation, palmier à huile, Côte d'Ivoire" />
-        <meta property="og:title" content="Portail Souscripteur | AgriCapital" />
+        <title>Portail Client | AgriCapital - Paiement et suivi de vos plantations</title>
+        <meta name="description" content="Accédez à votre espace client AgriCapital. Consultez vos plantations, effectuez vos paiements et suivez votre portefeuille en Côte d'Ivoire." />
+        <meta name="keywords" content="AgriCapital, portail client, paiement plantation, palmier à huile, Côte d'Ivoire" />
+        <meta property="og:title" content="Portail Client | AgriCapital" />
         <meta property="og:description" content="Consultez vos plantations et effectuez vos paiements de redevance AgriCapital en ligne." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://pay.agricapital.ci" />

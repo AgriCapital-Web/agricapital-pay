@@ -175,7 +175,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent("Bonjour AgriCapital,\n\nJe souhaite créer mon compte partenaire souscripteur.\n\nMerci.");
+    const message = encodeURIComponent("Bonjour AgriCapital,\n\nJe souhaite créer mon compte partenaire client.\n\nMerci.");
     window.open(`https://wa.me/2250564551717?text=${message}`, '_blank');
   };
 

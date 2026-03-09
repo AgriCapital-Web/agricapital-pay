@@ -13,7 +13,7 @@ function generateOTP(): string {
 function sanitizePhone(input: string): string {
   if (typeof input !== 'string') throw new Error("Format invalide");
   const cleaned = input.replace(/\D/g, '');
-  if (cleaned.length < 8 || cleaned.length > 15) throw new Error("Numéro de téléphone invalide");
+  if (cleaned.length < 8 || cleaned.length > 15) throw new Error("Numéro invalide");
   return cleaned;
 }
 
@@ -23,13 +23,17 @@ serve(async (req) => {
   }
 
   try {
-    const { telephone, action } = await req.json();
+    const body = await req.json();
+    const { telephone, action, code } = body;
     const cleanPhone = sanitizePhone(telephone || '');
+    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
+    // ===== SEND OTP =====
     if (action === 'send') {
       // Rate limit: max 3 OTP per phone per 10 minutes
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -46,30 +50,34 @@ serve(async (req) => {
         );
       }
 
-      // Generate OTP
-      const code = generateOTP();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min
+      // Invalidate previous codes
+      await supabase.from('otp_codes')
+        .update({ expires_at: new Date().toISOString() })
+        .eq('telephone', cleanPhone)
+        .eq('verified', false);
 
-      // Store OTP
+      const otpCode = generateOTP();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
       await supabase.from('otp_codes').insert({
         telephone: cleanPhone,
-        code,
+        code: otpCode,
         expires_at: expiresAt,
       });
 
       // Send via Infobip
       const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
       const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
+      let smsSent = false;
 
       if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
-        // Format phone: ensure +225 prefix for CI
         let formattedPhone = cleanPhone;
         if (!formattedPhone.startsWith('225')) {
           formattedPhone = '225' + formattedPhone;
         }
 
         try {
-          const smsResponse = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
+          const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
             method: 'POST',
             headers: {
               'Authorization': `App ${INFOBIP_API_KEY}`,
@@ -79,58 +87,112 @@ serve(async (req) => {
               messages: [{
                 destinations: [{ to: formattedPhone }],
                 from: "AgriCapital",
-                text: `Votre code de vérification AgriCapital est: ${code}. Valide 5 minutes. Ne partagez jamais ce code.`,
+                text: `Votre code AgriCapital: ${otpCode}. Valide 5 min. Ne partagez jamais ce code.`,
               }]
             }),
           });
-
-          const smsData = await smsResponse.json();
+          const smsData = await smsRes.json();
           console.log("Infobip response:", JSON.stringify(smsData));
-
-          if (!smsResponse.ok) {
-            console.error("Infobip error:", smsData);
-            // Still return success - code is stored, user can use it
-          }
-        } catch (smsError) {
-          console.error("SMS send error:", smsError);
+          smsSent = smsRes.ok;
+        } catch (e) {
+          console.error("SMS error:", e);
         }
       } else {
-        // Dev mode: log the code
-        console.log(`[DEV MODE] OTP for ${cleanPhone}: ${code}`);
+        console.log(`[DEV] OTP for ${cleanPhone}: ${otpCode}`);
       }
 
-      // Audit log
       await supabase.from('historique_activites').insert({
         table_name: 'otp_codes',
         record_id: cleanPhone,
         action: 'OTP_SENT',
         details: `Code OTP envoyé au ${cleanPhone.slice(0, 4)}****`,
-        ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+        ip_address: clientIP,
         user_agent: req.headers.get('user-agent') || 'unknown',
       });
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Code envoyé par SMS",
-          // In dev mode (no Infobip), include code for testing
-          ...((!INFOBIP_API_KEY) ? { devCode: code } : {})
+          message: smsSent ? "Code envoyé par SMS" : "Code généré",
+          ...(!INFOBIP_API_KEY ? { devCode: otpCode } : {})
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // ===== VERIFY OTP =====
     if (action === 'verify') {
-      const { code } = await req.json().catch(() => ({ code: '' }));
-      // Actually re-parse since we already parsed
-      // The code should have been passed in the original body
+      if (!code || typeof code !== 'string' || code.length !== 6) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Code invalide" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
+      // Get latest valid OTP for this phone
+      const { data: otpRecord } = await supabase
+        .from('otp_codes')
+        .select('*')
+        .eq('telephone', cleanPhone)
+        .eq('verified', false)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!otpRecord) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Code expiré ou inexistant. Demandez un nouveau code." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
+      // Check max attempts
+      if (otpRecord.attempts >= 5) {
+        await supabase.from('otp_codes')
+          .update({ expires_at: new Date().toISOString() })
+          .eq('id', otpRecord.id);
+
+        return new Response(
+          JSON.stringify({ success: false, error: "Trop de tentatives. Demandez un nouveau code." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
+        );
+      }
+
+      // Increment attempts
+      await supabase.from('otp_codes')
+        .update({ attempts: otpRecord.attempts + 1 })
+        .eq('id', otpRecord.id);
+
+      if (otpRecord.code !== code) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Code incorrect. ${4 - otpRecord.attempts} tentative(s) restante(s).` }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
+      // Mark as verified
+      await supabase.from('otp_codes')
+        .update({ verified: true })
+        .eq('id', otpRecord.id);
+
+      await supabase.from('historique_activites').insert({
+        table_name: 'otp_codes',
+        record_id: cleanPhone,
+        action: 'OTP_VERIFIED',
+        details: `Code OTP vérifié pour ${cleanPhone.slice(0, 4)}****`,
+        ip_address: clientIP,
+        user_agent: req.headers.get('user-agent') || 'unknown',
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Code vérifié" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Default: verify action
-    const { code } = await new Response(req.body).json().catch(() => ({ code: '' }));
-    
     return new Response(
-      JSON.stringify({ success: false, error: "Action invalide" }),
+      JSON.stringify({ success: false, error: "Action invalide. Utilisez 'send' ou 'verify'." }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
     );
 

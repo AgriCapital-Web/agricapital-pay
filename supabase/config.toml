@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.subscriber-lookup]
 verify_jwt = false
+
+[functions.send-otp]
+verify_jwt = false

@@ -26,7 +26,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    document.title = "Portail Souscripteur | AgriCapital";
+    document.title = "Portail Client | AgriCapital";
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (manifestLink) manifestLink.setAttribute('href', '/manifest-client.json');
     const themeColor = document.querySelector('meta[name="theme-color"]');
@@ -175,17 +175,17 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent("Bonjour AgriCapital,\n\nJe souhaite créer mon compte partenaire souscripteur.\n\nMerci.");
+    const message = encodeURIComponent("Bonjour AgriCapital,\n\nJe souhaite créer mon compte partenaire client.\n\nMerci.");
     window.open(`https://wa.me/2250564551717?text=${message}`, '_blank');
   };
 
   return (
     <>
       <Helmet>
-        <title>Portail Souscripteur | AgriCapital - Paiement et suivi de vos plantations</title>
-        <meta name="description" content="Accédez à votre espace souscripteur AgriCapital. Consultez vos plantations, effectuez vos paiements et suivez votre portefeuille en Côte d'Ivoire." />
-        <meta name="keywords" content="AgriCapital, portail souscripteur, paiement plantation, palmier à huile, Côte d'Ivoire" />
-        <meta property="og:title" content="Portail Souscripteur | AgriCapital" />
+        <title>Portail Client | AgriCapital - Paiement et suivi de vos plantations</title>
+        <meta name="description" content="Accédez à votre espace client AgriCapital. Consultez vos plantations, effectuez vos paiements et suivez votre portefeuille en Côte d'Ivoire." />
+        <meta name="keywords" content="AgriCapital, portail client, paiement plantation, palmier à huile, Côte d'Ivoire" />
+        <meta property="og:title" content="Portail Client | AgriCapital" />
         <meta property="og:description" content="Consultez vos plantations et effectuez vos paiements de redevance AgriCapital en ligne." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://pay.agricapital.ci" />
@@ -211,7 +211,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
           <div className="container mx-auto flex flex-col items-center justify-center">
             <img src={logoWhite} alt="AgriCapital" className="h-16 sm:h-20 md:h-24 lg:h-28 object-contain drop-shadow-lg" />
             <h1 className="text-white text-lg sm:text-xl lg:text-2xl font-bold mt-3 sm:mt-4 tracking-wide drop-shadow">
-              Portail Souscripteur
+              Portail Client
             </h1>
             <p className="text-white/75 text-xs sm:text-sm mt-1">
               Votre espace palmier à huile en ligne

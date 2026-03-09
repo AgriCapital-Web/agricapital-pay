@@ -75,9 +75,9 @@ const InstallPrompt = () => {
     localStorage.setItem(dismissedKey, 'true');
   };
 
-  const appName = isClientPortal ? "Portail Souscripteur" : "CRM AgriCapital";
+  const appName = isClientPortal ? "Portail Client" : "CRM AgriCapital";
   const appDescription = isClientPortal 
-    ? "Accédez rapidement à votre espace souscripteur depuis l'écran d'accueil" 
+    ? "Accédez rapidement à votre espace client depuis l'écran d'accueil" 
     : "Gérez votre plateforme AgriCapital directement depuis l'écran d'accueil";
 
   if (!showPrompt) return null;

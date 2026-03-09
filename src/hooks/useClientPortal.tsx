@@ -25,7 +25,7 @@ export const useClientPortal = () => {
 };
 
 /**
- * Fonction utilitaire pour vérifier si on est sur le portail souscripteur
+ * Fonction utilitaire pour vérifier si on est sur le portail client
  */
 export const isOnClientPortal = (): boolean => {
   const hostname = window.location.hostname;

@@ -211,7 +211,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
           <div className="container mx-auto flex flex-col items-center justify-center">
             <img src={logoWhite} alt="AgriCapital" className="h-16 sm:h-20 md:h-24 lg:h-28 object-contain drop-shadow-lg" />
             <h1 className="text-white text-lg sm:text-xl lg:text-2xl font-bold mt-3 sm:mt-4 tracking-wide drop-shadow">
-              Portail Souscripteur
+              Portail Client
             </h1>
             <p className="text-white/75 text-xs sm:text-sm mt-1">
               Votre espace palmier à huile en ligne

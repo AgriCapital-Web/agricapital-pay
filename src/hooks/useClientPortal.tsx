@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 /**
  * Hook pour détecter si l'application est accédée via pay.agricapital.ci
- * et doit afficher le portail souscripteur plutôt que l'interface de gestion
+ * et doit afficher le portail client plutôt que l'interface de gestion
  */
 export const useClientPortal = () => {
   const [isClientPortal, setIsClientPortal] = useState(false);

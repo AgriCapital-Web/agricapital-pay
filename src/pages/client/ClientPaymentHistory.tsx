@@ -5,29 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import logoWhite from "@/assets/logo-white.png";
-import { 
-  ArrowLeft, History, Download, Search, ChevronLeft, ChevronRight,
-  CheckCircle, XCircle, Clock, Calendar, TrendingUp, CreditCard, Wallet
-} from "lucide-react";
+import { ArrowLeft, History, Download, Search, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, Calendar, TrendingUp, CreditCard, Wallet } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-interface ClientPaymentHistoryProps {
-  souscripteur: any;
-  plantations: any[];
-  paiements: any[];
-  onBack: () => void;
-}
-
+interface ClientPaymentHistoryProps { souscripteur: any; plantations: any[]; paiements: any[]; onBack: () => void; }
 const ITEMS_PER_PAGE = 10;
 
 const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: ClientPaymentHistoryProps) => {
   const [visible, setVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterStatut, setFilterStatut] = useState<string>("all");
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatut, setFilterStatut] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
 
   const filteredPaiements = useMemo(() => {
@@ -44,29 +34,21 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
 
   const exportCSV = () => {
     const headers = ["Référence", "Date", "Type", "Montant", "Statut"];
-    const rows = filteredPaiements.map(p => [
-      p.reference || "-",
-      p.date_paiement ? format(new Date(p.date_paiement), "dd/MM/yyyy HH:mm") : format(new Date(p.created_at), "dd/MM/yyyy HH:mm"),
-      p.type_paiement === "DA" ? "Droit d'Accès" : "Redevance",
-      p.montant_paye || p.montant,
-      p.statut === "valide" ? "Validé" : p.statut === "echec" ? "Échoué" : "En attente"
-    ]);
+    const rows = filteredPaiements.map(p => [p.reference || "-", p.date_paiement ? format(new Date(p.date_paiement), "dd/MM/yyyy HH:mm") : format(new Date(p.created_at), "dd/MM/yyyy HH:mm"), p.type_paiement === "DA" ? "Droit d'Accès" : "Redevance", p.montant_paye || p.montant, p.statut === "valide" ? "Validé" : p.statut === "echec" ? "Échoué" : "En attente"]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `historique-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
+    link.href = URL.createObjectURL(blob); link.download = `historique-${format(new Date(), "yyyy-MM-dd")}.csv`; link.click();
   };
 
   const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F";
 
   const getStatutBadge = (statut: string) => {
     const map: Record<string, { icon: any; label: string; cls: string }> = {
-      valide: { icon: CheckCircle, label: "Validé", cls: "bg-green-100 text-green-800 border-green-200" },
-      echec: { icon: XCircle, label: "Échoué", cls: "bg-red-100 text-red-800 border-red-200" },
+      valide: { icon: CheckCircle, label: "Validé", cls: "bg-primary/10 text-primary border-primary/30" },
+      echec: { icon: XCircle, label: "Échoué", cls: "bg-destructive/10 text-destructive border-destructive/30" },
     };
-    const cfg = map[statut] || { icon: Clock, label: "En attente", cls: "bg-amber-100 text-amber-800 border-amber-200" };
+    const cfg = map[statut] || { icon: Clock, label: "En attente", cls: "bg-gold/10 text-gold-dark border-gold/30" };
     const Icon = cfg.icon;
     return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.cls}`}><Icon className="h-3 w-3" />{cfg.label}</span>;
   };
@@ -82,7 +64,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
   }, [paiements]);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f5f5f0' }}>
+    <div className="min-h-screen flex flex-col bg-background">
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
@@ -92,15 +74,14 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
       </header>
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl">
-        {/* Stats */}
-        <div className={`grid grid-cols-2 gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-primary" },
-            { icon: CreditCard, label: "DA", value: fmt(stats.da), color: "text-accent" },
+            { icon: CreditCard, label: "DA", value: fmt(stats.da), color: "text-gold-dark" },
             { icon: Wallet, label: "Redevances", value: fmt(stats.redev), color: "text-primary" },
-            { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-accent" },
+            { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-gold-dark" },
           ].map((s, i) => (
-            <Card key={i} className="border-0 shadow-sm">
+            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm">
               <CardContent className="p-3">
                 <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
                 <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
@@ -110,15 +91,14 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
           ))}
         </div>
 
-        {/* Filters */}
-        <Card className={`border-0 shadow-sm transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardContent className="p-3 space-y-2">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9 text-sm rounded-xl" />
               </div>
-              <Button variant="outline" size="sm" onClick={exportCSV} className="h-9 text-xs gap-1 shrink-0 rounded-xl"><Download className="h-3.5 w-3.5" />CSV</Button>
+              <Button variant="outline" size="sm" onClick={exportCSV} className="h-9 text-xs gap-1 shrink-0 rounded-xl border-gold/30 text-gold-dark hover:bg-gold/5"><Download className="h-3.5 w-3.5" />CSV</Button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Select value={filterType} onValueChange={v => { setFilterType(v); setCurrentPage(1); }}>
@@ -133,37 +113,29 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
           </CardContent>
         </Card>
 
-        {/* Transactions */}
-        <Card className={`border-0 shadow-sm transition-all duration-500 delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardHeader className="p-3 pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <History className="h-4 w-4 text-primary" />
-              Transactions
-              <Badge variant="secondary" className="ml-auto text-[10px]">{filteredPaiements.length}</Badge>
+              <History className="h-4 w-4 text-primary" /> Transactions
+              <Badge variant="secondary" className="ml-auto text-[10px] bg-gold/10 text-gold-dark border-gold/30">{filteredPaiements.length}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {paginated.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                <p className="font-semibold text-sm">Aucun paiement</p>
-              </div>
+              <div className="text-center py-12 text-muted-foreground"><History className="h-12 w-12 mx-auto mb-3 opacity-20" /><p className="font-semibold text-sm">Aucun paiement</p></div>
             ) : (
               <div className="divide-y">
-                {paginated.map((p) => (
+                {paginated.map(p => (
                   <div key={p.id} className="p-3 hover:bg-muted/20 transition-colors">
                     <div className="flex justify-between items-start mb-1.5">
                       <div>
-                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {p.date_paiement ? format(new Date(p.date_paiement), "dd MMM yyyy", { locale: fr }) : format(new Date(p.created_at), "dd MMM yyyy", { locale: fr })}
-                        </p>
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" />{p.date_paiement ? format(new Date(p.date_paiement), "dd MMM yyyy", { locale: fr }) : format(new Date(p.created_at), "dd MMM yyyy", { locale: fr })}</p>
                         <p className="text-[9px] font-mono text-muted-foreground/50 mt-0.5">{p.reference?.slice(0, 16) || '-'}</p>
                       </div>
                       {getStatutBadge(p.statut)}
                     </div>
                     <div className="flex justify-between items-center">
-                      <Badge variant={p.type_paiement === "DA" ? "default" : "secondary"} className="text-[10px]">
+                      <Badge variant={p.type_paiement === "DA" ? "default" : "secondary"} className={`text-[10px] ${p.type_paiement === "DA" ? "bg-primary" : "bg-gold/10 text-gold-dark border-gold/30"}`}>
                         {p.type_paiement === "DA" ? "Droit d'Accès" : "Redevance"}
                       </Badge>
                       <span className="font-bold text-sm text-primary">{fmt(p.montant_paye || p.montant)}</span>

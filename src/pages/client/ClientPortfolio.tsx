@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import logoWhite from "@/assets/logo-white.png";
-import { 
-  ArrowLeft, User, MapPin, Phone, Calendar, Sprout, CreditCard,
-  CheckCircle, Clock, AlertTriangle, Mail, TrendingUp
-} from "lucide-react";
+import { ArrowLeft, User, MapPin, Phone, Calendar, Sprout, CreditCard, CheckCircle, Clock, AlertTriangle, Mail, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -20,17 +17,16 @@ interface ClientPortfolioProps {
 const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: ClientPortfolioProps) => {
   const [visible, setVisible] = useState(false);
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
-
   const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F CFA";
 
   const getStatutBadge = (statut: string) => {
     const configs: Record<string, { label: string; cls: string }> = {
-      'en_attente_da': { label: 'En attente DA', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
-      'actif': { label: 'Actif', cls: 'bg-green-100 text-green-800 border-green-200' },
-      'active': { label: 'Active', cls: 'bg-green-100 text-green-800 border-green-200' },
-      'valide': { label: 'Validé', cls: 'bg-green-100 text-green-800 border-green-200' },
-      'en_attente': { label: 'En attente', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
-      'echec': { label: 'Échoué', cls: 'bg-red-100 text-red-800 border-red-200' },
+      'en_attente_da': { label: 'En attente DA', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
+      'actif': { label: 'Actif', cls: 'bg-primary/10 text-primary border-primary/30' },
+      'active': { label: 'Active', cls: 'bg-primary/10 text-primary border-primary/30' },
+      'valide': { label: 'Validé', cls: 'bg-primary/10 text-primary border-primary/30' },
+      'en_attente': { label: 'En attente', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
+      'echec': { label: 'Échoué', cls: 'bg-destructive/10 text-destructive border-destructive/30' },
     };
     const cfg = configs[statut] || { label: statut || 'N/A', cls: 'bg-muted text-muted-foreground border-border' };
     return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.cls}`}>{cfg.label}</span>;
@@ -46,7 +42,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f5f5f0' }}>
+    <div className="min-h-screen flex flex-col bg-background">
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
@@ -57,15 +53,11 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl">
         {/* Profile */}
-        <Card className={`border-0 shadow-lg overflow-hidden transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand rounded-2xl shadow-lg overflow-hidden transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="p-4" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
             <div className="flex items-center gap-3">
-              <div className="h-14 w-14 rounded-2xl border-2 border-white/20 overflow-hidden bg-white/15 flex items-center justify-center shrink-0">
-                {souscripteur.photo_profil_url ? (
-                  <img src={souscripteur.photo_profil_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <User className="h-7 w-7 text-white/60" />
-                )}
+              <div className="h-14 w-14 rounded-2xl border-2 border-gold/30 overflow-hidden bg-white/15 flex items-center justify-center shrink-0">
+                {souscripteur.photo_profil_url ? <img src={souscripteur.photo_profil_url} alt="" className="h-full w-full object-cover" /> : <User className="h-7 w-7 text-white/60" />}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-base font-bold text-white truncate">{souscripteur.nom_complet}</h2>
@@ -95,11 +87,11 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
         <div className={`grid grid-cols-2 gap-2 transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-primary" },
-            { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-accent" },
+            { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold-dark" },
             { icon: TrendingUp, label: "Total payé", value: fmt(stats.totalPaye), color: "text-primary" },
-            { icon: CreditCard, label: "DA versé", value: fmt(stats.totalDA), color: "text-accent" },
+            { icon: CreditCard, label: "DA versé", value: fmt(stats.totalDA), color: "text-gold-dark" },
           ].map((s, i) => (
-            <Card key={i} className="border-0 shadow-sm">
+            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm">
               <CardContent className="p-3">
                 <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
                 <p className="text-sm font-bold">{s.value}</p>
@@ -119,46 +111,37 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
 
             <TabsContent value="plantations" className="space-y-2 mt-3">
               {plantations.length === 0 ? (
-                <Card className="border-0"><CardContent className="p-10 text-center text-muted-foreground">
-                  <Sprout className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-semibold">Aucune plantation</p>
+                <Card className="card-brand-subtle rounded-2xl"><CardContent className="p-10 text-center text-muted-foreground">
+                  <Sprout className="h-12 w-12 mx-auto mb-3 opacity-30" /><p className="font-semibold">Aucune plantation</p>
                 </CardContent></Card>
-              ) : (
-                plantations.map((p) => (
-                  <Card key={p.id} className="border-0 shadow-sm border-l-4 border-l-primary">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div><p className="font-bold text-sm truncate">{p.nom_plantation || p.id_unique}</p><p className="text-[10px] text-muted-foreground font-mono">{p.id_unique}</p></div>
-                        {getStatutBadge(p.statut_global)}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {[
-                          { l: "Surface", v: `${p.superficie_ha || 0} ha` },
-                          { l: "Activée", v: `${p.superficie_activee || 0} ha` },
-                          { l: "Région", v: p.regions?.nom || 'N/A' },
-                          { l: "Variété", v: p.variete || "Palmier" },
-                        ].map((item, i) => (
-                          <div key={i} className="bg-muted/30 rounded-xl p-2">
-                            <p className="text-[9px] text-muted-foreground uppercase">{item.l}</p>
-                            <p className="font-semibold truncate">{item.v}</p>
-                          </div>
-                        ))}
-                      </div>
-                      {p.date_activation && (
-                        <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1"><Calendar className="h-3 w-3" />Activée le {format(new Date(p.date_activation), "dd MMM yyyy", { locale: fr })}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+              ) : plantations.map((p) => (
+                <Card key={p.id} className="card-brand-green rounded-2xl shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div><p className="font-bold text-sm truncate">{p.nom_plantation || p.id_unique}</p><p className="text-[10px] text-muted-foreground font-mono">{p.id_unique}</p></div>
+                      {getStatutBadge(p.statut_global)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {[{ l: "Surface", v: `${p.superficie_ha || 0} ha` }, { l: "Activée", v: `${p.superficie_activee || 0} ha` }, { l: "Région", v: p.regions?.nom || 'N/A' }, { l: "Variété", v: p.variete || "Palmier" }].map((item, i) => (
+                        <div key={i} className="bg-muted/30 rounded-xl p-2">
+                          <p className="text-[9px] text-muted-foreground uppercase">{item.l}</p><p className="font-semibold truncate">{item.v}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {p.date_activation && (
+                      <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1"><Calendar className="h-3 w-3" />Activée le {format(new Date(p.date_activation), "dd MMM yyyy", { locale: fr })}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </TabsContent>
 
             <TabsContent value="financier" className="mt-3">
-              <Card className="border-0 shadow-sm">
+              <Card className="card-brand-subtle rounded-2xl shadow-sm">
                 <CardContent className="p-4 space-y-3">
                   {[
                     { label: "Total DA versé", value: fmt(stats.totalDA), color: "text-primary" },
-                    { label: "Total redevances", value: fmt(stats.totalRedev), color: "text-accent" },
+                    { label: "Total redevances", value: fmt(stats.totalRedev), color: "text-gold-dark" },
                     { label: "Total payé", value: fmt(stats.totalPaye), color: "text-foreground" },
                     { label: "Paiements validés", value: String(paiements.filter(p => p.statut === 'valide').length), color: "text-primary" },
                   ].map((item, i) => (

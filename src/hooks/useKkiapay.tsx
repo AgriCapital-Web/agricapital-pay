@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 declare global {
   interface Window {
@@ -41,105 +42,91 @@ export interface KkiapayError {
   error?: string;
 }
 
-// KKiaPay public key - à récupérer depuis les secrets en production
-const KKIAPAY_PUBLIC_KEY = '193bbb7e7387d1c3ac16ced9d47fe52fad2b228e';
-
 export const useKkiapay = () => {
   const scriptLoaded = useRef(false);
+  const publicKey = useRef<string | null>(null);
   const successCallback = useRef<((response: KkiapayResponse) => void) | null>(null);
   const failedCallback = useRef<((error: KkiapayError) => void) | null>(null);
   const closeCallback = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Éviter le double chargement
     if (scriptLoaded.current) return;
-    
-    // Vérifier si le script est déjà chargé
     const existingScript = document.querySelector('script[src="https://cdn.kkiapay.me/k.js"]');
-    if (existingScript) {
-      scriptLoaded.current = true;
-      return;
-    }
+    if (existingScript) { scriptLoaded.current = true; return; }
 
-    // Charger le SDK KKiaPay
     const script = document.createElement('script');
     script.src = 'https://cdn.kkiapay.me/k.js';
     script.async = true;
     script.onload = () => {
       scriptLoaded.current = true;
-      console.log('KKiaPay SDK chargé avec succès');
-      
-      // Configurer les listeners globaux
+      console.log('KKiaPay SDK chargé');
       if (window.addKkiapayListener) {
         window.addKkiapayListener('success', (response: KkiapayResponse) => {
-          console.log('KKiaPay Success Event:', response);
-          if (successCallback.current) {
-            successCallback.current(response);
-          }
+          console.log('KKiaPay Success:', response);
+          successCallback.current?.(response);
         });
-
         window.addKkiapayListener('failed', (error: KkiapayError) => {
-          console.log('KKiaPay Failed Event:', error);
-          if (failedCallback.current) {
-            failedCallback.current(error);
-          }
+          console.log('KKiaPay Failed:', error);
+          failedCallback.current?.(error);
         });
-
         window.addKkiapayListener('close', () => {
-          console.log('KKiaPay Widget fermé');
-          if (closeCallback.current) {
-            closeCallback.current();
-          }
+          console.log('KKiaPay fermé');
+          closeCallback.current?.();
         });
       }
     };
-    script.onerror = () => {
-      console.error('Erreur lors du chargement du SDK KKiaPay');
-    };
+    script.onerror = () => console.error('Erreur chargement KKiaPay SDK');
     document.body.appendChild(script);
   }, []);
 
-  const openPayment = useCallback((config: Omit<KkiapayConfig, 'key'>) => {
+  // Fetch the public key from edge function (cached)
+  const getPublicKey = useCallback(async (): Promise<string | null> => {
+    if (publicKey.current) return publicKey.current;
+    try {
+      const { data, error } = await supabase.functions.invoke('kkiapay-create-transaction', {
+        body: { amount: 0, description: 'key-fetch', reference: 'init' }
+      });
+      if (data?.config?.key) {
+        publicKey.current = data.config.key;
+        return data.config.key;
+      }
+    } catch (e) {
+      console.error('Impossible de récupérer la clé KKiaPay:', e);
+    }
+    return null;
+  }, []);
+
+  const openPayment = useCallback(async (config: Omit<KkiapayConfig, 'key'>) => {
     if (!window.openKkiapayWidget) {
       console.error('KKiaPay SDK non chargé');
       return false;
     }
-
+    const key = await getPublicKey();
+    if (!key) {
+      console.error('Clé KKiaPay non disponible');
+      return false;
+    }
     try {
       window.openKkiapayWidget({
         ...config,
-        key: KKIAPAY_PUBLIC_KEY,
-        sandbox: false, // Mode production
-        countries: ['CI'], // Côte d'Ivoire uniquement
-        paymentMethods: ['momo', 'wave', 'card'], // Mobile Money, Wave, Carte
-        theme: '#00643C' // Couleur AgriCapital
+        key,
+        sandbox: false,
+        countries: ['CI'],
+        paymentMethods: ['momo', 'wave', 'card'],
+        theme: '#00643C'
       });
       return true;
     } catch (error) {
       console.error('Erreur ouverture widget KKiaPay:', error);
       return false;
     }
-  }, []);
+  }, [getPublicKey]);
 
-  const onSuccess = useCallback((callback: (response: KkiapayResponse) => void) => {
-    successCallback.current = callback;
-  }, []);
+  const onSuccess = useCallback((callback: (response: KkiapayResponse) => void) => { successCallback.current = callback; }, []);
+  const onFailed = useCallback((callback: (error: KkiapayError) => void) => { failedCallback.current = callback; }, []);
+  const onClose = useCallback((callback: () => void) => { closeCallback.current = callback; }, []);
 
-  const onFailed = useCallback((callback: (error: KkiapayError) => void) => {
-    failedCallback.current = callback;
-  }, []);
-
-  const onClose = useCallback((callback: () => void) => {
-    closeCallback.current = callback;
-  }, []);
-
-  return {
-    openPayment,
-    onSuccess,
-    onFailed,
-    onClose,
-    isLoaded: scriptLoaded.current
-  };
+  return { openPayment, onSuccess, onFailed, onClose, isLoaded: scriptLoaded.current };
 };
 
 export default useKkiapay;

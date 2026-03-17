@@ -25,37 +25,39 @@ export const generatePaymentReceiptHTML = (data: ReceiptData): string => {
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: white; }
-        .receipt { max-width: 500px; margin: 0 auto; border: 2px solid #00643C; padding: 30px; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #00643C; padding-bottom: 20px; }
-        .logo { width: 120px; margin-bottom: 10px; }
-        .company-name { color: #00643C; font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-        .company-slogan { color: #666; font-size: 12px; }
-        .receipt-title { background: #00643C; color: white; text-align: center; padding: 15px; margin: 20px 0; font-size: 18px; font-weight: bold; letter-spacing: 2px; }
-        .receipt-ref { text-align: center; font-family: monospace; color: #666; margin-bottom: 20px; font-size: 12px; }
-        .info-section { margin: 20px 0; }
-        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #ddd; }
-        .info-label { color: #666; font-size: 13px; }
-        .info-value { font-weight: bold; color: #333; font-size: 14px; text-align: right; }
-        .amount-section { background: linear-gradient(135deg, #00643C, #008f4c); color: white; padding: 25px; text-align: center; margin: 25px 0; border-radius: 10px; }
-        .amount-label { font-size: 14px; opacity: 0.9; margin-bottom: 5px; }
-        .amount { font-size: 32px; font-weight: bold; }
-        .amount-currency { font-size: 16px; }
-        .status-badge { display: inline-block; background: #4CAF50; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; text-transform: uppercase; font-size: 12px; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #00643C; text-align: center; }
-        .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
+        .receipt { max-width: 500px; margin: 0 auto; border: 3px solid transparent; border-image: linear-gradient(135deg, #C5A028 0%, #C5A028 50%, #00643C 50%, #00643C 100%) 1; padding: 30px; position: relative; }
+        .receipt::before { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: linear-gradient(135deg, transparent 50%, #C5A028 50%); opacity: 0.15; }
+        .header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #00643C; }
+        .company-name { color: #00643C; font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+        .company-sub { color: #C5A028; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+        .company-slogan { color: #666; font-size: 10px; margin-top: 4px; }
+        .receipt-title { background: linear-gradient(135deg, #00643C, #004d2e); color: white; text-align: center; padding: 12px; margin: 15px 0; font-size: 16px; font-weight: 800; letter-spacing: 3px; border-radius: 6px; }
+        .receipt-ref { text-align: center; font-family: monospace; color: #666; margin-bottom: 15px; font-size: 11px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e0e0e0; }
+        .info-label { color: #888; font-size: 12px; }
+        .info-value { font-weight: 700; color: #333; font-size: 13px; text-align: right; max-width: 60%; }
+        .amount-section { background: linear-gradient(135deg, #00643C, #008f4c); color: white; padding: 20px; text-align: center; margin: 20px 0; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,100,60,0.3); }
+        .amount-label { font-size: 12px; opacity: 0.9; }
+        .amount { font-size: 28px; font-weight: 900; }
+        .amount-currency { font-size: 14px; }
+        .status-badge { display: inline-block; background: linear-gradient(135deg, #C5A028, #d4af37); color: white; padding: 6px 18px; border-radius: 20px; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+        .footer { margin-top: 25px; padding-top: 15px; border-top: 2px solid #C5A028; text-align: center; }
+        .signature-section { margin-top: 35px; display: flex; justify-content: space-between; }
         .signature-box { width: 45%; text-align: center; }
-        .signature-line { border-bottom: 1px solid #333; height: 60px; margin-bottom: 5px; }
-        .signature-name { font-size: 12px; color: #666; }
-        .dg-signature { font-family: 'Brush Script MT', cursive; font-size: 24px; color: #00643C; margin-bottom: 5px; }
-        .qr-placeholder { width: 80px; height: 80px; background: #f0f0f0; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999; }
-        .footer-text { font-size: 11px; color: #666; margin-top: 15px; }
-        .contact { margin-top: 10px; font-size: 11px; color: #00643C; }
+        .signature-line { border-bottom: 1px solid #333; height: 50px; margin-bottom: 5px; }
+        .dg-signature { font-family: 'Brush Script MT', cursive; font-size: 22px; color: #00643C; }
+        .signature-name { font-size: 10px; color: #666; }
+        .footer-text { font-size: 10px; color: #666; }
+        .contact { margin-top: 8px; font-size: 10px; color: #00643C; font-weight: 600; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 60px; color: rgba(0,100,60,0.04); font-weight: 900; letter-spacing: 10px; pointer-events: none; }
       </style>
     </head>
     <body>
       <div class="receipt" id="receipt">
+        <div class="watermark">AGRICAPITAL</div>
         <div class="header">
           <div class="company-name">🌴 AGRICAPITAL</div>
+          <div class="company-sub">Portail Client</div>
           <div class="company-slogan">Le partenaire idéal des producteurs agricoles</div>
         </div>
         

@@ -77,6 +77,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           const p = paiementData.plantations;
           if (p) await supabase.from('plantations').update({ superficie_activee: p.superficie_ha, date_activation: new Date().toISOString(), statut: 'active', statut_global: 'actif' }).eq('id', paiementData.plantation_id);
         }
+
+        // Send SMS confirmation via Infobip
+        try {
+          const montantPaye = response.amount || paiementData?.montant || 0;
+          await supabase.functions.invoke('send-otp', {
+            body: {
+              telephone: souscripteur.telephone,
+              action: 'send_custom',
+              customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci`
+            }
+          }).catch(() => {}); // Non-blocking
+        } catch {}
       }
       toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
       setTimeout(() => onBack(), 2000);

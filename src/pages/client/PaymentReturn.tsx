@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import logoWhite from "@/assets/logo-white.png";
-import { CheckCircle, XCircle, Loader2, Home, RefreshCw, Download, Printer } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Home, RefreshCw, Download, Printer, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -16,11 +16,24 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
   const [paiement, setPaiement] = useState<any>(null);
   const [checkCount, setCheckCount] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [receiptHtml, setReceiptHtml] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const reference = searchParams.get('reference') || searchParams.get('ref');
   const urlStatus = searchParams.get('status');
   const transactionId = searchParams.get('id') || searchParams.get('transaction_id') || searchParams.get('transactionId');
+
+  // Auto-fetch branded receipt from edge function
+  const fetchReceipt = async (ref: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-receipt', {
+        body: { reference: ref }
+      });
+      if (!error && data?.html) setReceiptHtml(data.html);
+    } catch (e) {
+      console.error('Receipt fetch error:', e);
+    }
+  };
 
   useEffect(() => {
     const check = async () => {
@@ -32,7 +45,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
         const { data: db } = await query.maybeSingle();
         if (db) {
           setPaiement(db);
-          if (db.statut === 'valide') { setStatus('success'); return; }
+          if (db.statut === 'valide') { setStatus('success'); fetchReceipt(db.reference); return; }
           if (db.statut === 'echec' || db.statut === 'rejete') { setStatus('error'); return; }
           if (transactionId) {
             try {
@@ -48,6 +61,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                     const { data: pl } = await supabase.from('plantations').select('*').eq('id', db.plantation_id).single();
                     if (pl) await supabase.from('plantations').update({ superficie_activee: pl.superficie_ha, date_activation: new Date().toISOString(), statut: 'active', statut_global: 'actif' }).eq('id', db.plantation_id);
                   }
+                  if (ok) fetchReceipt(db.reference);
                   setStatus(ok ? 'success' : 'error'); return;
                 }
               }
@@ -56,6 +70,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
           if (urlStatus === 'success' || urlStatus === 'approved') {
             await supabase.from('paiements').update({ statut: 'valide', montant_paye: db.montant, date_paiement: new Date().toISOString() }).eq('id', db.id);
             setPaiement({ ...db, statut: 'valide', montant_paye: db.montant });
+            fetchReceipt(db.reference);
             setStatus('success'); return;
           }
           if (checkCount < 10) setTimeout(() => setCheckCount(c => c + 1), 2500);
@@ -84,12 +99,21 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
     } catch (e) { console.error('PDF:', e); } finally { setDownloading(false); }
   };
 
+  const handlePrintReceipt = () => {
+    if (!receiptHtml) { window.print(); return; }
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { window.print(); return; }
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+  };
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #00643C, #003320)' }}>
       <header className="py-5 px-4"><div className="container mx-auto flex justify-center"><img src={logoWhite} alt="AgriCapital" className="h-12 object-contain" /></div></header>
 
       <main className="flex-1 flex items-start justify-center px-4 py-4 pb-8">
-        <Card className="w-full max-w-sm border-0 shadow-2xl overflow-hidden">
+        <Card className="w-full max-w-sm border-0 shadow-2xl overflow-hidden card-brand">
           <CardContent className="p-6 text-center space-y-4">
             {status === 'loading' && (
               <><Loader2 className="h-16 w-16 text-primary animate-spin mx-auto" /><h2 className="text-lg font-bold">Vérification...</h2><p className="text-sm text-muted-foreground">Veuillez patienter</p></>
@@ -103,7 +127,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                 </div>
                 <h2 className="text-xl font-black text-green-600">Paiement réussi !</h2>
 
-                <div ref={receiptRef} className="bg-muted/30 rounded-2xl p-4 text-left border text-xs space-y-2">
+                <div ref={receiptRef} className="bg-muted/30 rounded-2xl p-4 text-left border text-xs space-y-2 card-brand-subtle">
                   <div className="flex justify-between pb-2 border-b border-dashed mb-2">
                     <div><p className="font-bold text-primary text-sm">REÇU</p><p className="text-[9px] text-muted-foreground">AgriCapital CI</p></div>
                     <p className="text-xs font-semibold">{paiement.date_paiement ? format(new Date(paiement.date_paiement), "dd/MM/yy HH:mm", { locale: fr }) : format(new Date(), "dd/MM/yy HH:mm", { locale: fr })}</p>
@@ -129,14 +153,14 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                   <Button variant="outline" onClick={handlePDF} disabled={downloading} className="h-10 gap-1.5 text-xs rounded-xl">
                     {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}PDF
                   </Button>
-                  <Button variant="outline" onClick={() => window.print()} className="h-10 gap-1.5 text-xs rounded-xl"><Printer className="h-3.5 w-3.5" />Imprimer</Button>
+                  <Button variant="outline" onClick={handlePrintReceipt} className="h-10 gap-1.5 text-xs rounded-xl"><Printer className="h-3.5 w-3.5" />Imprimer</Button>
                 </div>
-                <Button onClick={onBack} className="w-full h-11 gap-2 rounded-xl"><Home className="h-4 w-4" />Retour</Button>
+                <Button onClick={onBack} className="w-full h-11 gap-2 rounded-xl btn-brand"><Home className="h-4 w-4" />Retour</Button>
               </>
             )}
 
             {status === 'success' && !paiement && (
-              <><CheckCircle className="h-20 w-20 text-green-500 mx-auto" /><h2 className="text-xl font-bold text-green-600">Paiement réussi !</h2><Button onClick={onBack} className="w-full h-12 gap-2 rounded-xl"><Home className="h-5 w-5" />Retour</Button></>
+              <><CheckCircle className="h-20 w-20 text-green-500 mx-auto" /><h2 className="text-xl font-bold text-green-600">Paiement réussi !</h2><Button onClick={onBack} className="w-full h-12 gap-2 rounded-xl btn-brand"><Home className="h-5 w-5" />Retour</Button></>
             )}
 
             {status === 'error' && (
@@ -150,7 +174,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                     <div className="flex justify-between"><span className="text-muted-foreground">Réf.</span><span className="font-mono text-[10px]">{paiement.reference}</span></div>
                   </div>
                 )}
-                <Button onClick={onBack} className="w-full h-11 gap-2 rounded-xl"><RefreshCw className="h-4 w-4" />Réessayer</Button>
+                <Button onClick={onBack} className="w-full h-11 gap-2 rounded-xl btn-brand"><RefreshCw className="h-4 w-4" />Réessayer</Button>
               </>
             )}
 
@@ -161,7 +185,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                 <p className="text-sm text-muted-foreground">Vérification automatique</p>
                 {checkCount < 5 && <p className="text-xs text-muted-foreground">Tentative {checkCount + 1}/5</p>}
                 <Button variant="outline" onClick={() => setCheckCount(c => c + 1)} className="w-full gap-2 h-10 text-sm rounded-xl"><RefreshCw className="h-4 w-4" />Actualiser</Button>
-                <Button onClick={onBack} className="w-full h-10 text-sm rounded-xl">Retour</Button>
+                <Button onClick={onBack} className="w-full h-10 text-sm rounded-xl btn-brand">Retour</Button>
               </>
             )}
           </CardContent>

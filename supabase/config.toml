@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.send-otp]
 verify_jwt = false
+
+[functions.sms-arrears-notify]
+verify_jwt = false
+
+[functions.generate-receipt]
+verify_jwt = false

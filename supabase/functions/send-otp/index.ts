@@ -33,6 +33,37 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // ===== SEND CUSTOM SMS (payment confirmations, etc.) =====
+    if (action === 'send_custom') {
+      const { customMessage } = body;
+      if (!customMessage) {
+        return new Response(JSON.stringify({ success: false, error: "Message requis" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
+      }
+
+      const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
+      const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
+      let smsSent = false;
+
+      if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
+        let formattedPhone = cleanPhone;
+        if (!formattedPhone.startsWith('225')) formattedPhone = '225' + formattedPhone;
+        try {
+          const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
+            method: 'POST',
+            headers: { 'Authorization': `App ${INFOBIP_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: [{ destinations: [{ to: formattedPhone }], from: "AgriCapital", text: customMessage }] }),
+          });
+          smsSent = smsRes.ok;
+        } catch (e) { console.error("Custom SMS error:", e); }
+      } else {
+        console.log(`[DEV] Custom SMS for ${cleanPhone}: ${customMessage}`);
+      }
+
+      return new Response(JSON.stringify({ success: true, sent: smsSent }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ===== SEND OTP =====
     if (action === 'send') {
       // Rate limit: max 3 OTP per phone per 10 minutes

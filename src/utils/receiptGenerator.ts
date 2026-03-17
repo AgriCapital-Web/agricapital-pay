@@ -54,8 +54,10 @@ export const generatePaymentReceiptHTML = (data: ReceiptData): string => {
     </head>
     <body>
       <div class="receipt" id="receipt">
+        <div class="watermark">AGRICAPITAL</div>
         <div class="header">
           <div class="company-name">🌴 AGRICAPITAL</div>
+          <div class="company-sub">Portail Client</div>
           <div class="company-slogan">Le partenaire idéal des producteurs agricoles</div>
         </div>
         

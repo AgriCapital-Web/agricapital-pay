@@ -533,6 +533,126 @@ export type Database = {
           },
         ]
       }
+      parcelles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_convention: string | null
+          departement_id: string | null
+          district_id: string | null
+          duree_convention: number | null
+          id: string
+          id_unique: string | null
+          localisation_gps_lat: number | null
+          localisation_gps_lng: number | null
+          nom: string | null
+          notes: string | null
+          polygone_gps: Json | null
+          proprietaire_id: string | null
+          region_id: string | null
+          sous_prefecture_id: string | null
+          statut: string | null
+          surface_agricapital_ha: number
+          surface_attribuee_ha: number
+          surface_disponible_ha: number
+          surface_proprietaire_ha: number
+          surface_totale_ha: number
+          updated_at: string | null
+          updated_by: string | null
+          village: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_convention?: string | null
+          departement_id?: string | null
+          district_id?: string | null
+          duree_convention?: number | null
+          id?: string
+          id_unique?: string | null
+          localisation_gps_lat?: number | null
+          localisation_gps_lng?: number | null
+          nom?: string | null
+          notes?: string | null
+          polygone_gps?: Json | null
+          proprietaire_id?: string | null
+          region_id?: string | null
+          sous_prefecture_id?: string | null
+          statut?: string | null
+          surface_agricapital_ha?: number
+          surface_attribuee_ha?: number
+          surface_disponible_ha?: number
+          surface_proprietaire_ha?: number
+          surface_totale_ha?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          village?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_convention?: string | null
+          departement_id?: string | null
+          district_id?: string | null
+          duree_convention?: number | null
+          id?: string
+          id_unique?: string | null
+          localisation_gps_lat?: number | null
+          localisation_gps_lng?: number | null
+          nom?: string | null
+          notes?: string | null
+          polygone_gps?: Json | null
+          proprietaire_id?: string | null
+          region_id?: string | null
+          sous_prefecture_id?: string | null
+          statut?: string | null
+          surface_agricapital_ha?: number
+          surface_attribuee_ha?: number
+          surface_disponible_ha?: number
+          surface_proprietaire_ha?: number
+          surface_totale_ha?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          village?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcelles_departement_id_fkey"
+            columns: ["departement_id"]
+            isOneToOne: false
+            referencedRelation: "departements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelles_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelles_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelles_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plantations: {
         Row: {
           age_plants: number | null
@@ -557,6 +677,7 @@ export type Database = {
           nom_plantation: string | null
           nombre_plants: number | null
           notes: string | null
+          parcelle_id: string | null
           polygone_gps: Json | null
           prochaine_visite: string | null
           region_id: string | null
@@ -594,6 +715,7 @@ export type Database = {
           nom_plantation?: string | null
           nombre_plants?: number | null
           notes?: string | null
+          parcelle_id?: string | null
           polygone_gps?: Json | null
           prochaine_visite?: string | null
           region_id?: string | null
@@ -631,6 +753,7 @@ export type Database = {
           nom_plantation?: string | null
           nombre_plants?: number | null
           notes?: string | null
+          parcelle_id?: string | null
           polygone_gps?: Json | null
           prochaine_visite?: string | null
           region_id?: string | null
@@ -658,6 +781,13 @@ export type Database = {
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantations_parcelle_id_fkey"
+            columns: ["parcelle_id"]
+            isOneToOne: false
+            referencedRelation: "parcelles"
             referencedColumns: ["id"]
           },
           {
@@ -846,6 +976,137 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      proprietaires_terres: {
+        Row: {
+          civilite: string | null
+          created_at: string | null
+          created_by: string | null
+          date_delivrance_piece: string | null
+          date_naissance: string | null
+          departement_id: string | null
+          district_id: string | null
+          domicile: string | null
+          email: string | null
+          fichier_piece_recto_url: string | null
+          fichier_piece_verso_url: string | null
+          id: string
+          id_unique: string | null
+          lieu_naissance: string | null
+          nom: string
+          nom_complet: string | null
+          nombre_parcelles: number | null
+          notes: string | null
+          numero_piece: string | null
+          photo_profil_url: string | null
+          prenoms: string | null
+          region_id: string | null
+          sous_prefecture_id: string | null
+          statut: string | null
+          surface_totale_ha: number | null
+          telephone: string
+          type_piece: string | null
+          updated_at: string | null
+          updated_by: string | null
+          village: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          civilite?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_delivrance_piece?: string | null
+          date_naissance?: string | null
+          departement_id?: string | null
+          district_id?: string | null
+          domicile?: string | null
+          email?: string | null
+          fichier_piece_recto_url?: string | null
+          fichier_piece_verso_url?: string | null
+          id?: string
+          id_unique?: string | null
+          lieu_naissance?: string | null
+          nom: string
+          nom_complet?: string | null
+          nombre_parcelles?: number | null
+          notes?: string | null
+          numero_piece?: string | null
+          photo_profil_url?: string | null
+          prenoms?: string | null
+          region_id?: string | null
+          sous_prefecture_id?: string | null
+          statut?: string | null
+          surface_totale_ha?: number | null
+          telephone: string
+          type_piece?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          village?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          civilite?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_delivrance_piece?: string | null
+          date_naissance?: string | null
+          departement_id?: string | null
+          district_id?: string | null
+          domicile?: string | null
+          email?: string | null
+          fichier_piece_recto_url?: string | null
+          fichier_piece_verso_url?: string | null
+          id?: string
+          id_unique?: string | null
+          lieu_naissance?: string | null
+          nom?: string
+          nom_complet?: string | null
+          nombre_parcelles?: number | null
+          notes?: string | null
+          numero_piece?: string | null
+          photo_profil_url?: string | null
+          prenoms?: string | null
+          region_id?: string | null
+          sous_prefecture_id?: string | null
+          statut?: string | null
+          surface_totale_ha?: number | null
+          telephone?: string
+          type_piece?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          village?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proprietaires_terres_departement_id_fkey"
+            columns: ["departement_id"]
+            isOneToOne: false
+            referencedRelation: "departements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proprietaires_terres_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proprietaires_terres_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proprietaires_terres_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
@@ -1081,6 +1342,7 @@ export type Database = {
           numero_compte: string | null
           numero_piece: string | null
           offre_id: string | null
+          parcelle_id: string | null
           photo_profil_url: string | null
           prenoms: string | null
           region_id: string | null
@@ -1092,6 +1354,7 @@ export type Database = {
           total_hectares: number | null
           type_compte: string | null
           type_piece: string | null
+          type_souscripteur: string | null
           updated_at: string | null
           updated_by: string | null
           user_id: string | null
@@ -1123,6 +1386,7 @@ export type Database = {
           numero_compte?: string | null
           numero_piece?: string | null
           offre_id?: string | null
+          parcelle_id?: string | null
           photo_profil_url?: string | null
           prenoms?: string | null
           region_id?: string | null
@@ -1134,6 +1398,7 @@ export type Database = {
           total_hectares?: number | null
           type_compte?: string | null
           type_piece?: string | null
+          type_souscripteur?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
@@ -1165,6 +1430,7 @@ export type Database = {
           numero_compte?: string | null
           numero_piece?: string | null
           offre_id?: string | null
+          parcelle_id?: string | null
           photo_profil_url?: string | null
           prenoms?: string | null
           region_id?: string | null
@@ -1176,6 +1442,7 @@ export type Database = {
           total_hectares?: number | null
           type_compte?: string | null
           type_piece?: string | null
+          type_souscripteur?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
@@ -1201,6 +1468,13 @@ export type Database = {
             columns: ["offre_id"]
             isOneToOne: false
             referencedRelation: "offres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "souscripteurs_parcelle_id_fkey"
+            columns: ["parcelle_id"]
+            isOneToOne: false
+            referencedRelation: "parcelles"
             referencedColumns: ["id"]
           },
           {
@@ -1405,7 +1679,9 @@ export type Database = {
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       current_profile_id: { Args: never; Returns: string }
+      generate_parcelle_id: { Args: never; Returns: string }
       generate_plantation_id: { Args: never; Returns: string }
+      generate_proprietaire_id: { Args: never; Returns: string }
       generate_souscripteur_id: { Args: never; Returns: string }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }

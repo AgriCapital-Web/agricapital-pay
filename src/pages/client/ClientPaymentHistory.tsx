@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import logoWhite from "@/assets/logo-white.png";
+import logoDark from "@/assets/logo-dark-bg.jpg";
 import { ArrowLeft, History, Download, Search, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, Calendar, TrendingUp, CreditCard, Wallet } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -68,7 +68,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoWhite} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoDark} alt="AgriCapital" className="h-7 object-contain" />
           <span className="font-semibold text-white text-sm">Historique</span>
         </div>
       </header>

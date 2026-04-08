@@ -5,12 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useKkiapay } from "@/hooks/useKkiapay";
-import logoWhite from "@/assets/logo-white.png";
-import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus } from "lucide-react";
+import logoDark from "@/assets/logo-dark-bg.jpg";
+import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
+import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 
 interface ClientPaymentProps {
   souscripteur: any; plantations: any[]; paiements: any[]; onBack: () => void;
@@ -55,14 +55,39 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const plantation = useMemo(() => plantations.find(p => p.id === selectedPlantation), [selectedPlantation, plantations]);
 
+  // Get progressive rate for the selected plantation
+  const plantationRate = useMemo(() => {
+    return getCurrentRate(
+      souscripteur?.offres?.code,
+      plantation?.date_activation,
+      souscripteur?.offres?.contribution_mensuelle_par_ha || 0,
+      souscripteur?.offres?.montant_da_par_ha || 0,
+    );
+  }, [souscripteur, plantation]);
+
+  const tariffGrid = useMemo(() => getFullTariffGrid(souscripteur?.offres?.code), [souscripteur]);
+
   const TARIFS = useMemo(() => {
+    if (plantationRate) {
+      return {
+        jour: plantationRate.jour_par_ha,
+        semaine: plantationRate.semaine_par_ha,
+        mois: plantationRate.mensuel_par_ha,
+        trimestre: plantationRate.trimestre_par_ha,
+        semestre: plantationRate.semestre_par_ha,
+        annee: plantationRate.annuel_par_ha,
+        da_par_hectare: plantationRate.schedule.depot_initial,
+      };
+    }
     const offre = souscripteur?.offres;
     if (offre) {
       const cm = offre.contribution_mensuelle_par_ha || 0;
       return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_da_par_ha || 0 };
     }
     return { jour: 65, semaine: 450, mois: 1900, trimestre: 5500, semestre: 11000, annee: 20000, da_par_hectare: 20000 };
-  }, [souscripteur]);
+  }, [plantationRate, souscripteur]);
+
+  const fmt = (m: number) => formatCFA(m);
 
   useEffect(() => {
     onSuccess(async (response) => {
@@ -77,17 +102,11 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           const p = paiementData.plantations;
           if (p) await supabase.from('plantations').update({ superficie_activee: p.superficie_ha, date_activation: new Date().toISOString(), statut: 'active', statut_global: 'actif' }).eq('id', paiementData.plantation_id);
         }
-
-        // Send SMS confirmation via Infobip
         try {
           const montantPaye = response.amount || paiementData?.montant || 0;
           await supabase.functions.invoke('send-otp', {
-            body: {
-              telephone: souscripteur.telephone,
-              action: 'send_custom',
-              customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci`
-            }
-          }).catch(() => {}); // Non-blocking
+            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
+          }).catch(() => {});
         } catch {}
       }
       toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
@@ -99,13 +118,15 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const calculerArrieres = (plant: any) => {
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };
+    const rate = getCurrentRate(souscripteur?.offres?.code, plant.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
+    const tarifJour = rate?.jour_par_ha || 65;
     const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
-    const attendu = jours * TARIFS.jour * (plant.superficie_activee || 0);
+    const attendu = jours * tarifJour * (plant.superficie_activee || 0);
     const paye = paiements.filter((p: any) => p.plantation_id === plant.id && (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || 0), 0);
     const diff = attendu - paye;
-    if (diff > 0) return { montant: diff, jours: Math.floor(diff / (TARIFS.jour * (plant.superficie_activee || 1))), enAvance: false };
-    return { montant: Math.abs(diff), jours: Math.floor(Math.abs(diff) / (TARIFS.jour * (plant.superficie_activee || 1))), enAvance: true };
+    if (diff > 0) return { montant: diff, jours: Math.floor(diff / (tarifJour * (plant.superficie_activee || 1))), enAvance: false };
+    return { montant: Math.abs(diff), jours: Math.floor(Math.abs(diff) / (tarifJour * (plant.superficie_activee || 1))), enAvance: true };
   };
 
   const calculerMontantAvance = () => {
@@ -139,7 +160,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         souscripteur_id: souscripteur.id, plantation_id: plantation.id,
         type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
         montant: montantTotal, statut: 'en_attente', mode_paiement: 'Mobile Money', reference,
-        metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay' }
+        metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay', annee_tarif: plantationRate?.annee || 1, tarif_mensuel: TARIFS.mois }
       }).select().single();
       if (insertError) throw insertError;
       const opened = await openPayment({
@@ -152,8 +173,6 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       if (!opened) { toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ouvrir la page de paiement." }); setLoading(false); }
     } catch (error: any) { toast({ variant: "destructive", title: "Erreur", description: error.message }); setLoading(false); }
   };
-
-  const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F CFA";
 
   const PERIODE_OPTIONS = [
     { key: 'jour' as const, label: 'Jour', tarif: TARIFS.jour },
@@ -171,7 +190,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoWhite} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoDark} alt="AgriCapital" className="h-7 object-contain rounded" />
           <span className="font-semibold text-white text-sm">Paiement</span>
         </div>
       </header>
@@ -202,8 +221,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               <div className="flex items-center gap-2 mb-1"><CreditCard className="h-5 w-5 text-primary" /><h3 className="text-base font-bold">Type de paiement</h3></div>
               <RadioGroup value={typePaiement} onValueChange={(v) => setTypePaiement(v as any)} className="space-y-3">
                 {[
-                  { val: 'redevance', title: "Redevance mensuelle", desc: "Contributions régulières", badge: `${fmt(TARIFS.jour)}/jour`, icon: "📅" },
-                  { val: 'da', title: "Droit d'Accès (DA)", desc: "Activer vos hectares", badge: `${fmt(TARIFS.da_par_hectare)}/ha`, icon: "🔑" },
+                  { val: 'redevance', title: "Mensualité", desc: "Contributions mensuelles progressives", badge: plantationRate ? `${fmt(plantationRate.mensuel_par_ha)}/mois` : '', icon: "📅" },
+                  { val: 'da', title: "Dépôt Initial", desc: "Activer vos hectares", badge: `${fmt(TARIFS.da_par_hectare)}/ha`, icon: "🔑" },
                 ].map(opt => (
                   <div key={opt.val} onClick={() => setTypePaiement(opt.val as any)}
                     className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${typePaiement === opt.val ? 'border-gold bg-gold/5 shadow-sm' : 'border-border hover:border-gold/30'}`}>
@@ -214,6 +233,57 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                   </div>
                 ))}
               </RadioGroup>
+
+              {/* Tariff Grid Display */}
+              {tariffGrid && (
+                <Card className="bg-muted/20 border-dashed rounded-xl">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="h-4 w-4 text-gold" />
+                      <span className="text-xs font-bold">Grille tarifaire — {souscripteur.offres?.nom || ''} (par hectare)</span>
+                    </div>
+                    <div className="space-y-1">
+                      {tariffGrid.map((row, i) => (
+                        <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-xs ${plantationRate?.annee === i + 1 ? 'bg-primary/10 font-bold text-primary' : 'text-muted-foreground'}`}>
+                          <span>{row.label} {plantationRate?.annee === i + 1 && '← actuel'}</span>
+                          <span>{fmt(row.mensuel)}/mois</span>
+                        </div>
+                      ))}
+                    </div>
+                    {plantationRate && (
+                      <div className="mt-2 pt-2 border-t border-dashed">
+                        <div className="grid grid-cols-3 gap-1 text-[10px] text-center">
+                          <div className="bg-card rounded-lg p-1.5">
+                            <p className="text-muted-foreground">Jour</p>
+                            <p className="font-bold">{fmt(plantationRate.jour_par_ha)}</p>
+                          </div>
+                          <div className="bg-card rounded-lg p-1.5">
+                            <p className="text-muted-foreground">Semaine</p>
+                            <p className="font-bold">{fmt(plantationRate.semaine_par_ha)}</p>
+                          </div>
+                          <div className="bg-card rounded-lg p-1.5">
+                            <p className="text-muted-foreground">Trimestre</p>
+                            <p className="font-bold">{fmt(plantationRate.trimestre_par_ha)}</p>
+                          </div>
+                          <div className="bg-card rounded-lg p-1.5">
+                            <p className="text-muted-foreground">Semestre</p>
+                            <p className="font-bold">{fmt(plantationRate.semestre_par_ha)}</p>
+                          </div>
+                          <div className="bg-card rounded-lg p-1.5">
+                            <p className="text-muted-foreground">Année</p>
+                            <p className="font-bold">{fmt(plantationRate.annuel_par_ha)}</p>
+                          </div>
+                          <div className="bg-gold/10 rounded-lg p-1.5">
+                            <p className="text-gold-dark font-bold">Total</p>
+                            <p className="font-black text-gold-dark">{fmt(plantationRate.schedule.total_par_ha)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               <Button onClick={() => setStep('plantation')} className="w-full h-12 rounded-xl font-bold btn-brand-green">
                 Continuer <ArrowLeft className="h-4 w-4 rotate-180 ml-1" />
               </Button>
@@ -237,13 +307,20 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 <div className="space-y-2">
                   {plantations.map((plant: any) => {
                     const etat = calculerArrieres(plant);
+                    const pRate = getCurrentRate(souscripteur?.offres?.code, plant.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
                     const isSelectable = typePaiement === 'da' ? (plant.superficie_ha - (plant.superficie_activee || 0)) > 0 : (plant.superficie_activee || 0) > 0;
                     return (
                       <div key={plant.id} onClick={() => isSelectable && setSelectedPlantation(plant.id)}
                         className={`p-4 rounded-2xl border-2 transition-all ${selectedPlantation === plant.id ? 'border-gold bg-gold/5 shadow-sm' : isSelectable ? 'border-border hover:border-gold/30 cursor-pointer' : 'border-border opacity-40'}`}>
                         <div className="flex justify-between items-start mb-2">
-                          <div><p className="font-bold text-sm">{plant.nom_plantation || plant.id_unique}</p><p className="text-[10px] text-muted-foreground font-mono">{plant.id_unique}</p></div>
-                          {selectedPlantation === plant.id && <div className="h-6 w-6 rounded-full bg-gold flex items-center justify-center"><Check className="h-3.5 w-3.5 text-white" /></div>}
+                          <div>
+                            <p className="font-bold text-sm">{plant.nom_plantation || plant.id_unique}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">{plant.id_unique}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {pRate && <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary border-0">{pRate.label}</Badge>}
+                            {selectedPlantation === plant.id && <div className="h-6 w-6 rounded-full bg-gold flex items-center justify-center"><Check className="h-3.5 w-3.5 text-white" /></div>}
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="bg-muted/50 rounded-xl p-2"><p className="text-muted-foreground">Surface</p><p className="font-bold">{plant.superficie_ha} ha</p></div>
@@ -254,6 +331,9 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                             {etat.enAvance ? <Trophy className="h-3.5 w-3.5" /> : etat.jours > 0 ? <AlertTriangle className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
                             {etat.enAvance ? `En avance : ${etat.jours}j` : etat.jours > 0 ? `Arriéré : ${etat.jours}j (${fmt(etat.montant)})` : 'À jour'}
                           </div>
+                        )}
+                        {pRate && (
+                          <p className="text-[10px] text-muted-foreground mt-1">Tarif actuel : {fmt(pRate.mensuel_par_ha)}/mois/ha</p>
                         )}
                       </div>
                     );
@@ -271,17 +351,34 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon" onClick={() => setStep('plantation')} className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
-                <Calculator className="h-5 w-5 text-primary" /><h3 className="text-base font-bold">{typePaiement === 'da' ? "Droit d'Accès" : 'Détails du paiement'}</h3>
+                <Calculator className="h-5 w-5 text-primary" /><h3 className="text-base font-bold">{typePaiement === 'da' ? "Dépôt Initial" : 'Détails du paiement'}</h3>
               </div>
 
               <div className="bg-muted/30 rounded-2xl p-3 flex items-center gap-3 card-brand-subtle">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center"><MapPin className="h-5 w-5 text-primary" /></div>
-                <div><p className="font-bold text-sm">{plantation.nom_plantation || plantation.id_unique}</p><p className="text-xs text-muted-foreground">{plantation.superficie_activee || plantation.superficie_ha} ha</p></div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm">{plantation.nom_plantation || plantation.id_unique}</p>
+                  <p className="text-xs text-muted-foreground">{plantation.superficie_activee || plantation.superficie_ha} ha {plantationRate && `· ${plantationRate.label}`}</p>
+                </div>
               </div>
+
+              {/* Current rate info */}
+              {plantationRate && typePaiement === 'redevance' && (
+                <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Leaf className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold text-primary">Tarif {plantationRate.label} — {souscripteur.offres?.nom}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{fmt(plantationRate.mensuel_par_ha)}/mois/ha · {fmt(plantationRate.jour_par_ha)}/jour/ha</p>
+                  {plantationRate.mois_restants_dans_annee > 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">{plantationRate.mois_restants_dans_annee} mois restants à ce tarif</p>
+                  )}
+                </div>
+              )}
 
               {typePaiement === 'da' ? (
                 <div className="space-y-2 text-sm">
-                  {[['Superficie totale', `${plantation.superficie_ha} ha`], ['Activée', `${plantation.superficie_activee || 0} ha`], ['À activer', `${plantation.superficie_ha - (plantation.superficie_activee || 0)} ha`], ['Tarif DA', `${fmt(TARIFS.da_par_hectare)}/ha`]].map(([l, v], i) => (
+                  {[['Superficie totale', `${plantation.superficie_ha} ha`], ['Activée', `${plantation.superficie_activee || 0} ha`], ['À activer', `${plantation.superficie_ha - (plantation.superficie_activee || 0)} ha`], ['Dépôt initial', `${fmt(TARIFS.da_par_hectare)}/ha`]].map(([l, v], i) => (
                     <div key={i} className="flex justify-between py-2 border-b last:border-0"><span className="text-muted-foreground">{l}</span><span className="font-bold">{v}</span></div>
                   ))}
                 </div>
@@ -348,7 +445,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                           <div key={opt.key} onClick={() => { setPeriodType(opt.key); setPeriodCount(1); }}
                             className={`p-2 rounded-xl border-2 cursor-pointer text-center transition-all ${periodType === opt.key ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/30'}`}>
                             <p className="text-[11px] font-bold">{opt.label}</p>
-                            <p className="text-[9px] text-muted-foreground">{fmt(opt.tarif)}</p>
+                            <p className="text-[9px] text-muted-foreground">{fmt(opt.tarif * (plantation.superficie_activee || plantation.superficie_ha || 1))}</p>
                           </div>
                         ))}
                       </div>
@@ -396,7 +493,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               </div>
 
               <div className="bg-primary/5 rounded-2xl p-4 space-y-2.5 text-sm card-brand-subtle">
-                {[['Souscripteur', souscripteur.nom_complet], ['Téléphone', souscripteur.telephone], ['Plantation', plantation.nom_plantation || plantation.id_unique], ['Type', typePaiement === 'da' ? "Droit d'accès" : 'Redevance']].map(([l, v], i) => (
+                {[['Client', souscripteur.nom_complet], ['Téléphone', souscripteur.telephone], ['Plantation', plantation.nom_plantation || plantation.id_unique], ['Type', typePaiement === 'da' ? "Dépôt initial" : 'Mensualité'], ['Tarif', plantationRate ? `${plantationRate.label} — ${fmt(plantationRate.mensuel_par_ha)}/mois/ha` : '']].filter(([, v]) => v).map(([l, v], i) => (
                   <div key={i} className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{v}</span></div>
                 ))}
                 {modeArriere === 'avance' && (

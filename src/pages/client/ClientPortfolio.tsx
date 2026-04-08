@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import logoWhite from "@/assets/logo-white.png";
+import logoDark from "@/assets/logo-dark-bg.jpg";
 import { ArrowLeft, User, MapPin, Phone, Calendar, Sprout, CreditCard, CheckCircle, Clock, AlertTriangle, Mail, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

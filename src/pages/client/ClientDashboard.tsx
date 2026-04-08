@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import logoWhite from "@/assets/logo-white.png";
+import logoDark from "@/assets/logo-dark-bg.jpg";
+import logoLight from "@/assets/logo-light-bg.png";
+import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
 import { 
   MapPin, Phone, Sprout, CreditCard, Wallet, Bell,
   ArrowRight, LogOut, CheckCircle, AlertTriangle, Clock, History, BarChart2,
-  RefreshCw, TrendingUp, Leaf, ChevronRight, Zap, Target
+  RefreshCw, TrendingUp, Leaf, ChevronRight, Zap, Target, Calendar
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -43,15 +45,27 @@ const ClientDashboard = ({
     if (permission === 'granted') checkAndNotifyArrears(plantations, souscripteur);
   }, [permission, plantations, souscripteur, checkAndNotifyArrears]);
 
-  const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F CFA";
+  const fmt = (m: number) => formatCFA(m);
   const totalHectares = plantations.reduce((s: number, p: any) => s + (p.superficie_ha || 0), 0);
   const hectaresActifs = plantations.reduce((s: number, p: any) => s + (p.superficie_activee || 0), 0);
 
+  // Get current rate based on first active plantation's activation date
+  const firstActivePlantation = plantations.find((p: any) => p.date_activation);
+  const currentRate = useMemo(() => getCurrentRate(
+    souscripteur.offres?.code,
+    firstActivePlantation?.date_activation,
+    souscripteur.offres?.contribution_mensuelle_par_ha || 0,
+    souscripteur.offres?.montant_da_par_ha || 0,
+  ), [souscripteur, firstActivePlantation]);
+
+  const tariffGrid = useMemo(() => getFullTariffGrid(souscripteur.offres?.code), [souscripteur]);
+
   const arriereData = useMemo(() => {
     let totalArrieres = 0, joursRetard = 0;
-    const tarifJour = souscripteur.offres?.contribution_mensuelle_par_ha ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) : 65;
     plantations.forEach((p: any) => {
       if (p.date_activation && p.superficie_activee > 0) {
+        const plantRate = getCurrentRate(souscripteur.offres?.code, p.date_activation, souscripteur.offres?.contribution_mensuelle_par_ha || 0);
+        const tarifJour = plantRate?.jour_par_ha || 65;
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
         const attendu = jours * tarifJour * (p.superficie_activee || 0);
         const paye = paiements.filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')
@@ -65,19 +79,23 @@ const ClientDashboard = ({
   const { totalArrieres, joursRetard } = arriereData;
 
   const daProgress = useMemo(() => {
-    const tarifDA = souscripteur.offres?.montant_da_par_ha || 0;
+    const tarifDA = currentRate?.schedule.depot_initial || souscripteur.offres?.montant_da_par_ha || 0;
     const totalDA = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifDA), 0);
     const totalDAVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
     return { totalDA, totalDAVerse, pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 0 };
-  }, [plantations, paiements, souscripteur]);
+  }, [plantations, paiements, souscripteur, currentRate]);
 
   const prochaines = useMemo(() => {
-    return plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3).map((p: any) => ({
-      nom: p.nom_plantation || p.id_unique,
-      montant: (souscripteur.offres?.contribution_mensuelle_par_ha || 0) * (p.superficie_activee || 0),
-      prochaine: addDays(new Date(), 30),
-    }));
+    return plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3).map((p: any) => {
+      const rate = getCurrentRate(souscripteur.offres?.code, p.date_activation, souscripteur.offres?.contribution_mensuelle_par_ha || 0);
+      return {
+        nom: p.nom_plantation || p.id_unique,
+        montant: (rate?.mensuel_par_ha || 0) * (p.superficie_activee || 0),
+        annee: rate?.label || '',
+        prochaine: addDays(new Date(), 30),
+      };
+    });
   }, [plantations, souscripteur]);
 
   const totalRedevances = paiements.filter((p: any) => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
@@ -85,8 +103,6 @@ const ClientDashboard = ({
 
   const getInitials = (name: string) => name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'AC';
   const offreNom = souscripteur.offres?.nom || 'Standard';
-  const tarifDA = souscripteur.offres?.montant_da_par_ha || 0;
-  const tarifMensuel = souscripteur.offres?.contribution_mensuelle_par_ha || 0;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -109,7 +125,7 @@ const ClientDashboard = ({
       {/* Header */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 100%)' }}>
         <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-4xl">
-          <img src={logoWhite} alt="AgriCapital" className="h-8 object-contain" />
+          <img src={logoDark} alt="AgriCapital" className="h-8 object-contain rounded" />
           <div className="flex items-center gap-1">
             {isSupported && permission !== 'granted' && (
               <Button variant="ghost" size="icon" onClick={requestPermission} className="text-white hover:bg-white/15 h-9 w-9 relative">
@@ -127,7 +143,7 @@ const ClientDashboard = ({
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 space-y-3 max-w-lg lg:max-w-4xl pb-8" style={{ marginTop: '-1rem' }}>
         
-        {/* Profile Card - Glassmorphism */}
+        {/* Profile Card */}
         <Card className="border-0 shadow-xl overflow-hidden rounded-2xl" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -143,8 +159,9 @@ const ClientDashboard = ({
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-white/60 uppercase tracking-wider">Bienvenue,</p>
                 <h2 className="text-base font-bold text-white truncate">{souscripteur.nom_complet}</h2>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Badge className="text-[10px] px-2 py-0 bg-gold/20 border-gold/30 text-white">{offreNom}</Badge>
+                  {currentRate && <Badge className="text-[10px] px-2 py-0 bg-white/10 border-white/20 text-white/80">{currentRate.label}</Badge>}
                   <span className="text-[10px] text-white/40">{souscripteur.id_unique || '—'}</span>
                 </div>
               </div>
@@ -169,24 +186,43 @@ const ClientDashboard = ({
           ))}
         </div>
 
-        {/* Tarifs from DB */}
-        {(tarifDA > 0 || tarifMensuel > 0) && (
+        {/* Progressive Tarifs */}
+        {currentRate && (
           <Card className="card-brand-gold rounded-2xl shadow-sm">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
                 <div className="h-7 w-7 rounded-lg bg-gold/10 flex items-center justify-center"><Leaf className="h-3.5 w-3.5 text-gold" /></div>
-                <span className="text-xs font-bold text-foreground">Tarifs offre {offreNom}</span>
+                <span className="text-xs font-bold text-foreground">Tarifs {offreNom} — {currentRate.label}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="bg-muted/40 rounded-xl p-2 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase">DA / hectare</p>
-                  <p className="text-sm font-black text-gold-dark">{fmt(tarifDA)}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase">Dépôt initial / ha</p>
+                  <p className="text-sm font-black text-gold-dark">{fmt(currentRate.schedule.depot_initial)}</p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-2 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase">Contribution / mois / ha</p>
-                  <p className="text-sm font-black text-primary">{fmt(tarifMensuel)}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase">Mensuel actuel / ha</p>
+                  <p className="text-sm font-black text-primary">{fmt(currentRate.mensuel_par_ha)}</p>
                 </div>
               </div>
+              {/* Tariff grid - all years */}
+              {tariffGrid && (
+                <div className="space-y-1 mt-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Grille tarifaire par hectare</p>
+                  {tariffGrid.map((row, i) => (
+                    <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-xs ${currentRate.annee === i + 1 ? 'bg-primary/10 font-bold' : 'bg-muted/20'}`}>
+                      <span className={currentRate.annee === i + 1 ? 'text-primary' : 'text-muted-foreground'}>{row.label}</span>
+                      <div className="flex gap-3">
+                        <span className="text-muted-foreground">{fmt(row.mensuel)}/mois</span>
+                        <span className="font-bold">{fmt(row.total)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-gold/10 text-xs font-bold">
+                    <span className="text-gold-dark">TOTAL ({currentRate.schedule.duree_totale_mois} mois)</span>
+                    <span className="text-gold-dark">{fmt(currentRate.schedule.total_par_ha)}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -201,18 +237,14 @@ const ClientDashboard = ({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-destructive text-sm">Arriéré de paiement</p>
-                  <p className="text-xs text-destructive/70 mt-0.5">
-                    {joursRetard} jour(s) de retard — <span className="font-bold">{fmt(totalArrieres)}</span>
-                  </p>
+                  <p className="text-xs text-destructive/70 mt-0.5">{joursRetard} jour(s) de retard — <span className="font-bold">{fmt(totalArrieres)}</span></p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => onPayment({ prefillAmount: totalArrieres, prefillType: 'arriere' })}
-                  className="h-10 text-xs gap-1.5 rounded-xl btn-brand">
+                <Button onClick={() => onPayment({ prefillAmount: totalArrieres, prefillType: 'arriere' })} className="h-10 text-xs gap-1.5 rounded-xl btn-brand">
                   <Zap className="h-3.5 w-3.5" /> Rattraper
                 </Button>
-                <Button onClick={() => onPayment({ prefillAmount: totalArrieres, prefillType: 'avance' })}
-                  variant="outline" className="h-10 text-xs border-gold/40 text-gold-dark gap-1.5 rounded-xl hover:bg-gold/5" size="sm">
+                <Button onClick={() => onPayment({ prefillAmount: totalArrieres, prefillType: 'avance' })} variant="outline" className="h-10 text-xs border-gold/40 text-gold-dark gap-1.5 rounded-xl hover:bg-gold/5" size="sm">
                   <Target className="h-3.5 w-3.5" /> Arriéré + avance
                 </Button>
               </div>
@@ -227,7 +259,7 @@ const ClientDashboard = ({
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center"><Target className="h-4 w-4 text-primary" /></div>
-                  <span className="text-sm font-semibold">Droit d'Accès</span>
+                  <span className="text-sm font-semibold">Dépôt Initial</span>
                 </div>
                 <span className="text-lg font-bold text-primary">{daProgress.pct}%</span>
               </div>
@@ -236,9 +268,6 @@ const ClientDashboard = ({
                 <span>Versé : <span className="font-bold text-primary">{fmt(daProgress.totalDAVerse)}</span></span>
                 <span>Total : {fmt(daProgress.totalDA)}</span>
               </div>
-              {daProgress.pct < 100 && (
-                <p className="text-xs text-muted-foreground mt-1.5">Reste : <span className="font-bold text-foreground">{fmt(daProgress.totalDA - daProgress.totalDAVerse)}</span></p>
-              )}
             </CardContent>
           </Card>
         )}
@@ -256,7 +285,7 @@ const ClientDashboard = ({
                   <div key={i} className="flex items-center justify-between py-2.5 px-3 bg-muted/30 rounded-xl">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold truncate">{e.nom}</p>
-                      <p className="text-[10px] text-muted-foreground">{format(e.prochaine, "dd MMM yyyy", { locale: fr })}</p>
+                      <p className="text-[10px] text-muted-foreground">{format(e.prochaine, "dd MMM yyyy", { locale: fr })} · {e.annee}</p>
                     </div>
                     <span className="text-xs font-bold text-gold-dark ml-2 shrink-0">{fmt(e.montant)}</span>
                   </div>
@@ -276,7 +305,7 @@ const ClientDashboard = ({
         {/* Navigation */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
           {[
-            { action: onPortfolio, icon: Wallet, label: "Mon portefeuille", desc: "Plantations & profil" },
+            { action: onPortfolio, icon: Wallet, label: "Mon portefeuille", desc: "Plantations & parcelles" },
             { action: onHistory, icon: History, label: "Historique paiements", desc: "Toutes vos transactions" },
             { action: onStatistics, icon: BarChart2, label: "Mes statistiques", desc: "Graphiques & analyses" }
           ].map((btn, i) => (
@@ -298,7 +327,7 @@ const ClientDashboard = ({
         {/* Summary */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
           {[
-            { icon: CheckCircle, label: "DA versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
+            { icon: CheckCircle, label: "Dépôt versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Redevances", value: fmt(totalRedevances), color: "text-gold-dark" },
             { icon: TrendingUp, label: "Validés", value: String(paiements.filter((p: any) => p.statut === 'valide').length), color: "text-primary" },
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-gold-dark" }
@@ -318,6 +347,7 @@ const ClientDashboard = ({
         {/* Contact */}
         <Card className="card-brand-green rounded-2xl shadow-none">
           <CardContent className="p-4 text-center">
+            <img src={logoLight} alt="AgriCapital" className="h-10 mx-auto mb-2 object-contain" />
             <p className="text-xs text-muted-foreground mb-1.5">Besoin d'aide ?</p>
             <a href="tel:+2250564551717" className="inline-flex items-center gap-2 text-primary font-bold hover:underline text-sm">
               <Phone className="h-4 w-4" /> +225 05 64 55 17 17

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import logoDark from "@/assets/logo-dark-bg.jpg";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { CheckCircle, XCircle, Loader2, Home, RefreshCw, Download, Printer, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

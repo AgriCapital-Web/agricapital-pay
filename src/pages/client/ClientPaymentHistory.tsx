@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import logoDark from "@/assets/logo-dark-bg.jpg";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { ArrowLeft, History, Download, Search, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, Calendar, TrendingUp, CreditCard, Wallet } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

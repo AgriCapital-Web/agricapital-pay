@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AIAssistant from "@/components/ai/AIAssistant";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { cn } from "@/lib/utils";
+
 import { 
   LayoutDashboard, 
   Users, 

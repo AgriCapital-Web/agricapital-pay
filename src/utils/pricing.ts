@@ -105,7 +105,7 @@ export function getCurrentRate(
   fallbackMensuel: number = 0,
   fallbackDA: number = 0,
 ): CurrentRate | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
   const schedule = PRICING[code];
 
   if (!schedule) {

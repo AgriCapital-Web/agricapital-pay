@@ -105,7 +105,7 @@ export function getCurrentRate(
   fallbackMensuel: number = 0,
   fallbackDA: number = 0,
 ): CurrentRate | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+').replace(/_PLUS/g, '+');
   const schedule = PRICING[code];
 
   if (!schedule) {
@@ -190,7 +190,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   duree: number;
   total: number;
 }[] | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
   const schedule = PRICING[code];
   if (!schedule) return null;
 
@@ -202,7 +202,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
 }
 
 export function getPricingSchedule(offreCode: string | undefined): PricingSchedule | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
   return PRICING[code] || null;
 }
 

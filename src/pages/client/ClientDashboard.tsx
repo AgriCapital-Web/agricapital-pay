@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import logoDark from "@/assets/logo-dark-bg.jpg";
-import logoLight from "@/assets/logo-light-bg.png";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
 import { 
   MapPin, Phone, Sprout, CreditCard, Wallet, Bell,

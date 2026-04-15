@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useKkiapay } from "@/hooks/useKkiapay";
-import logoDark from "@/assets/logo-dark-bg.jpg";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
 import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 

@@ -195,6 +195,65 @@ export type Database = {
           },
         ]
       }
+      cotitulaires_mandataires: {
+        Row: {
+          created_at: string | null
+          date_naissance: string | null
+          est_mandataire: boolean | null
+          id: string
+          lien_proprietaire: string | null
+          lieu_naissance: string | null
+          nom: string
+          numero_piece: string | null
+          prenoms: string | null
+          proprietaire_id: string
+          telephone: string | null
+          type_piece: string | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_naissance?: string | null
+          est_mandataire?: boolean | null
+          id?: string
+          lien_proprietaire?: string | null
+          lieu_naissance?: string | null
+          nom: string
+          numero_piece?: string | null
+          prenoms?: string | null
+          proprietaire_id: string
+          telephone?: string | null
+          type_piece?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date_naissance?: string | null
+          est_mandataire?: boolean | null
+          id?: string
+          lien_proprietaire?: string | null
+          lieu_naissance?: string | null
+          nom?: string
+          numero_piece?: string | null
+          prenoms?: string | null
+          proprietaire_id?: string
+          telephone?: string | null
+          type_piece?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotitulaires_mandataires_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departements: {
         Row: {
           code: string | null
@@ -254,6 +313,69 @@ export type Database = {
         }
         Relationships: []
       }
+      documents_convention: {
+        Row: {
+          created_at: string | null
+          designation: string
+          fichier_url: string | null
+          id: string
+          notes: string | null
+          parcelle_id: string | null
+          proprietaire_id: string | null
+          statut: string | null
+          type_document: string
+          updated_at: string | null
+          uploaded_by: string | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          designation: string
+          fichier_url?: string | null
+          id?: string
+          notes?: string | null
+          parcelle_id?: string | null
+          proprietaire_id?: string | null
+          statut?: string | null
+          type_document: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          designation?: string
+          fichier_url?: string | null
+          id?: string
+          notes?: string | null
+          parcelle_id?: string | null
+          proprietaire_id?: string | null
+          statut?: string | null
+          type_document?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_convention_parcelle_id_fkey"
+            columns: ["parcelle_id"]
+            isOneToOne: false
+            referencedRelation: "parcelles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_convention_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           actif: boolean | null
@@ -262,6 +384,8 @@ export type Database = {
           nom: string
           region_id: string | null
           responsable_id: string | null
+          superviseur_id: string | null
+          type_equipe: string | null
           updated_at: string | null
         }
         Insert: {
@@ -271,6 +395,8 @@ export type Database = {
           nom: string
           region_id?: string | null
           responsable_id?: string | null
+          superviseur_id?: string | null
+          type_equipe?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -280,6 +406,8 @@ export type Database = {
           nom?: string
           region_id?: string | null
           responsable_id?: string | null
+          superviseur_id?: string | null
+          type_equipe?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -297,7 +425,53 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "equipes_superviseur_id_fkey"
+            columns: ["superviseur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      grille_remuneration: {
+        Row: {
+          actif: boolean | null
+          annee_application: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          montant: number | null
+          role_cible: string
+          taux_pourcentage: number | null
+          type_remuneration: string
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          annee_application?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          montant?: number | null
+          role_cible: string
+          taux_pourcentage?: number | null
+          type_remuneration: string
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          annee_application?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          montant?: number | null
+          role_cible?: string
+          taux_pourcentage?: number | null
+          type_remuneration?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       historique_activites: {
         Row: {
@@ -390,6 +564,7 @@ export type Database = {
           montant_da_par_ha: number
           nom: string
           ordre: number | null
+          type_offre: string | null
           updated_at: string | null
         }
         Insert: {
@@ -404,6 +579,7 @@ export type Database = {
           montant_da_par_ha?: number
           nom: string
           ordre?: number | null
+          type_offre?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -418,6 +594,7 @@ export type Database = {
           montant_da_par_ha?: number
           nom?: string
           ordre?: number | null
+          type_offre?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -982,8 +1159,10 @@ export type Database = {
           civilite: string | null
           created_at: string | null
           created_by: string | null
+          croquis_joint: boolean | null
           date_delivrance_piece: string | null
           date_naissance: string | null
+          denomination_sociale: string | null
           departement_id: string | null
           district_id: string | null
           domicile: string | null
@@ -993,19 +1172,32 @@ export type Database = {
           id: string
           id_unique: string | null
           lieu_naissance: string | null
+          limites_est: string | null
+          limites_nord: string | null
+          limites_ouest: string | null
+          limites_sud: string | null
           nom: string
           nom_complet: string | null
+          nom_mere: string | null
+          nom_pere: string | null
+          nom_representant: string | null
+          nombre_membres: number | null
           nombre_parcelles: number | null
           notes: string | null
+          numero_enregistrement: string | null
           numero_piece: string | null
           photo_profil_url: string | null
           prenoms: string | null
+          reference_cadastrale: string | null
           region_id: string | null
+          servitudes: string | null
           sous_prefecture_id: string | null
           statut: string | null
+          statut_foncier: string | null
           surface_totale_ha: number | null
           telephone: string
           type_piece: string | null
+          type_proprietaire: string | null
           updated_at: string | null
           updated_by: string | null
           village: string | null
@@ -1015,8 +1207,10 @@ export type Database = {
           civilite?: string | null
           created_at?: string | null
           created_by?: string | null
+          croquis_joint?: boolean | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           district_id?: string | null
           domicile?: string | null
@@ -1026,19 +1220,32 @@ export type Database = {
           id?: string
           id_unique?: string | null
           lieu_naissance?: string | null
+          limites_est?: string | null
+          limites_nord?: string | null
+          limites_ouest?: string | null
+          limites_sud?: string | null
           nom: string
           nom_complet?: string | null
+          nom_mere?: string | null
+          nom_pere?: string | null
+          nom_representant?: string | null
+          nombre_membres?: number | null
           nombre_parcelles?: number | null
           notes?: string | null
+          numero_enregistrement?: string | null
           numero_piece?: string | null
           photo_profil_url?: string | null
           prenoms?: string | null
+          reference_cadastrale?: string | null
           region_id?: string | null
+          servitudes?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
+          statut_foncier?: string | null
           surface_totale_ha?: number | null
           telephone: string
           type_piece?: string | null
+          type_proprietaire?: string | null
           updated_at?: string | null
           updated_by?: string | null
           village?: string | null
@@ -1048,8 +1255,10 @@ export type Database = {
           civilite?: string | null
           created_at?: string | null
           created_by?: string | null
+          croquis_joint?: boolean | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           district_id?: string | null
           domicile?: string | null
@@ -1059,19 +1268,32 @@ export type Database = {
           id?: string
           id_unique?: string | null
           lieu_naissance?: string | null
+          limites_est?: string | null
+          limites_nord?: string | null
+          limites_ouest?: string | null
+          limites_sud?: string | null
           nom?: string
           nom_complet?: string | null
+          nom_mere?: string | null
+          nom_pere?: string | null
+          nom_representant?: string | null
+          nombre_membres?: number | null
           nombre_parcelles?: number | null
           notes?: string | null
+          numero_enregistrement?: string | null
           numero_piece?: string | null
           photo_profil_url?: string | null
           prenoms?: string | null
+          reference_cadastrale?: string | null
           region_id?: string | null
+          servitudes?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
+          statut_foncier?: string | null
           surface_totale_ha?: number | null
           telephone?: string
           type_piece?: string | null
+          type_proprietaire?: string | null
           updated_at?: string | null
           updated_by?: string | null
           village?: string | null
@@ -1334,6 +1556,7 @@ export type Database = {
           id: string
           id_unique: string | null
           lieu_naissance: string | null
+          localite: string | null
           nom: string | null
           nom_complet: string | null
           nom_famille: string | null
@@ -1378,6 +1601,7 @@ export type Database = {
           id?: string
           id_unique?: string | null
           lieu_naissance?: string | null
+          localite?: string | null
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
@@ -1422,6 +1646,7 @@ export type Database = {
           id?: string
           id_unique?: string | null
           lieu_naissance?: string | null
+          localite?: string | null
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null

@@ -70,28 +70,28 @@ const PRICING: Record<string, PricingSchedule> = {
     cash_price: 3890700,
   },
   TERRAPALM: {
-    depot_initial: 84700,
+    depot_initial: 84600,
     an1_mensuel: 54000,
     an1_duree_mois: 12,
     an2_mensuel: 75000,
     an2_duree_mois: 12,
     an3_mensuel: 96200,
     an3_duree_mois: 10,
-    total_par_ha: 2594700,
+    total_par_ha: 2594600,
     duree_totale_mois: 34,
-    cash_price: 2294700,
+    cash_price: 2294600,
   },
   'TERRAPALM+': {
-    depot_initial: 84700,
+    depot_initial: 84600,
     an1_mensuel: 54000,
     an1_duree_mois: 12,
     an2_mensuel: 75000,
     an2_duree_mois: 12,
     an3_mensuel: 96200,
     an3_duree_mois: 10,
-    total_par_ha: 2594700,
+    total_par_ha: 2594600,
     duree_totale_mois: 34,
-    cash_price: 2294700,
+    cash_price: 2294600,
   },
 };
 
@@ -105,7 +105,7 @@ export function getCurrentRate(
   fallbackMensuel: number = 0,
   fallbackDA: number = 0,
 ): CurrentRate | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+').replace(/_PLUS/g, '+');
   const schedule = PRICING[code];
 
   if (!schedule) {
@@ -190,7 +190,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   duree: number;
   total: number;
 }[] | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
   const schedule = PRICING[code];
   if (!schedule) return null;
 
@@ -202,7 +202,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
 }
 
 export function getPricingSchedule(offreCode: string | undefined): PricingSchedule | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '');
+  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
   return PRICING[code] || null;
 }
 

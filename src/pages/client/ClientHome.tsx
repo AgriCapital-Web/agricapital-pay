@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import logoDark from "@/assets/logo-dark-bg.jpg";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { Phone, Loader2, ArrowRight, MessageCircle, Shield, Sprout, CreditCard, Leaf, KeyRound, ArrowLeft, RefreshCw } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
@@ -157,7 +157,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
 
         <header className={`pt-8 sm:pt-10 pb-4 sm:pb-6 px-4 relative z-10 transition-all duration-700 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-6'}`}>
           <div className="container mx-auto flex flex-col items-center justify-center">
-            <img src={logoDark} alt="AgriCapital" className="h-16 sm:h-20 md:h-24 lg:h-28 object-contain drop-shadow-lg rounded-xl" />
+            <img src={logoWhiteBg} alt="AgriCapital" className="h-16 sm:h-20 md:h-24 lg:h-28 object-contain drop-shadow-lg rounded-xl" />
             <h1 className="text-white text-lg sm:text-xl lg:text-2xl font-bold mt-3 sm:mt-4 tracking-wide drop-shadow">
               Portail Client
             </h1>

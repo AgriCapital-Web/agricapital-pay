@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import logoDark from "@/assets/logo-dark-bg.jpg";
-import logoLight from "@/assets/logo-light-bg.png";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
 import { 
   MapPin, Phone, Sprout, CreditCard, Wallet, Bell,
@@ -125,7 +124,7 @@ const ClientDashboard = ({
       {/* Header */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 100%)' }}>
         <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-4xl">
-          <img src={logoDark} alt="AgriCapital" className="h-8 object-contain rounded" />
+          <img src={logoWhiteBg} alt="AgriCapital" className="h-8 object-contain rounded" />
           <div className="flex items-center gap-1">
             {isSupported && permission !== 'granted' && (
               <Button variant="ghost" size="icon" onClick={requestPermission} className="text-white hover:bg-white/15 h-9 w-9 relative">
@@ -347,7 +346,7 @@ const ClientDashboard = ({
         {/* Contact */}
         <Card className="card-brand-green rounded-2xl shadow-none">
           <CardContent className="p-4 text-center">
-            <img src={logoLight} alt="AgriCapital" className="h-10 mx-auto mb-2 object-contain" />
+            <img src={logoWhiteBg} alt="AgriCapital" className="h-10 mx-auto mb-2 object-contain" />
             <p className="text-xs text-muted-foreground mb-1.5">Besoin d'aide ?</p>
             <a href="tel:+2250564551717" className="inline-flex items-center gap-2 text-primary font-bold hover:underline text-sm">
               <Phone className="h-4 w-4" /> +225 05 64 55 17 17

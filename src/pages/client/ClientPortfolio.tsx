@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import logoDark from "@/assets/logo-dark-bg.jpg";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { ArrowLeft, User, MapPin, Phone, Calendar, Sprout, CreditCard, CheckCircle, Clock, AlertTriangle, Mail, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -46,7 +46,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoDark} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain" />
           <span className="font-semibold text-white text-sm">Mon Portefeuille</span>
         </div>
       </header>

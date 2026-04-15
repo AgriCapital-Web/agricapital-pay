@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { NotificationCenter } from "@/components/common/NotificationCenter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AIAssistant from "@/components/ai/AIAssistant";
-import logoWhiteBgBg from "@/assets/logo-white-bg.png";
+import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 

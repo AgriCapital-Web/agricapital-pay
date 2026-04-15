@@ -110,7 +110,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #00643C, #003320)' }}>
-      <header className="py-5 px-4"><div className="container mx-auto flex justify-center"><img src={logoDark} alt="AgriCapital" className="h-12 object-contain" /></div></header>
+      <header className="py-5 px-4"><div className="container mx-auto flex justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-12 object-contain" /></div></header>
 
       <main className="flex-1 flex items-start justify-center px-4 py-4 pb-8">
         <Card className="w-full max-w-sm border-0 shadow-2xl overflow-hidden card-brand">

@@ -68,7 +68,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoDark} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain" />
           <span className="font-semibold text-white text-sm">Historique</span>
         </div>
       </header>

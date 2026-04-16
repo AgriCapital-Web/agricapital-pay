@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
-import { CheckCircle, XCircle, Loader2, Home, RefreshCw, Download, Printer, FileText } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Home, RefreshCw, Download, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -23,16 +23,11 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
   const urlStatus = searchParams.get('status');
   const transactionId = searchParams.get('id') || searchParams.get('transaction_id') || searchParams.get('transactionId');
 
-  // Auto-fetch branded receipt from edge function
   const fetchReceipt = async (ref: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-receipt', {
-        body: { reference: ref }
-      });
+      const { data, error } = await supabase.functions.invoke('generate-receipt', { body: { reference: ref } });
       if (!error && data?.html) setReceiptHtml(data.html);
-    } catch (e) {
-      console.error('Receipt fetch error:', e);
-    }
+    } catch (e) { console.error('Receipt fetch error:', e); }
   };
 
   useEffect(() => {
@@ -110,10 +105,10 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #00643C, #003320)' }}>
-      <header className="py-5 px-4"><div className="container mx-auto flex justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-12 object-contain" /></div></header>
+      <header className="py-5 px-4"><div className="container mx-auto flex justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-12 object-contain rounded-xl" /></div></header>
 
       <main className="flex-1 flex items-start justify-center px-4 py-4 pb-8">
-        <Card className="w-full max-w-sm border-0 shadow-2xl overflow-hidden card-brand">
+        <Card className="w-full max-w-sm border-0 shadow-2xl overflow-hidden rounded-2xl" style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(20px)' }}>
           <CardContent className="p-6 text-center space-y-4">
             {status === 'loading' && (
               <><Loader2 className="h-16 w-16 text-primary animate-spin mx-auto" /><h2 className="text-lg font-bold">Vérification...</h2><p className="text-sm text-muted-foreground">Veuillez patienter</p></>
@@ -137,7 +132,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                     ['Souscripteur', paiement.souscripteurs?.nom_complet || '—'],
                     ['Téléphone', paiement.souscripteurs?.telephone || '—'],
                     ['Plantation', paiement.plantations?.nom_plantation || paiement.plantations?.id_unique || '—'],
-                    ['Type', paiement.type_paiement === 'DA' ? "Droit d'Accès" : 'Redevance'],
+                    ['Type', paiement.type_paiement === 'DA' ? "Dépôt Initial" : 'Redevance'],
                     ['Mode', paiement.mode_paiement || 'Mobile Money'],
                   ].map(([l, v], i) => (
                     <div key={i} className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-semibold text-right max-w-[55%] truncate">{v}</span></div>

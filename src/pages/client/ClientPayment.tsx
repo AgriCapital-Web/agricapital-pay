@@ -493,7 +493,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               </div>
 
               <div className="bg-primary/5 rounded-2xl p-4 space-y-2.5 text-sm card-brand-subtle">
-                {[['Client', souscripteur.nom_complet], ['Téléphone', souscripteur.telephone], ['Plantation', plantation.nom_plantation || plantation.id_unique], ['Type', typePaiement === 'da' ? "Dépôt initial" : 'Mensualité'], ['Tarif', plantationRate ? `${plantationRate.label} — ${fmt(plantationRate.mensuel_par_ha)}/mois/ha` : '']].filter(([, v]) => v).map(([l, v], i) => (
+                {[['Client', souscripteur.nom_complet], ['Téléphone', souscripteur.telephone], ['Plantation', plantation.nom_plantation || plantation.id_unique], ['Type', typePaiement === 'da' ? "Dépôt Initial" : 'Mensualité'], ['Tarif', plantationRate ? `${plantationRate.label} — ${fmt(plantationRate.mensuel_par_ha)}/mois/ha` : '']].filter(([, v]) => v).map(([l, v], i) => (
                   <div key={i} className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{v}</span></div>
                 ))}
                 {modeArriere === 'avance' && (

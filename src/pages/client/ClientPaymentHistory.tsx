@@ -34,7 +34,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
 
   const exportCSV = () => {
     const headers = ["Référence", "Date", "Type", "Montant", "Statut"];
-    const rows = filteredPaiements.map(p => [p.reference || "-", p.date_paiement ? format(new Date(p.date_paiement), "dd/MM/yyyy HH:mm") : format(new Date(p.created_at), "dd/MM/yyyy HH:mm"), p.type_paiement === "DA" ? "Droit d'Accès" : "Redevance", p.montant_paye || p.montant, p.statut === "valide" ? "Validé" : p.statut === "echec" ? "Échoué" : "En attente"]);
+    const rows = filteredPaiements.map(p => [p.reference || "-", p.date_paiement ? format(new Date(p.date_paiement), "dd/MM/yyyy HH:mm") : format(new Date(p.created_at), "dd/MM/yyyy HH:mm"), p.type_paiement === "DA" ? "Dépôt Initial" : "Redevance", p.montant_paye || p.montant, p.statut === "valide" ? "Validé" : p.statut === "echec" ? "Échoué" : "En attente"]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -64,28 +64,28 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
   }, [paiements]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 28%, #f8f7f4 28.1%, #f8f7f4 100%)' }}>
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain rounded" />
           <span className="font-semibold text-white text-sm">Historique</span>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl">
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl" style={{ marginTop: '-0.5rem' }}>
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
-            { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-primary" },
-            { icon: CreditCard, label: "DA", value: fmt(stats.da), color: "text-gold-dark" },
-            { icon: Wallet, label: "Redevances", value: fmt(stats.redev), color: "text-primary" },
-            { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-gold-dark" },
+            { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-green-300" },
+            { icon: CreditCard, label: "Dépôt Initial", value: fmt(stats.da), color: "text-gold" },
+            { icon: Wallet, label: "Redevances", value: fmt(stats.redev), color: "text-green-300" },
+            { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-gold" },
           ].map((s, i) => (
-            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm">
+            <Card key={i} className="border-0 shadow-lg rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
               <CardContent className="p-3">
                 <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-                <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                <p className={`text-sm font-bold text-white`}>{s.value}</p>
+                <p className="text-[10px] text-white/60">{s.label}</p>
               </CardContent>
             </Card>
           ))}
@@ -103,7 +103,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
             <div className="grid grid-cols-2 gap-2">
               <Select value={filterType} onValueChange={v => { setFilterType(v); setCurrentPage(1); }}>
                 <SelectTrigger className="h-9 text-xs rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">Tous types</SelectItem><SelectItem value="DA">DA</SelectItem><SelectItem value="REDEVANCE">Redevance</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="all">Tous types</SelectItem><SelectItem value="DA">Dépôt Initial</SelectItem><SelectItem value="REDEVANCE">Redevance</SelectItem></SelectContent>
               </Select>
               <Select value={filterStatut} onValueChange={v => { setFilterStatut(v); setCurrentPage(1); }}>
                 <SelectTrigger className="h-9 text-xs rounded-xl"><SelectValue /></SelectTrigger>
@@ -136,7 +136,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
                     </div>
                     <div className="flex justify-between items-center">
                       <Badge variant={p.type_paiement === "DA" ? "default" : "secondary"} className={`text-[10px] ${p.type_paiement === "DA" ? "bg-primary" : "bg-gold/10 text-gold-dark border-gold/30"}`}>
-                        {p.type_paiement === "DA" ? "Droit d'Accès" : "Redevance"}
+                        {p.type_paiement === "DA" ? "Dépôt Initial" : "Redevance"}
                       </Badge>
                       <span className="font-bold text-sm text-primary">{fmt(p.montant_paye || p.montant)}</span>
                     </div>

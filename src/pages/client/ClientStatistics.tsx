@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, AlertTriangle, CheckCircle, BarChart3, Wallet } from "lucide-react";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
+import { getCurrentRate, formatCFA } from "@/utils/pricing";
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, parseISO, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -13,12 +14,12 @@ const COLORS = ['#00643C', '#E89C31'];
 const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: ClientStatisticsProps) => {
   const [visible, setVisible] = useState(false);
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
-  const fmt = (m: number) => new Intl.NumberFormat("fr-FR").format(m || 0) + " F";
+  const fmt = (m: number) => formatCFA(m);
 
   const paiementStats = useMemo(() => {
     const da = paiements.filter(p => p.type_paiement === 'DA' && p.statut === 'valide').reduce((s, p) => s + (p.montant_paye || 0), 0);
     const rev = paiements.filter(p => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide').reduce((s, p) => s + (p.montant_paye || 0), 0);
-    return [{ name: "Droits d'Accès", value: da }, { name: "Redevances", value: rev }].filter(d => d.value > 0);
+    return [{ name: "Dépôt Initial", value: da }, { name: "Redevances", value: rev }].filter(d => d.value > 0);
   }, [paiements]);
 
   const evolution = useMemo(() => {
@@ -29,14 +30,15 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
         if (!p.date_paiement || p.statut !== 'valide') return false;
         try { return isWithinInterval(parseISO(p.date_paiement), { start: debut, end: fin }); } catch { return false; }
       });
-      return { mois: format(date, 'MMM yy', { locale: fr }), DA: moisPay.filter(p => p.type_paiement === 'DA').reduce((s, p) => s + (p.montant_paye || 0), 0), Redevance: moisPay.filter(p => p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution').reduce((s, p) => s + (p.montant_paye || 0), 0) };
+      return { mois: format(date, 'MMM yy', { locale: fr }), DI: moisPay.filter(p => p.type_paiement === 'DA').reduce((s, p) => s + (p.montant_paye || 0), 0), Redevance: moisPay.filter(p => p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution').reduce((s, p) => s + (p.montant_paye || 0), 0) };
     });
   }, [paiements]);
 
   const arrieres = useMemo(() => {
-    const tarifJour = souscripteur.offres?.contribution_mensuelle_par_ha ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) : 65;
     return plantations.map(p => {
       if (!p.date_activation || p.statut_global === 'en_attente_da') return { nom: p.nom_plantation || p.id_unique, arrieres: 0, enAvance: false, enAttente: true };
+      const rate = getCurrentRate(souscripteur?.offres?.code, p.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
+      const tarifJour = rate?.jour_par_ha || 65;
       const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
       const attendu = jours * tarifJour * (p.superficie_activee || 0);
       const paye = paiements.filter(pay => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide').reduce((s, pay) => s + (pay.montant_paye || 0), 0);
@@ -60,29 +62,29 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 25%, #f8f7f4 25.1%, #f8f7f4 100%)' }}>
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain rounded" />
           <span className="font-semibold text-white text-sm">Statistiques</span>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl">
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl" style={{ marginTop: '-0.5rem' }}>
         <div className={`grid grid-cols-2 gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <Card className="card-brand-green rounded-2xl shadow-sm">
+          <Card className="border-0 rounded-2xl shadow-lg" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
             <CardContent className="p-3">
-              <TrendingUp className="h-4 w-4 text-primary mb-1" />
-              <p className="text-lg font-black text-primary">{fmt(totalPaye)}</p>
-              <p className="text-[10px] text-muted-foreground">Total payé</p>
+              <TrendingUp className="h-4 w-4 text-green-300 mb-1" />
+              <p className="text-lg font-black text-white">{fmt(totalPaye)}</p>
+              <p className="text-[10px] text-white/60">Total payé</p>
             </CardContent>
           </Card>
-          <Card className={`rounded-2xl shadow-sm ${totalArr > 0 ? 'card-brand' : 'card-brand-green'}`}>
+          <Card className="border-0 rounded-2xl shadow-lg" style={{ background: totalArr > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
             <CardContent className="p-3">
-              {totalArr > 0 ? <AlertTriangle className="h-4 w-4 text-destructive mb-1" /> : <CheckCircle className="h-4 w-4 text-primary mb-1" />}
-              <p className={`text-lg font-black ${totalArr > 0 ? 'text-destructive' : 'text-primary'}`}>{totalArr > 0 ? fmt(totalArr) : "À jour ✓"}</p>
-              <p className="text-[10px] text-muted-foreground">{totalArr > 0 ? "Arriérés" : "Statut"}</p>
+              {totalArr > 0 ? <AlertTriangle className="h-4 w-4 text-red-300 mb-1" /> : <CheckCircle className="h-4 w-4 text-green-300 mb-1" />}
+              <p className={`text-lg font-black ${totalArr > 0 ? 'text-red-200' : 'text-white'}`}>{totalArr > 0 ? fmt(totalArr) : "À jour ✓"}</p>
+              <p className="text-[10px] text-white/60">{totalArr > 0 ? "Arriérés" : "Statut"}</p>
             </CardContent>
           </Card>
         </div>
@@ -118,7 +120,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
                   <defs>
-                    <linearGradient id="gDA" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00643C" stopOpacity={0.3} /><stop offset="95%" stopColor="#00643C" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="gDI" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00643C" stopOpacity={0.3} /><stop offset="95%" stopColor="#00643C" stopOpacity={0} /></linearGradient>
                     <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#E89C31" stopOpacity={0.3} /><stop offset="95%" stopColor="#E89C31" stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
@@ -126,7 +128,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
                   <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" iconSize={8} formatter={v => <span className="text-[9px] text-muted-foreground">{v}</span>} />
-                  <Area type="monotone" dataKey="DA" stackId="1" stroke="#00643C" fill="url(#gDA)" name="DA" strokeWidth={2} />
+                  <Area type="monotone" dataKey="DI" stackId="1" stroke="#00643C" fill="url(#gDI)" name="Dépôt Initial" strokeWidth={2} />
                   <Area type="monotone" dataKey="Redevance" stackId="1" stroke="#E89C31" fill="url(#gRev)" name="Redevances" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -152,7 +154,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
                   <div className="flex justify-between items-center gap-2">
                     <span className="font-bold text-xs truncate">{item.nom}</span>
                     {item.enAttente ? (
-                      <span className="text-[10px] font-semibold text-gold-dark flex items-center gap-1"><Wallet className="h-3 w-3" />En attente DA</span>
+                      <span className="text-[10px] font-semibold text-gold-dark flex items-center gap-1"><Wallet className="h-3 w-3" />En attente DI</span>
                     ) : item.enAvance ? (
                       <span className="text-[10px] font-semibold text-primary flex items-center gap-1"><CheckCircle className="h-3 w-3" />Avance : {fmt(item.avance || 0)}</span>
                     ) : item.arrieres > 0 ? (

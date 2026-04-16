@@ -21,7 +21,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
 
   const getStatutBadge = (statut: string) => {
     const configs: Record<string, { label: string; cls: string }> = {
-      'en_attente_da': { label: 'En attente DA', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
+      'en_attente_da': { label: 'En attente DI', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
       'actif': { label: 'Actif', cls: 'bg-primary/10 text-primary border-primary/30' },
       'active': { label: 'Active', cls: 'bg-primary/10 text-primary border-primary/30' },
       'valide': { label: 'Validé', cls: 'bg-primary/10 text-primary border-primary/30' },
@@ -42,19 +42,19 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 35%, #f8f7f4 35.1%, #f8f7f4 100%)' }}>
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
         <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
-          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain" />
+          <img src={logoWhiteBg} alt="AgriCapital" className="h-7 object-contain rounded" />
           <span className="font-semibold text-white text-sm">Mon Portefeuille</span>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl">
-        {/* Profile */}
-        <Card className={`card-brand rounded-2xl shadow-lg overflow-hidden transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="p-4" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl" style={{ marginTop: '-0.5rem' }}>
+        {/* Profile - Glassmorphism */}
+        <Card className={`border-0 shadow-xl overflow-hidden rounded-2xl transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 rounded-2xl border-2 border-gold/30 overflow-hidden bg-white/15 flex items-center justify-center shrink-0">
                 {souscripteur.photo_profil_url ? <img src={souscripteur.photo_profil_url} alt="" className="h-full w-full object-cover" /> : <User className="h-7 w-7 text-white/60" />}
@@ -80,22 +80,22 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
                 </div>
               ))}
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        {/* Stats */}
+        {/* Stats - Glassmorphism */}
         <div className={`grid grid-cols-2 gap-2 transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
-            { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-primary" },
-            { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold-dark" },
-            { icon: TrendingUp, label: "Total payé", value: fmt(stats.totalPaye), color: "text-primary" },
-            { icon: CreditCard, label: "DA versé", value: fmt(stats.totalDA), color: "text-gold-dark" },
+            { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-green-300" },
+            { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold" },
+            { icon: TrendingUp, label: "Total payé", value: fmt(stats.totalPaye), color: "text-green-300" },
+            { icon: CreditCard, label: "DI versé", value: fmt(stats.totalDA), color: "text-gold" },
           ].map((s, i) => (
-            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm">
+            <Card key={i} className="border-0 shadow-lg rounded-2xl" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)' }}>
               <CardContent className="p-3">
                 <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-                <p className="text-sm font-bold">{s.value}</p>
-                <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                <p className="text-sm font-bold text-white">{s.value}</p>
+                <p className="text-[10px] text-white/60">{s.label}</p>
               </CardContent>
             </Card>
           ))}
@@ -140,7 +140,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
               <Card className="card-brand-subtle rounded-2xl shadow-sm">
                 <CardContent className="p-4 space-y-3">
                   {[
-                    { label: "Total DA versé", value: fmt(stats.totalDA), color: "text-primary" },
+                    { label: "Total Dépôt Initial versé", value: fmt(stats.totalDA), color: "text-primary" },
                     { label: "Total redevances", value: fmt(stats.totalRedev), color: "text-gold-dark" },
                     { label: "Total payé", value: fmt(stats.totalPaye), color: "text-foreground" },
                     { label: "Paiements validés", value: String(paiements.filter(p => p.statut === 'valide').length), color: "text-primary" },

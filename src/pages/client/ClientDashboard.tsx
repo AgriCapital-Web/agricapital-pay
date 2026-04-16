@@ -326,7 +326,7 @@ const ClientDashboard = ({
         {/* Summary */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
           {[
-            { icon: CheckCircle, label: "Dépôt versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
+            { icon: CheckCircle, label: "DI versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Redevances", value: fmt(totalRedevances), color: "text-gold-dark" },
             { icon: TrendingUp, label: "Validés", value: String(paiements.filter((p: any) => p.statut === 'valide').length), color: "text-primary" },
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-gold-dark" }

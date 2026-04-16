@@ -1124,6 +1124,7 @@ export type Database = {
           nom: string
           offre_ids: Json | null
           pourcentage_reduction: number
+          type_promotion: string
           updated_at: string | null
         }
         Insert: {
@@ -1137,6 +1138,7 @@ export type Database = {
           nom: string
           offre_ids?: Json | null
           pourcentage_reduction?: number
+          type_promotion?: string
           updated_at?: string | null
         }
         Update: {
@@ -1150,6 +1152,7 @@ export type Database = {
           nom?: string
           offre_ids?: Json | null
           pourcentage_reduction?: number
+          type_promotion?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -1557,6 +1560,7 @@ export type Database = {
           id_unique: string | null
           lieu_naissance: string | null
           localite: string | null
+          nationalite: string | null
           nom: string | null
           nom_complet: string | null
           nom_famille: string | null
@@ -1602,6 +1606,7 @@ export type Database = {
           id_unique?: string | null
           lieu_naissance?: string | null
           localite?: string | null
+          nationalite?: string | null
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
@@ -1647,6 +1652,7 @@ export type Database = {
           id_unique?: string | null
           lieu_naissance?: string | null
           localite?: string | null
+          nationalite?: string | null
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
@@ -1717,6 +1723,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      souscriptions_brouillon: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          donnees: Json | null
+          etape_actuelle: number | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          donnees?: Json | null
+          etape_actuelle?: number | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          donnees?: Json | null
+          etape_actuelle?: number | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       tickets_techniques: {
         Row: {

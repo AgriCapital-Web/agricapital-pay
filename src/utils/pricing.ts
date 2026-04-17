@@ -99,13 +99,24 @@ const PRICING: Record<string, PricingSchedule> = {
  * Determine the current pricing year and rate based on offer code and activation date.
  * Falls back to DB rates if offer code not in progressive schedule.
  */
+function normalizeOfferCode(offreCode: string | undefined): string {
+  return (offreCode || '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-\s]+/g, '')
+    .replace(/_PLUS/g, '+')
+    .replace(/PLUS/g, '+')
+    .replace(/PALMINVESTISSEMENT/g, 'PALMINVEST');
+}
+
 export function getCurrentRate(
   offreCode: string | undefined,
   dateActivation: string | null | undefined,
   fallbackMensuel: number = 0,
   fallbackDA: number = 0,
 ): CurrentRate | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+').replace(/_PLUS/g, '+');
+  const code = normalizeOfferCode(offreCode);
   const schedule = PRICING[code];
 
   if (!schedule) {
@@ -190,7 +201,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   duree: number;
   total: number;
 }[] | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
+  const code = normalizeOfferCode(offreCode);
   const schedule = PRICING[code];
   if (!schedule) return null;
 
@@ -202,7 +213,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
 }
 
 export function getPricingSchedule(offreCode: string | undefined): PricingSchedule | null {
-  const code = (offreCode || '').toUpperCase().replace(/\s+/g, '').replace(/_PLUS/g, '+');
+  const code = normalizeOfferCode(offreCode);
   return PRICING[code] || null;
 }
 

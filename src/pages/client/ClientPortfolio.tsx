@@ -140,8 +140,8 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
               <Card className="card-brand-subtle rounded-2xl shadow-sm">
                 <CardContent className="p-4 space-y-3">
                   {[
-                    { label: "Total Dépôt Initial versé", value: fmt(stats.totalDA), color: "text-primary" },
-                    { label: "Total redevances", value: fmt(stats.totalRedev), color: "text-gold-dark" },
+                    { label: "Dépôt Initial versé", value: fmt(stats.totalDA), color: "text-primary" },
+                    { label: "Total redevances mensuelles", value: fmt(stats.totalRedev), color: "text-gold-dark" },
                     { label: "Total payé", value: fmt(stats.totalPaye), color: "text-foreground" },
                     { label: "Paiements validés", value: String(paiements.filter(p => p.statut === 'valide').length), color: "text-primary" },
                   ].map((item, i) => (

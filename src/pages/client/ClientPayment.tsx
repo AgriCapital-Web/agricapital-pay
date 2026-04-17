@@ -84,7 +84,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const cm = offre.contribution_mensuelle_par_ha || 0;
       return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_da_par_ha || 0 };
     }
-    return { jour: 65, semaine: 450, mois: 1900, trimestre: 5500, semestre: 11000, annee: 20000, da_par_hectare: 20000 };
+    // Defensive fallback (used only if no offre is loaded — should never happen for valid subscribers)
+    return { jour: 2000, semaine: 13846, mois: 60000, trimestre: 180000, semestre: 360000, annee: 720000, da_par_hectare: 90700 };
   }, [plantationRate, souscripteur]);
 
   const fmt = (m: number) => formatCFA(m);

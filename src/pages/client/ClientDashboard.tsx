@@ -251,7 +251,7 @@ const ClientDashboard = ({
           </Card>
         )}
 
-        {/* DA Progress */}
+        {/* Dépôt Initial Progress */}
         {daProgress.totalDA > 0 && (
           <Card className="card-brand-subtle rounded-2xl shadow-md">
             <CardContent className="p-4">

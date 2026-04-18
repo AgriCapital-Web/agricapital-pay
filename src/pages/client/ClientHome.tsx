@@ -22,7 +22,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const [step, setStep] = useState<Step>('phone');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(0);
-  const [devCode, setDevCode] = useState<string | null>(null);
+  // devCode removed for security — OTP is only sent via SMS
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -66,7 +66,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
       const { data, error } = await supabase.functions.invoke("send-otp", { body: { telephone: cleanPhone, action: 'send' } });
       if (error) throw new Error(error.message);
       if (!data?.success) { toast({ variant: "destructive", title: "Erreur", description: data?.error || "Impossible d'envoyer le code" }); return; }
-      if (data.devCode) setDevCode(data.devCode);
+      // OTP code is never returned to the client — sent only via SMS
       setStep('otp');
       setOtpDigits(['', '', '', '', '', '']);
       setOtpTimer(60);
@@ -239,11 +239,6 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                 <>
                   <div className="text-center space-y-1">
                     <p className="text-xs sm:text-sm text-gray-500">Entrez le code à 6 chiffres reçu par SMS</p>
-                    {devCode && (
-                      <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5 inline-block">
-                        🧪 Mode test — Code : <strong className="font-mono">{devCode}</strong>
-                      </p>
-                    )}
                   </div>
                   <div className="flex justify-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
                     {otpDigits.map((digit, i) => (

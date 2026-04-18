@@ -92,6 +92,30 @@ serve(async (req) => {
   }
 
   try {
+    // Require authenticated caller to prevent leaking PII
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Non autorisé" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Non autorisé" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+    const callerId = claimsData.claims.sub as string;
+
     const { paiement_id, reference } = await req.json();
 
     const supabase = createClient(
@@ -99,8 +123,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Authorization: caller must be staff/admin OR own the paiement (via souscripteurs.user_id)
+    const { data: isStaffData } = await supabase.rpc("is_staff", { _user_id: callerId });
+    const isStaff = isStaffData === true;
+
     let query = supabase.from('paiements')
-      .select('*, souscripteurs(nom_complet, telephone, id_unique), plantations(nom_plantation, id_unique)');
+      .select('*, souscripteurs(user_id, nom_complet, telephone, id_unique), plantations(nom_plantation, id_unique)');
 
     if (paiement_id) query = query.eq('id', paiement_id);
     else if (reference) query = query.eq('reference', reference);
@@ -108,6 +136,14 @@ serve(async (req) => {
 
     const { data: paiement, error } = await query.maybeSingle();
     if (error || !paiement) throw new Error("Paiement introuvable");
+
+    const ownerUserId = (paiement.souscripteurs as any)?.user_id;
+    if (!isStaff && ownerUserId !== callerId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Accès refusé" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+      );
+    }
 
     const receiptData = {
       reference: paiement.reference,

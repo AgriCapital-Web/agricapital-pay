@@ -21,6 +21,42 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate caller and require admin or service role secret
+    const authHeader = req.headers.get("Authorization");
+    const cronSecret = req.headers.get("x-cron-secret");
+    const expectedCron = Deno.env.get("CRON_SECRET");
+
+    let isAuthorized = false;
+
+    // Allow scheduled invocations with a shared secret
+    if (expectedCron && cronSecret && cronSecret === expectedCron) {
+      isAuthorized = true;
+    } else if (authHeader?.startsWith("Bearer ")) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData } = await userClient.auth.getClaims(token);
+      const callerId = claimsData?.claims?.sub as string | undefined;
+      if (callerId) {
+        const adminCheck = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        const { data: isAdminData } = await adminCheck.rpc("is_admin", { _user_id: callerId });
+        if (isAdminData === true) isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Non autorisé" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
     const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
     const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
     

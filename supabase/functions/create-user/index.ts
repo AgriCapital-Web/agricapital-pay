@@ -12,6 +12,32 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate caller and ensure they are an admin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Non autorisé" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Non autorisé" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    const callerId = claimsData.claims.sub as string;
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -22,6 +48,17 @@ serve(async (req) => {
         },
       }
     );
+
+    // Verify caller has admin role
+    const { data: isAdminData, error: isAdminError } = await supabase.rpc("is_admin", {
+      _user_id: callerId,
+    });
+    if (isAdminError || isAdminData !== true) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Accès refusé : privilèges administrateur requis" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+      );
+    }
 
     const { 
       email, 

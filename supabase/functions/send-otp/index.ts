@@ -144,8 +144,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: smsSent ? "Code envoyé par SMS" : "Code généré",
-          ...(!INFOBIP_API_KEY ? { devCode: otpCode } : {})
+          message: smsSent ? "Code envoyé par SMS" : "Code généré"
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

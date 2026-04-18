@@ -34,7 +34,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
 
   const exportCSV = () => {
     const headers = ["Référence", "Date", "Type", "Montant", "Statut"];
-    const rows = filteredPaiements.map(p => [p.reference || "-", p.date_paiement ? format(new Date(p.date_paiement), "dd/MM/yyyy HH:mm") : format(new Date(p.created_at), "dd/MM/yyyy HH:mm"), p.type_paiement === "DA" ? "Dépôt Initial" : "Redevance", p.montant_paye || p.montant, p.statut === "valide" ? "Validé" : p.statut === "echec" ? "Échoué" : "En attente"]);
+    const rows = filteredPaiements.map(p => [p.reference || "-", p.date_paiement ? format(new Date(p.date_paiement), "dd/MM/yyyy HH:mm") : format(new Date(p.created_at), "dd/MM/yyyy HH:mm"), p.type_paiement === "DA" ? "Dépôt Initial" : "Mensualité", p.montant_paye || p.montant, p.statut === "valide" ? "Validé" : p.statut === "echec" ? "Échoué" : "En attente"]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -78,7 +78,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
           {[
             { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-green-300" },
             { icon: CreditCard, label: "Dépôt Initial", value: fmt(stats.da), color: "text-gold" },
-            { icon: Wallet, label: "Redevances", value: fmt(stats.redev), color: "text-green-300" },
+            { icon: Wallet, label: "Mensualités", value: fmt(stats.redev), color: "text-green-300" },
             { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-gold" },
           ].map((s, i) => (
             <Card key={i} className="border-0 shadow-lg rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
@@ -103,7 +103,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
             <div className="grid grid-cols-2 gap-2">
               <Select value={filterType} onValueChange={v => { setFilterType(v); setCurrentPage(1); }}>
                 <SelectTrigger className="h-9 text-xs rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">Tous types</SelectItem><SelectItem value="DA">Dépôt Initial</SelectItem><SelectItem value="REDEVANCE">Redevance</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="all">Tous types</SelectItem><SelectItem value="DA">Dépôt Initial</SelectItem><SelectItem value="REDEVANCE">Mensualité</SelectItem></SelectContent>
               </Select>
               <Select value={filterStatut} onValueChange={v => { setFilterStatut(v); setCurrentPage(1); }}>
                 <SelectTrigger className="h-9 text-xs rounded-xl"><SelectValue /></SelectTrigger>
@@ -136,7 +136,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
                     </div>
                     <div className="flex justify-between items-center">
                       <Badge variant={p.type_paiement === "DA" ? "default" : "secondary"} className={`text-[10px] ${p.type_paiement === "DA" ? "bg-primary" : "bg-gold/10 text-gold-dark border-gold/30"}`}>
-                        {p.type_paiement === "DA" ? "Dépôt Initial" : "Redevance"}
+                        {p.type_paiement === "DA" ? "Dépôt Initial" : "Mensualité"}
                       </Badge>
                       <span className="font-bold text-sm text-primary">{fmt(p.montant_paye || p.montant)}</span>
                     </div>

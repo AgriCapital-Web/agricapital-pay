@@ -19,7 +19,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
   const paiementStats = useMemo(() => {
     const da = paiements.filter(p => p.type_paiement === 'DA' && p.statut === 'valide').reduce((s, p) => s + (p.montant_paye || 0), 0);
     const rev = paiements.filter(p => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide').reduce((s, p) => s + (p.montant_paye || 0), 0);
-    return [{ name: "Dépôt Initial", value: da }, { name: "Redevances", value: rev }].filter(d => d.value > 0);
+    return [{ name: "Dépôt Initial", value: da }, { name: "Mensualités", value: rev }].filter(d => d.value > 0);
   }, [paiements]);
 
   const evolution = useMemo(() => {
@@ -30,7 +30,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
         if (!p.date_paiement || p.statut !== 'valide') return false;
         try { return isWithinInterval(parseISO(p.date_paiement), { start: debut, end: fin }); } catch { return false; }
       });
-      return { mois: format(date, 'MMM yy', { locale: fr }), DI: moisPay.filter(p => p.type_paiement === 'DA').reduce((s, p) => s + (p.montant_paye || 0), 0), Redevance: moisPay.filter(p => p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution').reduce((s, p) => s + (p.montant_paye || 0), 0) };
+      return { mois: format(date, 'MMM yy', { locale: fr }), DI: moisPay.filter(p => p.type_paiement === 'DA').reduce((s, p) => s + (p.montant_paye || 0), 0), Mensualité: moisPay.filter(p => p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution').reduce((s, p) => s + (p.montant_paye || 0), 0) };
     });
   }, [paiements]);
 
@@ -129,7 +129,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" iconSize={8} formatter={v => <span className="text-[9px] text-muted-foreground">{v}</span>} />
                   <Area type="monotone" dataKey="DI" stackId="1" stroke="#00643C" fill="url(#gDI)" name="Dépôt Initial" strokeWidth={2} />
-                  <Area type="monotone" dataKey="Redevance" stackId="1" stroke="#E89C31" fill="url(#gRev)" name="Redevances" strokeWidth={2} />
+                  <Area type="monotone" dataKey="Mensualité" stackId="1" stroke="#E89C31" fill="url(#gRev)" name="Mensualités" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

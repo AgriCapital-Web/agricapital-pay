@@ -132,7 +132,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                     ['Souscripteur', paiement.souscripteurs?.nom_complet || '—'],
                     ['Téléphone', paiement.souscripteurs?.telephone || '—'],
                     ['Plantation', paiement.plantations?.nom_plantation || paiement.plantations?.id_unique || '—'],
-                    ['Type', paiement.type_paiement === 'DA' ? "Dépôt Initial" : 'Redevance'],
+                    ['Type', paiement.type_paiement === 'DA' ? "Dépôt Initial" : 'Mensualité'],
                     ['Mode', paiement.mode_paiement || 'Mobile Money'],
                   ].map(([l, v], i) => (
                     <div key={i} className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-semibold text-right max-w-[55%] truncate">{v}</span></div>

@@ -431,15 +431,9 @@ const GestionPaiements = () => {
       const souscripteur = souscripteursMonnaie.find((s: any) => s?.id === selectedSouscripteurId);
       if (!souscripteur) throw new Error('Souscripteur non trouvé');
 
-      // Calculate amount based on period
-      const tarifs: Record<string, number> = {
-        jour: 65,
-        mois: 1900,
-        trimestre: 5500,
-        semestre: 10500,
-        annee: 20000
-      };
-      const montant = tarifs[convertPeriod] * convertCount;
+      // Calcul du montant basé sur la grille progressive de l'offre
+      const tarifs = computeTarifs(souscripteur);
+      const montant = (tarifs as any)[convertPeriod] * convertCount;
 
       if (montant > (souscripteur as any).monnaie) {
         throw new Error('Monnaie insuffisante pour cette conversion');

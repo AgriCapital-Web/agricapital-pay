@@ -514,9 +514,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
                   }
                 }
               })}
-              placeholder="Saisir montant (minimum 65F)"
-              min="65"
-              step="65"
+              placeholder="Saisir le montant"
+              min="100"
+              step="100"
             />
             {dureeCouverteMessage && (
               <p className="text-xs mt-2 text-primary font-medium">

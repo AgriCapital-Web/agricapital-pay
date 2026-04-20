@@ -64,7 +64,7 @@ const ClientDashboard = ({
     plantations.forEach((p: any) => {
       if (p.date_activation && p.superficie_activee > 0) {
         const plantRate = getCurrentRate(souscripteur.offres?.code, p.date_activation, souscripteur.offres?.contribution_mensuelle_par_ha || 0);
-        const tarifJour = plantRate?.jour_par_ha || 65;
+        const tarifJour = plantRate?.jour_par_ha || 2000;
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
         const attendu = jours * tarifJour * (p.superficie_activee || 0);
         const paye = paiements.filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')

@@ -168,6 +168,7 @@ const GestionPaiements = () => {
         .from('souscripteurs')
         .select(`
           id, nom_complet, telephone,
+          offres ( id, code, nom, montant_da_par_ha, contribution_mensuelle_par_ha ),
           plantations (id, superficie_activee, date_activation, montant_contribution_mensuelle)
         `)
         .eq('statut', 'actif')
@@ -188,13 +189,19 @@ const GestionPaiements = () => {
           .eq('type_paiement', 'REDEVANCE');
 
         const totalPaye = paiments?.reduce((sum, p) => sum + (p.montant_paye || 0), 0) || 0;
-        
-        // Calculer le montant attendu
+
+        // Calcul du montant attendu via grille progressive
         let montantAttendu = 0;
         for (const plant of (sous.plantations || [])) {
           if (plant.date_activation) {
+            const rate = getCurrentRate(
+              sous.offres?.code,
+              plant.date_activation,
+              sous.offres?.contribution_mensuelle_par_ha || 0,
+              sous.offres?.montant_da_par_ha || 0,
+            );
+            const tarifJour = rate?.jour_par_ha ?? ((plant.montant_contribution_mensuelle || 60000) / 30);
             const joursActifs = Math.floor((new Date().getTime() - new Date(plant.date_activation).getTime()) / (1000 * 60 * 60 * 24));
-            const tarifJour = (plant.montant_contribution_mensuelle || 1900) / 30;
             montantAttendu += joursActifs * tarifJour * (plant.superficie_activee || 0);
           }
         }

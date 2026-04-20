@@ -1118,46 +1118,48 @@ const GestionPaiements = () => {
                       </p>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Période</Label>
-                        <Select value={convertPeriod} onValueChange={(v) => setConvertPeriod(v as any)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="jour">Jour (65 F)</SelectItem>
-                            <SelectItem value="mois">Mois (1 900 F)</SelectItem>
-                            <SelectItem value="trimestre">Trimestre (5 500 F)</SelectItem>
-                            <SelectItem value="semestre">Semestre (10 500 F)</SelectItem>
-                            <SelectItem value="annee">Année (20 000 F)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Nombre</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={convertCount}
-                          onChange={(e) => setConvertCount(parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                    </div>
+                    {(() => {
+                      const sousObj = souscripteursMonnaie.find((s: any) => s?.id === selectedSouscripteurId);
+                      const tarifs = computeTarifs(sousObj);
+                      const montantConv = (tarifs as any)[convertPeriod] * convertCount;
+                      return (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Période ({tarifs.label})</Label>
+                              <Select value={convertPeriod} onValueChange={(v) => setConvertPeriod(v as any)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="jour">Jour ({formatMontant(tarifs.jour)} F)</SelectItem>
+                                  <SelectItem value="mois">Mois ({formatMontant(tarifs.mois)} F)</SelectItem>
+                                  <SelectItem value="trimestre">Trimestre ({formatMontant(tarifs.trimestre)} F)</SelectItem>
+                                  <SelectItem value="semestre">Semestre ({formatMontant(tarifs.semestre)} F)</SelectItem>
+                                  <SelectItem value="annee">Année ({formatMontant(tarifs.annee)} F)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Nombre</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={convertCount}
+                                onChange={(e) => setConvertCount(parseInt(e.target.value) || 1)}
+                              />
+                            </div>
+                          </div>
 
-                    <div className="bg-muted p-3 rounded-lg">
-                      <p className="text-sm">
-                        Montant à convertir: <strong>
-                          {formatMontant({
-                            jour: 65,
-                            mois: 1900,
-                            trimestre: 5500,
-                            semestre: 10500,
-                            annee: 20000
-                          }[convertPeriod] * convertCount)}
-                        </strong>
-                      </p>
-                    </div>
+                          <div className="bg-muted p-3 rounded-lg">
+                            <p className="text-sm">
+                              Montant à convertir: <strong>{formatMontant(montantConv)}</strong>
+                              <span className="text-xs text-muted-foreground ml-2">(par hectare · {tarifs.label})</span>
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </>
                 )}
               </div>

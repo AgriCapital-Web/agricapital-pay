@@ -199,10 +199,10 @@ serve(async (req) => {
     souscripteur.total_paiements = paiements.filter((p: any) => p.statut === 'valide').length;
     souscripteur.total_paye = totalDAVerse + totalRedevances;
 
-    // Compute per-plantation arrears
+    // Compute per-plantation arrears (default to PalmInvest An 1 daily rate if no offer)
     const tarifJour = souscripteur.offres?.contribution_mensuelle_par_ha 
       ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) 
-      : 65;
+      : 2000;
 
     let totalArrieres = 0;
     const plantationsEnriched = (plantations || []).map((p: any) => {

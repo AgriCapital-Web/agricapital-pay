@@ -38,7 +38,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
     return plantations.map(p => {
       if (!p.date_activation || p.statut_global === 'en_attente_da') return { nom: p.nom_plantation || p.id_unique, arrieres: 0, enAvance: false, enAttente: true };
       const rate = getCurrentRate(souscripteur?.offres?.code, p.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
-      const tarifJour = rate?.jour_par_ha || 65;
+      const tarifJour = rate?.jour_par_ha || 2000;
       const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
       const attendu = jours * tarifJour * (p.superficie_activee || 0);
       const paye = paiements.filter(pay => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide').reduce((s, pay) => s + (pay.montant_paye || 0), 0);

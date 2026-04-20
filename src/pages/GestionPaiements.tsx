@@ -54,6 +54,30 @@ import {
   Wallet
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCurrentRate, formatCFA } from "@/utils/pricing";
+
+// Tarifs par défaut (PalmInvest An 1 par hectare) si aucune offre n'est liée au souscripteur
+const FALLBACK_RATE_PER_HA = { jour: 2000, mois: 60000, trimestre: 180000, semestre: 360000, annee: 720000 };
+
+const computeTarifs = (souscripteur: any) => {
+  const rate = getCurrentRate(
+    souscripteur?.offres?.code,
+    null, // pas de plantation -> An 1 par défaut
+    souscripteur?.offres?.contribution_mensuelle_par_ha || 0,
+    souscripteur?.offres?.montant_da_par_ha || 0,
+  );
+  if (rate) {
+    return {
+      jour: rate.jour_par_ha,
+      mois: rate.mensuel_par_ha,
+      trimestre: rate.trimestre_par_ha,
+      semestre: rate.semestre_par_ha,
+      annee: rate.annuel_par_ha,
+      label: rate.label,
+    };
+  }
+  return { ...FALLBACK_RATE_PER_HA, label: 'Tarif standard' };
+};
 
 interface Paiement {
   id: string;
@@ -144,6 +168,7 @@ const GestionPaiements = () => {
         .from('souscripteurs')
         .select(`
           id, nom_complet, telephone,
+          offres ( id, code, nom, montant_da_par_ha, contribution_mensuelle_par_ha ),
           plantations (id, superficie_activee, date_activation, montant_contribution_mensuelle)
         `)
         .eq('statut', 'actif')
@@ -164,13 +189,19 @@ const GestionPaiements = () => {
           .eq('type_paiement', 'REDEVANCE');
 
         const totalPaye = paiments?.reduce((sum, p) => sum + (p.montant_paye || 0), 0) || 0;
-        
-        // Calculer le montant attendu
+
+        // Calcul du montant attendu via grille progressive
         let montantAttendu = 0;
         for (const plant of (sous.plantations || [])) {
           if (plant.date_activation) {
+            const rate = getCurrentRate(
+              sous.offres?.code,
+              plant.date_activation,
+              sous.offres?.contribution_mensuelle_par_ha || 0,
+              sous.offres?.montant_da_par_ha || 0,
+            );
+            const tarifJour = rate?.jour_par_ha ?? ((plant.montant_contribution_mensuelle || 60000) / 30);
             const joursActifs = Math.floor((new Date().getTime() - new Date(plant.date_activation).getTime()) / (1000 * 60 * 60 * 24));
-            const tarifJour = (plant.montant_contribution_mensuelle || 1900) / 30;
             montantAttendu += joursActifs * tarifJour * (plant.superficie_activee || 0);
           }
         }
@@ -407,15 +438,9 @@ const GestionPaiements = () => {
       const souscripteur = souscripteursMonnaie.find((s: any) => s?.id === selectedSouscripteurId);
       if (!souscripteur) throw new Error('Souscripteur non trouvé');
 
-      // Calculate amount based on period
-      const tarifs: Record<string, number> = {
-        jour: 65,
-        mois: 1900,
-        trimestre: 5500,
-        semestre: 10500,
-        annee: 20000
-      };
-      const montant = tarifs[convertPeriod] * convertCount;
+      // Calcul du montant basé sur la grille progressive de l'offre
+      const tarifs = computeTarifs(souscripteur);
+      const montant = (tarifs as any)[convertPeriod] * convertCount;
 
       if (montant > (souscripteur as any).monnaie) {
         throw new Error('Monnaie insuffisante pour cette conversion');
@@ -1100,46 +1125,48 @@ const GestionPaiements = () => {
                       </p>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Période</Label>
-                        <Select value={convertPeriod} onValueChange={(v) => setConvertPeriod(v as any)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="jour">Jour (65 F)</SelectItem>
-                            <SelectItem value="mois">Mois (1 900 F)</SelectItem>
-                            <SelectItem value="trimestre">Trimestre (5 500 F)</SelectItem>
-                            <SelectItem value="semestre">Semestre (10 500 F)</SelectItem>
-                            <SelectItem value="annee">Année (20 000 F)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Nombre</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={convertCount}
-                          onChange={(e) => setConvertCount(parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                    </div>
+                    {(() => {
+                      const sousObj = souscripteursMonnaie.find((s: any) => s?.id === selectedSouscripteurId);
+                      const tarifs = computeTarifs(sousObj);
+                      const montantConv = (tarifs as any)[convertPeriod] * convertCount;
+                      return (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Période ({tarifs.label})</Label>
+                              <Select value={convertPeriod} onValueChange={(v) => setConvertPeriod(v as any)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="jour">Jour ({formatMontant(tarifs.jour)} F)</SelectItem>
+                                  <SelectItem value="mois">Mois ({formatMontant(tarifs.mois)} F)</SelectItem>
+                                  <SelectItem value="trimestre">Trimestre ({formatMontant(tarifs.trimestre)} F)</SelectItem>
+                                  <SelectItem value="semestre">Semestre ({formatMontant(tarifs.semestre)} F)</SelectItem>
+                                  <SelectItem value="annee">Année ({formatMontant(tarifs.annee)} F)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Nombre</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={convertCount}
+                                onChange={(e) => setConvertCount(parseInt(e.target.value) || 1)}
+                              />
+                            </div>
+                          </div>
 
-                    <div className="bg-muted p-3 rounded-lg">
-                      <p className="text-sm">
-                        Montant à convertir: <strong>
-                          {formatMontant({
-                            jour: 65,
-                            mois: 1900,
-                            trimestre: 5500,
-                            semestre: 10500,
-                            annee: 20000
-                          }[convertPeriod] * convertCount)}
-                        </strong>
-                      </p>
-                    </div>
+                          <div className="bg-muted p-3 rounded-lg">
+                            <p className="text-sm">
+                              Montant à convertir: <strong>{formatMontant(montantConv)}</strong>
+                              <span className="text-xs text-muted-foreground ml-2">(par hectare · {tarifs.label})</span>
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </>
                 )}
               </div>

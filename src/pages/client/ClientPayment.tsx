@@ -120,7 +120,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const calculerArrieres = (plant: any) => {
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };
     const rate = getCurrentRate(souscripteur?.offres?.code, plant.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
-    const tarifJour = rate?.jour_par_ha || 65;
+    const tarifJour = rate?.jour_par_ha || 2000;
     const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
     const attendu = jours * tarifJour * (plant.superficie_activee || 0);
     const paye = paiements.filter((p: any) => p.plantation_id === plant.id && (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')

@@ -132,7 +132,7 @@ export const usePushNotifications = () => {
     if (permission !== 'granted') return;
 
     const tarifJour = souscripteur?.offres?.contribution_mensuelle_par_ha
-      ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) : 65;
+      ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) : 2000;
 
     let totalArrears = 0;
     let maxJoursRetard = 0;

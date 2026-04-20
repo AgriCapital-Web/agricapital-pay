@@ -54,6 +54,30 @@ import {
   Wallet
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCurrentRate, formatCFA } from "@/utils/pricing";
+
+// Tarifs par défaut (PalmInvest An 1 par hectare) si aucune offre n'est liée au souscripteur
+const FALLBACK_RATE_PER_HA = { jour: 2000, mois: 60000, trimestre: 180000, semestre: 360000, annee: 720000 };
+
+const computeTarifs = (souscripteur: any) => {
+  const rate = getCurrentRate(
+    souscripteur?.offres?.code,
+    null, // pas de plantation -> An 1 par défaut
+    souscripteur?.offres?.contribution_mensuelle_par_ha || 0,
+    souscripteur?.offres?.montant_da_par_ha || 0,
+  );
+  if (rate) {
+    return {
+      jour: rate.jour_par_ha,
+      mois: rate.mensuel_par_ha,
+      trimestre: rate.trimestre_par_ha,
+      semestre: rate.semestre_par_ha,
+      annee: rate.annuel_par_ha,
+      label: rate.label,
+    };
+  }
+  return { ...FALLBACK_RATE_PER_HA, label: 'Tarif standard' };
+};
 
 interface Paiement {
   id: string;

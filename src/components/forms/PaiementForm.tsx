@@ -18,6 +18,7 @@ import { X } from "lucide-react";
 import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getCurrentRate, formatCFA } from "@/utils/pricing";
 
 interface PaiementFormProps {
   paiement?: any;
@@ -91,58 +92,72 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     }
   }, [plantationId, typePaiement, plantations]);
 
-  // Pour DA: calculer montant automatiquement
+  // Récupère le tarif progressif selon l'offre + plantation sélectionnée
+  const getRate = () => {
+    const offreCode = selectedSouscripteur?.offres?.code;
+    const dateActivation = selectedPlantation?.date_activation;
+    const cm = selectedSouscripteur?.offres?.contribution_mensuelle_par_ha || 0;
+    const da = selectedSouscripteur?.offres?.montant_da_par_ha || 0;
+    return getCurrentRate(offreCode, dateActivation, cm, da);
+  };
+
+  // Pour DA: calculer montant automatiquement (DA par hectare × superficie activée si dispo)
   useEffect(() => {
     if (typePaiement === "DA" && souscripteurId) {
-      let montantDA = 30000; // Prix normal
-      
-      if (promotionActive) {
-        // Appliquer la réduction en pourcentage
-        montantDA = 30000 - (30000 * promotionActive.pourcentage_reduction / 100);
-      }
-      
-      setValue("montant_theorique", montantDA);
-    }
-  }, [typePaiement, souscripteurId, promotionActive, setValue]);
+      const rate = getRate();
+      const daParHa = rate?.schedule.depot_initial || selectedSouscripteur?.offres?.montant_da_par_ha || 90700;
+      const superficie = selectedPlantation?.superficie_ha || 1;
+      let montantDA = daParHa * superficie;
 
-  // Calculer jours/mois/trimestre pour CONTRIBUTION
-  useEffect(() => {
-    if (typePaiement === "CONTRIBUTION" && montantPaye) {
-      const montant = Number(montantPaye);
-      const tauxJournalier = 65;
-      const tauxMensuel = 1900;
-      const tauxTrimestriel = 5500;
-      const tauxAnnuel = 20000;
-      
-      let message = "";
-      
-      if (montant === tauxAnnuel) {
-        message = "✓ Couvre 1 année (12 mois)";
-      } else if (montant === tauxTrimestriel) {
-        message = "✓ Couvre 1 trimestre (3 mois)";
-      } else if (montant === tauxMensuel) {
-        message = "✓ Couvre 1 mois";
-      } else if (montant % tauxAnnuel === 0) {
-        const annees = montant / tauxAnnuel;
-        message = `✓ Couvre ${annees} année${annees > 1 ? 's' : ''}`;
-      } else if (montant % tauxTrimestriel === 0) {
-        const trimestres = montant / tauxTrimestriel;
-        message = `✓ Couvre ${trimestres} trimestre${trimestres > 1 ? 's' : ''}`;
-      } else if (montant % tauxMensuel === 0) {
-        const mois = montant / tauxMensuel;
-        message = `✓ Couvre ${mois} mois`;
-      } else if (montant % tauxJournalier === 0) {
-        const jours = montant / tauxJournalier;
-        message = `✓ Couvre ${jours} jour${jours > 1 ? 's' : ''}`;
-      } else {
-        message = `⚠️ Le montant doit être un multiple de 65F (taux journalier)`;
+      if (promotionActive) {
+        montantDA = montantDA - (montantDA * promotionActive.pourcentage_reduction / 100);
       }
-      
+
+      setValue("montant_theorique", Math.round(montantDA));
+    }
+  }, [typePaiement, souscripteurId, selectedPlantation, promotionActive, setValue]);
+
+  // Calculer jours/mois/trimestre pour CONTRIBUTION (basé sur la grille progressive de l'offre)
+  useEffect(() => {
+    if (typePaiement === "CONTRIBUTION" && montantPaye && selectedPlantation) {
+      const montant = Number(montantPaye);
+      const rate = getRate();
+      const superficie = selectedPlantation?.superficie_activee || selectedPlantation?.superficie_ha || 1;
+
+      if (!rate || superficie <= 0) {
+        setDureeCouverteMessage("");
+        return;
+      }
+
+      const tauxJournalier = rate.jour_par_ha * superficie;
+      const tauxMensuel = rate.mensuel_par_ha * superficie;
+      const tauxTrimestriel = rate.trimestre_par_ha * superficie;
+      const tauxAnnuel = rate.annuel_par_ha * superficie;
+
+      let message = "";
+
+      if (montant === tauxAnnuel) {
+        message = `✓ Couvre 1 année (12 mois) — ${rate.label}`;
+      } else if (montant === tauxTrimestriel) {
+        message = `✓ Couvre 1 trimestre (3 mois) — ${rate.label}`;
+      } else if (montant === tauxMensuel) {
+        message = `✓ Couvre 1 mois — ${rate.label}`;
+      } else if (tauxMensuel > 0 && montant % tauxMensuel === 0) {
+        const mois = montant / tauxMensuel;
+        message = `✓ Couvre ${mois} mois — ${rate.label}`;
+      } else if (tauxJournalier > 0 && montant % tauxJournalier === 0) {
+        const jours = montant / tauxJournalier;
+        message = `✓ Couvre ${jours} jour${jours > 1 ? 's' : ''} — ${rate.label}`;
+      } else if (tauxJournalier > 0) {
+        const jours = Math.floor(montant / tauxJournalier);
+        message = `≈ Couvre ${jours} jour${jours > 1 ? 's' : ''} (${rate.label}, ${formatCFA(tauxJournalier)}/jour)`;
+      }
+
       setDureeCouverteMessage(message);
     } else {
       setDureeCouverteMessage("");
     }
-  }, [montantPaye, typePaiement]);
+  }, [montantPaye, typePaiement, selectedPlantation, selectedSouscripteur]);
 
   const fetchSouscripteurs = async () => {
     try {

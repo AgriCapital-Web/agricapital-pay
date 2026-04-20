@@ -523,9 +523,18 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
                 {dureeCouverteMessage}
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Taux: 65F/jour • 1 900F/mois • 5 500F/trimestre • 20 000F/année
-            </p>
+            {(() => {
+              const rate = getRate();
+              const sup = selectedPlantation?.superficie_activee || selectedPlantation?.superficie_ha || 0;
+              if (!rate || sup <= 0) {
+                return <p className="text-xs text-muted-foreground mt-1">Sélectionnez une plantation pour voir les tarifs</p>;
+              }
+              return (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {rate.label} · {sup} ha · {formatCFA(rate.jour_par_ha * sup)}/jour · {formatCFA(rate.mensuel_par_ha * sup)}/mois · {formatCFA(rate.trimestre_par_ha * sup)}/trimestre · {formatCFA(rate.annuel_par_ha * sup)}/année
+                </p>
+              );
+            })()}
           </div>
         )}
 

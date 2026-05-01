@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
 
 interface ClientDashboardProps {
   souscripteur: any;
@@ -300,6 +301,9 @@ const ClientDashboard = ({
           <span className="flex-1 text-left">Effectuer un paiement</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
+
+        {/* Suivi temps réel des transactions (créée / payée / échouée / remboursée) */}
+        <TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} />
 
         {/* Navigation */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">

@@ -215,6 +215,24 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl">
 
+        {/* Bannière offre active */}
+        {souscripteur?.offres && (
+          <Card className="rounded-2xl shadow-md border-2" style={{ borderColor: souscripteur.offres.couleur || '#00643C' }}>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: souscripteur.offres.couleur || '#00643C' }}>
+                <Leaf className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Votre offre</p>
+                <p className="font-bold text-sm truncate">{souscripteur.offres.nom}</p>
+              </div>
+              {plantationRate && (
+                <Badge className="bg-gold/15 text-gold-dark border-gold/30 text-[10px]">{plantationRate.label}</Badge>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Step 1: Type */}
         {step === 'type' && (
           <Card className="card-brand rounded-2xl shadow-md">

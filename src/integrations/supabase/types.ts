@@ -252,6 +252,13 @@ export type Database = {
             referencedRelation: "proprietaires_terres"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cotitulaires_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
+            referencedColumns: ["id"]
+          },
         ]
       }
       departements: {
@@ -1110,6 +1117,13 @@ export type Database = {
             referencedRelation: "equipes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       promotions: {
@@ -1792,6 +1806,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tickets_techniques_assigne_a_fkey"
+            columns: ["assigne_a"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tickets_techniques_plantation_id_fkey"
             columns: ["plantation_id"]

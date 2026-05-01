@@ -522,6 +522,54 @@ export type Database = {
         }
         Relationships: []
       }
+      kkiapay_events: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          fees: number | null
+          id: string
+          paiement_id: string | null
+          processed: boolean | null
+          processed_at: string | null
+          raw_payload: Json | null
+          reference: string | null
+          signature_valid: boolean | null
+          source: string | null
+          status: string
+          transaction_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          fees?: number | null
+          id?: string
+          paiement_id?: string | null
+          processed?: boolean | null
+          processed_at?: string | null
+          raw_payload?: Json | null
+          reference?: string | null
+          signature_valid?: boolean | null
+          source?: string | null
+          status: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          fees?: number | null
+          id?: string
+          paiement_id?: string | null
+          processed?: boolean | null
+          processed_at?: string | null
+          raw_payload?: Json | null
+          reference?: string | null
+          signature_valid?: boolean | null
+          source?: string | null
+          status?: string
+          transaction_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -638,12 +686,14 @@ export type Database = {
       }
       paiements: {
         Row: {
+          cancelled_at: string | null
           created_at: string | null
           created_by: string | null
           date_echeance: string | null
           date_paiement: string | null
           date_validation: string | null
           id: string
+          kkiapay_transaction_id: string | null
           metadata: Json | null
           mode_paiement: string | null
           montant: number
@@ -652,6 +702,9 @@ export type Database = {
           plantation_id: string | null
           preuve_paiement_url: string | null
           reference: string | null
+          refund_reason: string | null
+          refund_requested_at: string | null
+          refunded_at: string | null
           souscripteur_id: string | null
           statut: string | null
           type_paiement: string | null
@@ -659,12 +712,14 @@ export type Database = {
           valide_par: string | null
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string | null
           created_by?: string | null
           date_echeance?: string | null
           date_paiement?: string | null
           date_validation?: string | null
           id?: string
+          kkiapay_transaction_id?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
@@ -673,6 +728,9 @@ export type Database = {
           plantation_id?: string | null
           preuve_paiement_url?: string | null
           reference?: string | null
+          refund_reason?: string | null
+          refund_requested_at?: string | null
+          refunded_at?: string | null
           souscripteur_id?: string | null
           statut?: string | null
           type_paiement?: string | null
@@ -680,12 +738,14 @@ export type Database = {
           valide_par?: string | null
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string | null
           created_by?: string | null
           date_echeance?: string | null
           date_paiement?: string | null
           date_validation?: string | null
           id?: string
+          kkiapay_transaction_id?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
@@ -694,6 +754,9 @@ export type Database = {
           plantation_id?: string | null
           preuve_paiement_url?: string | null
           reference?: string | null
+          refund_reason?: string | null
+          refund_requested_at?: string | null
+          refunded_at?: string | null
           souscripteur_id?: string | null
           statut?: string | null
           type_paiement?: string | null

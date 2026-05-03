@@ -383,6 +383,56 @@ export type Database = {
           },
         ]
       }
+      documents_souscription: {
+        Row: {
+          created_at: string | null
+          fichier_url: string
+          id: string
+          observations: string | null
+          souscripteur_id: string | null
+          statut: string | null
+          type_document: string
+          updated_at: string | null
+          uploaded_by: string | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          fichier_url: string
+          id?: string
+          observations?: string | null
+          souscripteur_id?: string | null
+          statut?: string | null
+          type_document: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          fichier_url?: string
+          id?: string
+          observations?: string | null
+          souscripteur_id?: string | null
+          statut?: string | null
+          type_document?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_souscription_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "souscripteurs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           actif: boolean | null
@@ -686,19 +736,26 @@ export type Database = {
       }
       paiements: {
         Row: {
+          annee: number | null
           cancelled_at: string | null
           created_at: string | null
           created_by: string | null
           date_echeance: string | null
           date_paiement: string | null
+          date_upload_preuve: string | null
           date_validation: string | null
+          fichier_preuve_url: string | null
           id: string
+          id_transaction: string | null
           kkiapay_transaction_id: string | null
           metadata: Json | null
           mode_paiement: string | null
           montant: number
           montant_paye: number | null
+          montant_theorique: number | null
           notes: string | null
+          observations: string | null
+          operateur_mobile_money: string | null
           plantation_id: string | null
           preuve_paiement_url: string | null
           reference: string | null
@@ -708,23 +765,31 @@ export type Database = {
           souscripteur_id: string | null
           statut: string | null
           type_paiement: string | null
+          type_preuve: string | null
           updated_at: string | null
           valide_par: string | null
         }
         Insert: {
+          annee?: number | null
           cancelled_at?: string | null
           created_at?: string | null
           created_by?: string | null
           date_echeance?: string | null
           date_paiement?: string | null
+          date_upload_preuve?: string | null
           date_validation?: string | null
+          fichier_preuve_url?: string | null
           id?: string
+          id_transaction?: string | null
           kkiapay_transaction_id?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
           montant_paye?: number | null
+          montant_theorique?: number | null
           notes?: string | null
+          observations?: string | null
+          operateur_mobile_money?: string | null
           plantation_id?: string | null
           preuve_paiement_url?: string | null
           reference?: string | null
@@ -734,23 +799,31 @@ export type Database = {
           souscripteur_id?: string | null
           statut?: string | null
           type_paiement?: string | null
+          type_preuve?: string | null
           updated_at?: string | null
           valide_par?: string | null
         }
         Update: {
+          annee?: number | null
           cancelled_at?: string | null
           created_at?: string | null
           created_by?: string | null
           date_echeance?: string | null
           date_paiement?: string | null
+          date_upload_preuve?: string | null
           date_validation?: string | null
+          fichier_preuve_url?: string | null
           id?: string
+          id_transaction?: string | null
           kkiapay_transaction_id?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
           montant_paye?: number | null
+          montant_theorique?: number | null
           notes?: string | null
+          observations?: string | null
+          operateur_mobile_money?: string | null
           plantation_id?: string | null
           preuve_paiement_url?: string | null
           reference?: string | null
@@ -760,6 +833,7 @@ export type Database = {
           souscripteur_id?: string | null
           statut?: string | null
           type_paiement?: string | null
+          type_preuve?: string | null
           updated_at?: string | null
           valide_par?: string | null
         }
@@ -905,18 +979,28 @@ export type Database = {
           age_plants: number | null
           alerte_non_paiement: boolean | null
           alerte_visite_retard: boolean | null
+          altitude: number | null
+          chef_village_nom: string | null
+          chef_village_telephone: string | null
           created_at: string | null
           created_by: string | null
           date_activation: string | null
           date_plantation: string | null
+          date_signature_contrat: string | null
           densite_plants: number | null
           departement_id: string | null
           derniere_visite: string | null
           district_id: string | null
+          document_foncier_date_delivrance: string | null
+          document_foncier_numero: string | null
+          document_foncier_type: string | null
           id: string
           id_unique: string | null
+          latitude: number | null
           localisation_gps_lat: number | null
           localisation_gps_lng: number | null
+          localite: string | null
+          longitude: number | null
           montant_contribution_mensuelle: number | null
           montant_da: number | null
           montant_da_paye: number | null
@@ -924,6 +1008,7 @@ export type Database = {
           nom_plantation: string | null
           nombre_plants: number | null
           notes: string | null
+          notes_internes: string | null
           parcelle_id: string | null
           polygone_gps: Json | null
           prochaine_visite: string | null
@@ -934,27 +1019,39 @@ export type Database = {
           statut_global: string | null
           superficie_activee: number | null
           superficie_ha: number | null
+          type_culture: string | null
           updated_at: string | null
           updated_by: string | null
           variete: string | null
           village: string | null
+          village_nom: string | null
         }
         Insert: {
           age_plants?: number | null
           alerte_non_paiement?: boolean | null
           alerte_visite_retard?: boolean | null
+          altitude?: number | null
+          chef_village_nom?: string | null
+          chef_village_telephone?: string | null
           created_at?: string | null
           created_by?: string | null
           date_activation?: string | null
           date_plantation?: string | null
+          date_signature_contrat?: string | null
           densite_plants?: number | null
           departement_id?: string | null
           derniere_visite?: string | null
           district_id?: string | null
+          document_foncier_date_delivrance?: string | null
+          document_foncier_numero?: string | null
+          document_foncier_type?: string | null
           id?: string
           id_unique?: string | null
+          latitude?: number | null
           localisation_gps_lat?: number | null
           localisation_gps_lng?: number | null
+          localite?: string | null
+          longitude?: number | null
           montant_contribution_mensuelle?: number | null
           montant_da?: number | null
           montant_da_paye?: number | null
@@ -962,6 +1059,7 @@ export type Database = {
           nom_plantation?: string | null
           nombre_plants?: number | null
           notes?: string | null
+          notes_internes?: string | null
           parcelle_id?: string | null
           polygone_gps?: Json | null
           prochaine_visite?: string | null
@@ -972,27 +1070,39 @@ export type Database = {
           statut_global?: string | null
           superficie_activee?: number | null
           superficie_ha?: number | null
+          type_culture?: string | null
           updated_at?: string | null
           updated_by?: string | null
           variete?: string | null
           village?: string | null
+          village_nom?: string | null
         }
         Update: {
           age_plants?: number | null
           alerte_non_paiement?: boolean | null
           alerte_visite_retard?: boolean | null
+          altitude?: number | null
+          chef_village_nom?: string | null
+          chef_village_telephone?: string | null
           created_at?: string | null
           created_by?: string | null
           date_activation?: string | null
           date_plantation?: string | null
+          date_signature_contrat?: string | null
           densite_plants?: number | null
           departement_id?: string | null
           derniere_visite?: string | null
           district_id?: string | null
+          document_foncier_date_delivrance?: string | null
+          document_foncier_numero?: string | null
+          document_foncier_type?: string | null
           id?: string
           id_unique?: string | null
+          latitude?: number | null
           localisation_gps_lat?: number | null
           localisation_gps_lng?: number | null
+          localite?: string | null
+          longitude?: number | null
           montant_contribution_mensuelle?: number | null
           montant_da?: number | null
           montant_da_paye?: number | null
@@ -1000,6 +1110,7 @@ export type Database = {
           nom_plantation?: string | null
           nombre_plants?: number | null
           notes?: string | null
+          notes_internes?: string | null
           parcelle_id?: string | null
           polygone_gps?: Json | null
           prochaine_visite?: string | null
@@ -1010,10 +1121,12 @@ export type Database = {
           statut_global?: string | null
           superficie_activee?: number | null
           superficie_ha?: number | null
+          type_culture?: string | null
           updated_at?: string | null
           updated_by?: string | null
           variete?: string | null
           village?: string | null
+          village_nom?: string | null
         }
         Relationships: [
           {
@@ -1925,6 +2038,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "transferts_dest_id_fkey"
+            columns: ["souscripteur_dest_id"]
+            isOneToOne: false
+            referencedRelation: "souscripteurs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transferts_paiements_souscripteur_dest_id_fkey"
             columns: ["souscripteur_dest_id"]
             isOneToOne: false
@@ -1933,6 +2053,13 @@ export type Database = {
           },
           {
             foreignKeyName: "transferts_paiements_souscripteur_source_id_fkey"
+            columns: ["souscripteur_source_id"]
+            isOneToOne: false
+            referencedRelation: "souscripteurs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferts_source_id_fkey"
             columns: ["souscripteur_source_id"]
             isOneToOne: false
             referencedRelation: "souscripteurs"

@@ -22,11 +22,17 @@ export const uploadFile = async (
       throw error;
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(data.path);
-
-    return { url: publicUrl, path: data.path };
+    const PRIVATE_BUCKETS = ['documents', 'documents-fonciers', 'pieces-identite'];
+    let url: string;
+    if (PRIVATE_BUCKETS.includes(bucket)) {
+      const { data: signed } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(data.path, 60 * 60 * 24 * 7);
+      url = signed?.signedUrl ?? '';
+    } else {
+      url = supabase.storage.from(bucket).getPublicUrl(data.path).data.publicUrl;
+    }
+    return { url, path: data.path };
   } catch (error) {
     console.error('Error uploading file:', error);
     return null;

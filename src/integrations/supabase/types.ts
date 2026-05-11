@@ -195,6 +195,93 @@ export type Database = {
           },
         ]
       }
+      conventions_foncieres: {
+        Row: {
+          code_dom: string | null
+          code_parc: string | null
+          code_sp: string | null
+          created_at: string | null
+          created_by: string | null
+          date_debut: string | null
+          date_fin: string | null
+          date_signature: string | null
+          domaine_id: string | null
+          duree_ans: number | null
+          fichier_convention_url: string | null
+          id: string
+          notes: string | null
+          parcelle_id: string | null
+          proprietaire_id: string
+          reference: string | null
+          sous_prefecture_id: string | null
+          statut: string | null
+          surface_totale_ha: number | null
+          type_convention: string
+          updated_at: string | null
+        }
+        Insert: {
+          code_dom?: string | null
+          code_parc?: string | null
+          code_sp?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_debut?: string | null
+          date_fin?: string | null
+          date_signature?: string | null
+          domaine_id?: string | null
+          duree_ans?: number | null
+          fichier_convention_url?: string | null
+          id?: string
+          notes?: string | null
+          parcelle_id?: string | null
+          proprietaire_id: string
+          reference?: string | null
+          sous_prefecture_id?: string | null
+          statut?: string | null
+          surface_totale_ha?: number | null
+          type_convention?: string
+          updated_at?: string | null
+        }
+        Update: {
+          code_dom?: string | null
+          code_parc?: string | null
+          code_sp?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_debut?: string | null
+          date_fin?: string | null
+          date_signature?: string | null
+          domaine_id?: string | null
+          duree_ans?: number | null
+          fichier_convention_url?: string | null
+          id?: string
+          notes?: string | null
+          parcelle_id?: string | null
+          proprietaire_id?: string
+          reference?: string | null
+          sous_prefecture_id?: string | null
+          statut?: string | null
+          surface_totale_ha?: number | null
+          type_convention?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conventions_foncieres_domaine_id_fkey"
+            columns: ["domaine_id"]
+            isOneToOne: false
+            referencedRelation: "domaines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conventions_foncieres_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cotitulaires_mandataires: {
         Row: {
           created_at: string | null
@@ -433,6 +520,50 @@ export type Database = {
           },
         ]
       }
+      domaines: {
+        Row: {
+          code_dom: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          nom: string
+          sous_prefecture_id: string | null
+          updated_at: string | null
+          village: string | null
+        }
+        Insert: {
+          code_dom: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          nom: string
+          sous_prefecture_id?: string | null
+          updated_at?: string | null
+          village?: string | null
+        }
+        Update: {
+          code_dom?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          nom?: string
+          sous_prefecture_id?: string | null
+          updated_at?: string | null
+          village?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domaines_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           actif: boolean | null
@@ -619,6 +750,83 @@ export type Database = {
           transaction_id?: string
         }
         Relationships: []
+      }
+      lots_hectares: {
+        Row: {
+          centroid_lat: number | null
+          centroid_lng: number | null
+          certifie_geometre: boolean | null
+          convention_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date_attribution: string | null
+          date_certification: string | null
+          fichier_plan_url: string | null
+          geometre_nom: string | null
+          id: string
+          notes: string | null
+          numero_h: number
+          parcelle_id: string | null
+          polygone_gps: Json | null
+          reference: string | null
+          souscripteur_id: string | null
+          statut: string | null
+          surface_ha: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          centroid_lat?: number | null
+          centroid_lng?: number | null
+          certifie_geometre?: boolean | null
+          convention_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_attribution?: string | null
+          date_certification?: string | null
+          fichier_plan_url?: string | null
+          geometre_nom?: string | null
+          id?: string
+          notes?: string | null
+          numero_h: number
+          parcelle_id?: string | null
+          polygone_gps?: Json | null
+          reference?: string | null
+          souscripteur_id?: string | null
+          statut?: string | null
+          surface_ha?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          centroid_lat?: number | null
+          centroid_lng?: number | null
+          certifie_geometre?: boolean | null
+          convention_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_attribution?: string | null
+          date_certification?: string | null
+          fichier_plan_url?: string | null
+          geometre_nom?: string | null
+          id?: string
+          notes?: string | null
+          numero_h?: number
+          parcelle_id?: string | null
+          polygone_gps?: Json | null
+          reference?: string | null
+          souscripteur_id?: string | null
+          statut?: string | null
+          surface_ha?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lots_hectares_convention_id_fkey"
+            columns: ["convention_id"]
+            isOneToOne: false
+            referencedRelation: "conventions_foncieres"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -856,11 +1064,14 @@ export type Database = {
       }
       parcelles: {
         Row: {
+          code_parc: string | null
+          convention_id: string | null
           created_at: string | null
           created_by: string | null
           date_convention: string | null
           departement_id: string | null
           district_id: string | null
+          domaine_id: string | null
           duree_convention: number | null
           id: string
           id_unique: string | null
@@ -870,6 +1081,7 @@ export type Database = {
           notes: string | null
           polygone_gps: Json | null
           proprietaire_id: string | null
+          reference_convention: string | null
           region_id: string | null
           sous_prefecture_id: string | null
           statut: string | null
@@ -883,11 +1095,14 @@ export type Database = {
           village: string | null
         }
         Insert: {
+          code_parc?: string | null
+          convention_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date_convention?: string | null
           departement_id?: string | null
           district_id?: string | null
+          domaine_id?: string | null
           duree_convention?: number | null
           id?: string
           id_unique?: string | null
@@ -897,6 +1112,7 @@ export type Database = {
           notes?: string | null
           polygone_gps?: Json | null
           proprietaire_id?: string | null
+          reference_convention?: string | null
           region_id?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
@@ -910,11 +1126,14 @@ export type Database = {
           village?: string | null
         }
         Update: {
+          code_parc?: string | null
+          convention_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date_convention?: string | null
           departement_id?: string | null
           district_id?: string | null
+          domaine_id?: string | null
           duree_convention?: number | null
           id?: string
           id_unique?: string | null
@@ -924,6 +1143,7 @@ export type Database = {
           notes?: string | null
           polygone_gps?: Json | null
           proprietaire_id?: string | null
+          reference_convention?: string | null
           region_id?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
@@ -938,6 +1158,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "parcelles_convention_id_fkey"
+            columns: ["convention_id"]
+            isOneToOne: false
+            referencedRelation: "conventions_foncieres"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "parcelles_departement_id_fkey"
             columns: ["departement_id"]
             isOneToOne: false
@@ -949,6 +1176,13 @@ export type Database = {
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelles_domaine_id_fkey"
+            columns: ["domaine_id"]
+            isOneToOne: false
+            referencedRelation: "domaines"
             referencedColumns: ["id"]
           },
           {
@@ -1698,27 +1932,33 @@ export type Database = {
       sous_prefectures: {
         Row: {
           code: string | null
+          code_sp: string | null
           created_at: string | null
           departement_id: string | null
           est_active: boolean | null
           id: string
           nom: string
+          sp_assigned_at: string | null
         }
         Insert: {
           code?: string | null
+          code_sp?: string | null
           created_at?: string | null
           departement_id?: string | null
           est_active?: boolean | null
           id?: string
           nom: string
+          sp_assigned_at?: string | null
         }
         Update: {
           code?: string | null
+          code_sp?: string | null
           created_at?: string | null
           departement_id?: string | null
           est_active?: boolean | null
           id?: string
           nom?: string
+          sp_assigned_at?: string | null
         }
         Relationships: [
           {
@@ -1732,8 +1972,10 @@ export type Database = {
       }
       souscripteurs: {
         Row: {
+          annee_contrat: number | null
           banque_operateur: string | null
           civilite: string | null
+          code_sp_contrat: string | null
           created_at: string | null
           created_by: string | null
           date_delivrance_piece: string | null
@@ -1757,6 +1999,8 @@ export type Database = {
           nom_titulaire_compte: string | null
           nombre_plantations: number | null
           numero_compte: string | null
+          numero_contrat: string | null
+          numero_ordre_global: number | null
           numero_piece: string | null
           offre_id: string | null
           parcelle_id: string | null
@@ -1772,14 +2016,17 @@ export type Database = {
           type_compte: string | null
           type_piece: string | null
           type_souscripteur: string | null
+          type_souscripteur_foncier: string | null
           updated_at: string | null
           updated_by: string | null
           user_id: string | null
           whatsapp: string | null
         }
         Insert: {
+          annee_contrat?: number | null
           banque_operateur?: string | null
           civilite?: string | null
+          code_sp_contrat?: string | null
           created_at?: string | null
           created_by?: string | null
           date_delivrance_piece?: string | null
@@ -1803,6 +2050,8 @@ export type Database = {
           nom_titulaire_compte?: string | null
           nombre_plantations?: number | null
           numero_compte?: string | null
+          numero_contrat?: string | null
+          numero_ordre_global?: number | null
           numero_piece?: string | null
           offre_id?: string | null
           parcelle_id?: string | null
@@ -1818,14 +2067,17 @@ export type Database = {
           type_compte?: string | null
           type_piece?: string | null
           type_souscripteur?: string | null
+          type_souscripteur_foncier?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
           whatsapp?: string | null
         }
         Update: {
+          annee_contrat?: number | null
           banque_operateur?: string | null
           civilite?: string | null
+          code_sp_contrat?: string | null
           created_at?: string | null
           created_by?: string | null
           date_delivrance_piece?: string | null
@@ -1849,6 +2101,8 @@ export type Database = {
           nom_titulaire_compte?: string | null
           nombre_plantations?: number | null
           numero_compte?: string | null
+          numero_contrat?: string | null
+          numero_ordre_global?: number | null
           numero_piece?: string | null
           offre_id?: string | null
           parcelle_id?: string | null
@@ -1864,6 +2118,7 @@ export type Database = {
           type_compte?: string | null
           type_piece?: string | null
           type_souscripteur?: string | null
+          type_souscripteur_foncier?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
@@ -1910,6 +2165,47 @@ export type Database = {
             columns: ["sous_prefecture_id"]
             isOneToOne: false
             referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      souscription_lots: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_attribution: string | null
+          id: string
+          lot_id: string
+          notes: string | null
+          souscripteur_id: string
+          surface_ha: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_attribution?: string | null
+          id?: string
+          lot_id: string
+          notes?: string | null
+          souscripteur_id: string
+          surface_ha?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_attribution?: string | null
+          id?: string
+          lot_id?: string
+          notes?: string | null
+          souscripteur_id?: string
+          surface_ha?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "souscription_lots_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_hectares"
             referencedColumns: ["id"]
           },
         ]
@@ -2152,6 +2448,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_sp_code: { Args: { _sp_id: string }; Returns: string }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       current_profile_id: { Args: never; Returns: string }

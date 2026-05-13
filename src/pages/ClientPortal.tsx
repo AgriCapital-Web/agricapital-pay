@@ -62,6 +62,30 @@ const ClientPortal = () => {
     if (themeColor) themeColor.setAttribute('content', '#00643C');
   }, []);
 
+  // SEO: indexable only on the public login screen ('home').
+  // Once authenticated / navigating private views, switch to noindex,nofollow
+  // so search engines never list internal pages (dashboard, paiement, portefeuille...).
+  useEffect(() => {
+    const isPrivate = view !== 'home';
+    const ensure = (name: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('name', name);
+        document.head.appendChild(el);
+      }
+      return el;
+    };
+    ensure('robots').setAttribute(
+      'content',
+      isPrivate ? 'noindex, nofollow, noarchive, nosnippet, noimageindex' : 'index, follow'
+    );
+    ensure('googlebot').setAttribute(
+      'content',
+      isPrivate ? 'noindex, nofollow, noarchive' : 'index, follow'
+    );
+  }, [view]);
+
   const handleLogin = (sous: any, plants: any[], paies: any[]) => {
     setSouscripteur(sous);
     setPlantations(plants);

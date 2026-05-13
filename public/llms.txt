@@ -1,0 +1,27 @@
+# AgriCapital — Portail Client
+
+> Espace client officiel d'AgriCapital (Côte d'Ivoire) pour le suivi des plantations de palmier à huile, le paiement du Dépôt Initial et des Mensualités, et la gestion du portefeuille agricole.
+
+AgriCapital est une société agro-industrielle ivoirienne qui propose à ses clients la souscription à des plantations de palmier à huile clé en main. Le Portail Client (pay.agricapital.ci) permet à chaque client de :
+
+- consulter ses plantations (superficie, statut, localisation)
+- payer son Dépôt Initial et ses Mensualités via Mobile Money (Orange Money, MTN, Moov, Wave) grâce au tunnel sécurisé KKiaPay
+- suivre son portefeuille, ses arriérés et ses statistiques en temps réel
+- recevoir notifications et reçus de paiement
+
+Authentification par numéro de téléphone + code OTP envoyé par SMS. Les données affichées sont strictement personnelles et protégées (RLS Supabase, PII filtrées côté API).
+
+## Pages
+
+- [Portail Client AgriCapital](/): point d'entrée unique — connexion par téléphone, tableau de bord, paiements et suivi des plantations
+
+## Contact
+
+- Site institutionnel : https://agricapital.ci
+- Support client : +225 05 64 55 17 17
+- Adresse : Abidjan, Côte d'Ivoire
+
+## Optional
+
+- [Manifeste PWA](/manifest-client.json): métadonnées de l'application installable
+- [Plan du site](/sitemap.xml): URLs indexables

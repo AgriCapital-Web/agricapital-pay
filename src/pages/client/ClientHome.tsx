@@ -2,23 +2,24 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
-import { Phone, Loader2, ArrowRight, MessageCircle, Shield, Sprout, CreditCard, Leaf, KeyRound, ArrowLeft, RefreshCw } from "lucide-react";
+import {
+  Phone, Loader2, ArrowRight, MessageCircle, ShieldCheck,
+  KeyRound, ArrowLeft, RefreshCw, Lock, Sparkles, CheckCircle2, Copy
+} from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
 interface ClientHomeProps {
   onLogin: (souscripteur: any, plantations: any[], paiements: any[]) => void;
 }
 
-type Step = 'phone' | 'otp' | 'loading';
+type Step = 'phone' | 'otp';
 
 const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const { toast } = useToast();
   const [telephone, setTelephone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [animateIn, setAnimateIn] = useState(false);
   const [step, setStep] = useState<Step>('phone');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(0);
@@ -31,7 +32,6 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     if (manifestLink) manifestLink.setAttribute('href', '/manifest-client.json');
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) themeColor.setAttribute('content', '#00643C');
-    setTimeout(() => setAnimateIn(true), 100);
   }, []);
 
   useEffect(() => {
@@ -42,23 +42,18 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   }, [otpTimer]);
 
   const formatPhoneDisplay = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    if (digits.length <= 2) return digits;
-    if (digits.length <= 4) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
-    if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4)}`;
-    if (digits.length <= 8) return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6)}`;
-    return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)} ${digits.slice(8)}`;
+    const d = value.replace(/\D/g, '').slice(0, 10);
+    return d.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
-    setTelephone(raw);
+    setTelephone(e.target.value.replace(/\D/g, '').slice(0, 10));
   };
 
   const handleSendOTP = async () => {
     const cleanPhone = telephone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
-      toast({ variant: "destructive", title: "Erreur", description: "Numéro de téléphone invalide (10 chiffres)" });
+      toast({ variant: "destructive", title: "Numéro incomplet", description: "Veuillez saisir vos 10 chiffres." });
       return;
     }
     setLoading(true);
@@ -66,17 +61,14 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
       const { data, error } = await supabase.functions.invoke("send-otp", { body: { telephone: cleanPhone, action: 'send' } });
       if (error) throw new Error(error.message);
       if (!data?.success) { toast({ variant: "destructive", title: "Erreur", description: data?.error || "Impossible d'envoyer le code" }); return; }
-      // Mode développement : on affiche le code à l'écran si renvoyé par l'edge function
       setDevCode(data?.devMode && data?.devCode ? data.devCode : null);
       setStep('otp');
       setOtpDigits(['', '', '', '', '', '']);
       setOtpTimer(60);
       setTimeout(() => inputRefs.current[0]?.focus(), 200);
       toast({
-        title: data?.devMode ? "Code généré (mode test)" : "Code envoyé",
-        description: data?.devMode
-          ? "Le code de test s'affiche à l'écran ci-dessous."
-          : "Un code de vérification a été envoyé par SMS"
+        title: data?.devMode ? "Code de test généré" : "Code envoyé",
+        description: data?.devMode ? "Le code s'affiche à l'écran." : "Un SMS a été envoyé."
       });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message || "Erreur d'envoi" });
@@ -103,6 +95,12 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     if (paste.length === 6) { setOtpDigits(paste.split('')); handleVerifyOTP(paste); }
   };
 
+  const fillDevCode = () => {
+    if (!devCode) return;
+    setOtpDigits(devCode.split(''));
+    handleVerifyOTP(devCode);
+  };
+
   const handleVerifyOTP = async (code: string) => {
     setLoading(true);
     try {
@@ -112,11 +110,10 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
         toast({ variant: "destructive", title: "Code incorrect", description: data?.error || "Vérification échouée" });
         setOtpDigits(['', '', '', '', '', '']); inputRefs.current[0]?.focus(); setLoading(false); return;
       }
-      toast({ title: "✅ Vérifié", description: "Chargement de votre espace..." });
       const { data: subData, error: subError } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone } });
       if (subError) throw new Error(subError.message);
       if (!subData?.success) {
-        toast({ variant: "destructive", title: "Compte non trouvé", description: "Aucun compte avec ce numéro. Contactez le 05 64 55 17 17." });
+        toast({ variant: "destructive", title: "Compte introuvable", description: "Aucun compte n'est associé à ce numéro." });
         setStep('phone'); setLoading(false); return;
       }
       sessionStorage.setItem('agri_souscripteur', JSON.stringify(subData.souscripteur));
@@ -131,151 +128,259 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const handleResendOTP = async () => { if (otpTimer > 0) return; await handleSendOTP(); };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent("Bonjour AgriCapital,\n\nJe souhaite créer mon compte partenaire client.\n\nMerci.");
+    const message = encodeURIComponent("Bonjour AgriCapital, je souhaite créer mon compte client.");
     window.open(`https://wa.me/2250564551717?text=${message}`, '_blank');
   };
 
   return (
     <>
       <Helmet>
-        <title>Portail Client | AgriCapital - Paiement et suivi de vos plantations</title>
-        <meta name="description" content="Accédez à votre espace client AgriCapital. Consultez vos plantations, effectuez vos paiements et suivez votre portefeuille en Côte d'Ivoire." />
-        <meta name="keywords" content="AgriCapital, portail client, paiement plantation, palmier à huile, Côte d'Ivoire" />
-        <meta property="og:title" content="Portail Client | AgriCapital" />
-        <meta property="og:description" content="Consultez vos plantations et effectuez vos mensualités AgriCapital en ligne." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://pay.agricapital.ci" />
-        <meta property="og:image" content="https://pay.agricapital.ci/images/logo-light.png" />
-        <meta property="og:locale" content="fr_CI" />
-        <link rel="canonical" href="https://pay.agricapital.ci" />
+        <title>Portail Client | AgriCapital — Paiement & suivi de plantations</title>
+        <meta name="description" content="Espace sécurisé pour gérer vos plantations, mensualités et dépôts AgriCapital." />
         <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://pay.agricapital.ci" />
       </Helmet>
-      
-      <div className="min-h-screen flex flex-col overflow-x-hidden relative" style={{ background: 'linear-gradient(160deg, #00643C 0%, #004d2e 60%, #003320 100%)' }}>
-        
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <Leaf className="absolute top-10 right-8 h-32 w-32 text-white/5 rotate-45" />
-          <Leaf className="absolute top-1/3 left-4 h-20 w-20 text-white/5 -rotate-12" />
-          <Leaf className="absolute bottom-20 right-12 h-24 w-24 text-white/5 rotate-90" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-white/5" />
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5" />
-        </div>
 
-        <header className={`pt-8 sm:pt-10 pb-4 sm:pb-6 px-4 relative z-10 transition-all duration-700 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-6'}`}>
-          <div className="container mx-auto flex flex-col items-center justify-center">
-            <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-2xl"><img src={logoWhiteBg} alt="AgriCapital" className="h-20 sm:h-24 md:h-28 lg:h-32 object-contain" /></div>
-            <h1 className="text-white text-lg sm:text-xl lg:text-2xl font-bold mt-3 sm:mt-4 tracking-wide drop-shadow">
-              Portail Client
-            </h1>
-            <p className="text-white/75 text-xs sm:text-sm mt-1">Investir la terre. Cultiver l'avenir.</p>
+      <div className="min-h-screen w-full bg-[#FAFAF7] text-[#1A1A1A] flex flex-col lg:flex-row">
+
+        {/* === PANNEAU GAUCHE — Branding (desktop) === */}
+        <aside className="hidden lg:flex lg:w-[44%] xl:w-[40%] relative overflow-hidden flex-col justify-between p-12 xl:p-16"
+          style={{ background: 'linear-gradient(165deg, #00643C 0%, #004D2E 55%, #002E1B 100%)' }}>
+          <div className="absolute inset-0 opacity-[0.07] pointer-events-none"
+            style={{ backgroundImage: 'radial-gradient(circle at 25% 20%, #fff 1px, transparent 1px), radial-gradient(circle at 75% 70%, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[#E89C31]/10 blur-3xl" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-[#22C55E]/10 blur-3xl" />
+
+          <div className="relative z-10">
+            <div className="inline-flex items-center bg-white rounded-xl p-3 shadow-2xl">
+              <img src={logoWhiteBg} alt="AgriCapital" className="h-12 xl:h-14 object-contain" />
+            </div>
           </div>
-        </header>
 
-        <main className="flex-1 flex items-start justify-center px-3 sm:px-4 py-3 sm:py-4 relative z-10">
-          <Card className={`w-full max-w-[95vw] sm:max-w-md lg:max-w-lg shadow-2xl border-0 overflow-hidden transition-all duration-700 delay-200 ${animateIn ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
-            
-            <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-400 py-4 sm:py-5 px-4 sm:px-6 text-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16" />
-                <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-12 translate-y-12" />
-              </div>
-              <div className="relative z-10">
-                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full mb-2 shadow-lg">
-                  {step === 'phone' ? <Phone className="h-5 w-5 sm:h-6 sm:w-6 text-[#00643C]" /> : <KeyRound className="h-5 w-5 sm:h-6 sm:w-6 text-[#00643C]" />}
-                </div>
-                <h2 className="text-base sm:text-lg font-bold text-white drop-shadow">
-                  {step === 'phone' ? 'Bienvenue' : 'Vérification'}
-                </h2>
-                <p className="text-white/90 text-xs sm:text-sm mt-0.5">
-                  {step === 'phone' ? 'Accédez à votre espace client' : `Code envoyé au ${formatPhoneDisplay(telephone)}`}
-                </p>
-              </div>
+          <div className="relative z-10 space-y-8">
+            <div>
+              <p className="text-[#E89C31] text-xs font-semibold uppercase tracking-[0.2em] mb-4">Portail Client</p>
+              <h1 className="text-white text-4xl xl:text-5xl font-bold leading-tight tracking-tight">
+                Investir la terre.<br />
+                <span className="text-[#E89C31]">Cultiver l'avenir.</span>
+              </h1>
+              <p className="text-white/70 text-base xl:text-lg mt-6 leading-relaxed max-w-md">
+                Gérez vos plantations, suivez vos mensualités et effectuez vos paiements en toute simplicité, depuis un espace 100 % sécurisé.
+              </p>
             </div>
 
-            <CardContent className="p-4 sm:p-6 md:p-8 space-y-4 bg-white">
-              
+            <div className="grid grid-cols-1 gap-3 max-w-md">
+              {[
+                { icon: ShieldCheck, label: "Authentification SMS sécurisée" },
+                { icon: Sparkles, label: "Paiement Mobile Money intégré" },
+                { icon: CheckCircle2, label: "Suivi en temps réel de vos parcelles" },
+              ].map((f, i) => (
+                <div key={i} className="flex items-center gap-3 text-white/85 text-sm">
+                  <div className="h-9 w-9 rounded-lg bg-white/10 backdrop-blur flex items-center justify-center border border-white/10">
+                    <f.icon className="h-4 w-4 text-[#E89C31]" />
+                  </div>
+                  <span>{f.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative z-10 text-white/50 text-xs">
+            © {new Date().getFullYear()} AgriCapital SARL · Côte d'Ivoire
+          </div>
+        </aside>
+
+        {/* === PANNEAU DROIT — Formulaire === */}
+        <main className="flex-1 flex flex-col">
+          {/* Header mobile */}
+          <header className="lg:hidden px-5 pt-6 pb-2 flex items-center justify-between">
+            <div className="bg-white rounded-lg p-1.5 shadow-sm border border-black/5">
+              <img src={logoWhiteBg} alt="AgriCapital" className="h-9 object-contain" />
+            </div>
+            <span className="text-[10px] font-semibold tracking-widest text-[#00643C] uppercase">Portail Client</span>
+          </header>
+
+          <div className="flex-1 flex items-center justify-center px-5 py-8 sm:px-8 lg:px-16">
+            <div className="w-full max-w-md">
+
               {step === 'phone' && (
-                <>
-                  <p className="text-xs sm:text-sm text-center text-gray-500">Saisissez votre numéro de téléphone enregistré</p>
-                  <div className="space-y-3">
-                    <div className="relative group">
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-[#00643C] transition-colors" />
-                      <Input type="tel" placeholder="07 59 56 60 87" value={formatPhoneDisplay(telephone)} onChange={handlePhoneChange}
-                        className="pl-12 h-12 sm:h-14 text-base sm:text-lg text-center font-medium tracking-wider border-2 focus:border-[#00643C] focus:ring-2 focus:ring-[#00643C]/20 transition-all rounded-xl"
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendOTP()} autoFocus inputMode="numeric" />
-                      {telephone.length === 10 && (
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                          <div className="h-6 w-6 rounded-full bg-[#00643C]/10 flex items-center justify-center">
-                            <svg className="h-4 w-4 text-[#00643C]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                          </div>
-                        </div>
-                      )}
+                <div className="space-y-7">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00643C]/8 border border-[#00643C]/15 mb-5">
+                      <Lock className="h-3 w-3 text-[#00643C]" />
+                      <span className="text-[11px] font-medium text-[#00643C]">Connexion sécurisée</span>
                     </div>
-                    <Button onClick={handleSendOTP} disabled={loading || telephone.length < 10} className="w-full h-12 sm:h-14 text-sm sm:text-base font-semibold gap-2 shadow-lg hover:shadow-xl transition-all rounded-xl" style={{ background: '#00643C' }}>
-                      {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Envoi du code...</> : <>Recevoir mon code <ArrowRight className="h-5 w-5" /></>}
-                    </Button>
+                    <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#0F1B17]">
+                      Bienvenue
+                    </h2>
+                    <p className="text-[#5A6660] mt-2 text-[15px]">
+                      Saisissez votre numéro de téléphone pour recevoir un code de vérification.
+                    </p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    {[
-                      { icon: Shield, label: "Sécurisé", color: "text-[#00643C]", bg: "bg-green-50" },
-                      { icon: CreditCard, label: "Mobile Money", color: "text-amber-600", bg: "bg-amber-50" },
-                      { icon: Sprout, label: "Suivi direct", color: "text-[#00643C]", bg: "bg-green-50" }
-                    ].map((feat, i) => (
-                      <div key={i} className="flex flex-col items-center text-center p-2 rounded-xl hover:bg-gray-50 transition-colors">
-                        <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full ${feat.bg} flex items-center justify-center mb-1`}>
-                          <feat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${feat.color}`} />
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider mb-2">
+                        Numéro de téléphone
+                      </label>
+                      <div className="relative group">
+                        <div className="absolute left-0 top-0 bottom-0 flex items-center pl-4 pr-3 border-r border-[#E5E7E3]">
+                          <span className="text-[#5A6660] text-sm font-medium">🇨🇮 +225</span>
                         </div>
-                        <span className="text-[9px] sm:text-xs text-gray-500 font-medium">{feat.label}</span>
+                        <Input
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder="07 59 56 60 87"
+                          value={formatPhoneDisplay(telephone)}
+                          onChange={handlePhoneChange}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSendOTP()}
+                          autoFocus
+                          className="h-14 pl-[110px] pr-12 text-base font-medium tracking-wide bg-white border-[#E5E7E3] focus-visible:border-[#00643C] focus-visible:ring-2 focus-visible:ring-[#00643C]/15 rounded-xl"
+                        />
+                        {telephone.length === 10 && (
+                          <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#00643C]" />
+                        )}
                       </div>
-                    ))}
-                  </div>
-                  <div className="pt-3 border-t space-y-3">
-                    <div className="text-center space-y-1">
-                      <p className="text-xs sm:text-sm font-semibold text-gray-700">Pas encore de compte ?</p>
-                      <p className="text-[10px] sm:text-xs text-gray-500">Contactez l'équipe au <strong className="text-[#00643C]">05 64 55 17 17</strong></p>
                     </div>
-                    <Button variant="outline" onClick={handleWhatsApp} className="w-full h-10 sm:h-12 gap-2 border-2 border-green-500 text-green-600 hover:bg-green-50 font-semibold rounded-xl text-xs sm:text-sm">
-                      <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" /> Contacter via WhatsApp
+
+                    <Button
+                      onClick={handleSendOTP}
+                      disabled={loading || telephone.length < 10}
+                      className="w-full h-14 text-[15px] font-semibold gap-2 rounded-xl bg-[#00643C] hover:bg-[#004D2E] text-white shadow-lg shadow-[#00643C]/15 transition-all"
+                    >
+                      {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Envoi en cours…</> : <>Continuer <ArrowRight className="h-4 w-4" /></>}
                     </Button>
                   </div>
-                </>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-[#E5E7E3]" />
+                    <span className="text-[11px] uppercase tracking-wider text-[#9CA3A0] font-medium">ou</span>
+                    <div className="flex-1 h-px bg-[#E5E7E3]" />
+                  </div>
+
+                  <button
+                    onClick={handleWhatsApp}
+                    className="w-full h-12 rounded-xl border border-[#E5E7E3] bg-white hover:bg-[#FAFAF7] hover:border-[#00643C]/30 transition-all flex items-center justify-center gap-2.5 text-sm font-medium text-[#1A1A1A]"
+                  >
+                    <MessageCircle className="h-4 w-4 text-[#22C55E]" />
+                    Pas de compte ? Contactez-nous
+                  </button>
+
+                  <p className="text-center text-[11px] text-[#9CA3A0]">
+                    En continuant, vous acceptez nos conditions d'utilisation.
+                    <br />
+                    Assistance : <span className="font-semibold text-[#00643C]">05 64 55 17 17</span>
+                  </p>
+                </div>
               )}
 
               {step === 'otp' && (
-                <>
-                  <div className="text-center space-y-1">
-                    <p className="text-xs sm:text-sm text-gray-500">Entrez le code à 6 chiffres reçu par SMS</p>
+                <div className="space-y-7">
+                  <div>
+                    <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-[#00643C]/8 border border-[#00643C]/15 mb-5">
+                      <KeyRound className="h-5 w-5 text-[#00643C]" />
+                    </div>
+                    <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#0F1B17]">
+                      Vérification
+                    </h2>
+                    <p className="text-[#5A6660] mt-2 text-[15px]">
+                      Entrez le code à 6 chiffres envoyé au<br />
+                      <span className="font-semibold text-[#1A1A1A]">+225 {formatPhoneDisplay(telephone)}</span>
+                    </p>
                   </div>
-                  <div className="flex justify-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
-                    {otpDigits.map((digit, i) => (
-                      <Input key={i} ref={(el) => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={digit}
-                        onChange={(e) => handleOtpInput(i, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                        className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold border-2 rounded-xl focus:border-[#00643C] focus:ring-2 focus:ring-[#00643C]/20 transition-all"
-                        autoFocus={i === 0} />
-                    ))}
-                  </div>
-                  {loading && <div className="flex items-center justify-center gap-2 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Vérification...</div>}
-                  <div className="text-center space-y-2">
-                    {otpTimer > 0 ? (
-                      <p className="text-xs text-gray-400">Renvoyer dans <span className="font-bold text-gray-600">{otpTimer}s</span></p>
-                    ) : (
-                      <Button variant="ghost" onClick={handleResendOTP} className="text-xs text-[#00643C] hover:underline gap-1">
-                        <RefreshCw className="h-3 w-3" /> Renvoyer le code
-                      </Button>
-                    )}
-                    <Button variant="ghost" onClick={() => { setStep('phone'); setOtpDigits(['', '', '', '', '', '']); }} className="text-xs text-gray-500 gap-1">
-                      <ArrowLeft className="h-3 w-3" /> Changer de numéro
-                    </Button>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </main>
 
-        <footer className={`pb-6 pt-2 px-4 relative z-10 transition-all duration-700 delay-400 ${animateIn ? 'opacity-100' : 'opacity-0'}`}>
-          <p className="text-white/40 text-[10px] text-center">© {new Date().getFullYear()} AgriCapital · Investir la terre. Cultiver l'avenir.</p>
-        </footer>
+                  {devCode && (
+                    <div className="rounded-xl border border-dashed border-[#E89C31]/50 bg-[#FFF8EC] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-[#B97A0E]" />
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-[#B97A0E]">
+                            Mode test — code visible
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(devCode)}
+                          className="text-[#B97A0E] hover:text-[#8A5A0A]"
+                          title="Copier"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="mt-2 flex items-baseline justify-between gap-3">
+                        <span className="font-mono text-3xl font-bold tracking-[0.3em] text-[#0F1B17]">{devCode}</span>
+                        <button
+                          onClick={fillDevCode}
+                          className="text-xs font-semibold text-[#00643C] hover:underline whitespace-nowrap"
+                        >
+                          Utiliser →
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#8A6A1A] mt-2">
+                        Affichage temporaire pendant le développement. Sera désactivé en production.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider mb-2">
+                      Code de vérification
+                    </label>
+                    <div className="flex justify-between gap-2" onPaste={handleOtpPaste}>
+                      {otpDigits.map((digit, i) => (
+                        <Input
+                          key={i}
+                          ref={(el) => { inputRefs.current[i] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpInput(i, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                          className="aspect-square w-full max-w-[52px] h-14 text-center text-2xl font-bold border-[#E5E7E3] bg-white rounded-xl focus-visible:border-[#00643C] focus-visible:ring-2 focus-visible:ring-[#00643C]/15"
+                          autoFocus={i === 0}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {loading && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-[#5A6660]">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Vérification du code…
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-sm">
+                    <button
+                      onClick={() => { setStep('phone'); setOtpDigits(['', '', '', '', '', '']); setDevCode(null); }}
+                      className="flex items-center gap-1.5 text-[#5A6660] hover:text-[#00643C] font-medium"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" /> Modifier le numéro
+                    </button>
+
+                    {otpTimer > 0 ? (
+                      <span className="text-[#9CA3A0] text-xs">Renvoi dans <span className="font-bold text-[#1A1A1A]">{otpTimer}s</span></span>
+                    ) : (
+                      <button
+                        onClick={handleResendOTP}
+                        className="flex items-center gap-1.5 text-[#00643C] font-semibold hover:underline"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> Renvoyer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+          {/* Footer mobile */}
+          <footer className="lg:hidden px-5 pb-6 text-center">
+            <p className="text-[10px] text-[#9CA3A0]">
+              © {new Date().getFullYear()} AgriCapital · Investir la terre. Cultiver l'avenir.
+            </p>
+          </footer>
+        </main>
       </div>
     </>
   );

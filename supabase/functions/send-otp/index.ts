@@ -141,10 +141,18 @@ serve(async (req) => {
         user_agent: req.headers.get('user-agent') || 'unknown',
       });
 
+      // DEV MODE : si Infobip n'est pas configuré OU si le flag DEV_OTP_VISIBLE est activé,
+      // on renvoie le code OTP au client pour affichage à l'écran.
+      // EN PROD : retirer DEV_OTP_VISIBLE des secrets ou le mettre à "false" pour cacher le code.
+      const DEV_OTP_VISIBLE = Deno.env.get("DEV_OTP_VISIBLE");
+      const exposeCode = !smsSent || DEV_OTP_VISIBLE === "true";
+
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: smsSent ? "Code envoyé par SMS" : "Code généré"
+        JSON.stringify({
+          success: true,
+          message: smsSent ? "Code envoyé par SMS" : "Code généré (mode développement)",
+          devMode: exposeCode,
+          devCode: exposeCode ? otpCode : undefined,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

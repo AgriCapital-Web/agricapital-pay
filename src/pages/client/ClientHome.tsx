@@ -22,7 +22,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const [step, setStep] = useState<Step>('phone');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(0);
-  // devCode removed for security — OTP is only sent via SMS
+  const [devCode, setDevCode] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -66,12 +66,18 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
       const { data, error } = await supabase.functions.invoke("send-otp", { body: { telephone: cleanPhone, action: 'send' } });
       if (error) throw new Error(error.message);
       if (!data?.success) { toast({ variant: "destructive", title: "Erreur", description: data?.error || "Impossible d'envoyer le code" }); return; }
-      // OTP code is never returned to the client — sent only via SMS
+      // Mode développement : on affiche le code à l'écran si renvoyé par l'edge function
+      setDevCode(data?.devMode && data?.devCode ? data.devCode : null);
       setStep('otp');
       setOtpDigits(['', '', '', '', '', '']);
       setOtpTimer(60);
       setTimeout(() => inputRefs.current[0]?.focus(), 200);
-      toast({ title: "Code envoyé", description: "Un code de vérification a été envoyé par SMS" });
+      toast({
+        title: data?.devMode ? "Code généré (mode test)" : "Code envoyé",
+        description: data?.devMode
+          ? "Le code de test s'affiche à l'écran ci-dessous."
+          : "Un code de vérification a été envoyé par SMS"
+      });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message || "Erreur d'envoi" });
     } finally { setLoading(false); }

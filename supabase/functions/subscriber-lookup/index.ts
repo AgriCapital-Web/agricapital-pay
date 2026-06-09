@@ -228,7 +228,7 @@ serve(async (req) => {
     if (souscripteur.created_by) {
       const { data: commercial } = await supabase
         .from('profiles')
-        .select('nom_complet, telephone, email, photo_url, fonction')
+        .select('nom_complet, telephone, email, photo_url')
         .eq('user_id', souscripteur.created_by)
         .maybeSingle();
       if (commercial) {
@@ -237,7 +237,7 @@ serve(async (req) => {
           telephone: commercial.telephone,
           email: commercial.email,
           photo: commercial.photo_url,
-          fonction: commercial.fonction || 'Conseiller AgriCapital',
+          fonction: 'Conseiller AgriCapital',
         };
       }
     }

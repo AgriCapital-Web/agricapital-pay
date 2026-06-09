@@ -106,11 +106,12 @@ serve(async (req) => {
         .from("souscripteurs")
         .select(`
           *,
-          offres (id, nom, code, montant_da_par_ha, contribution_mensuelle_par_ha, couleur, description, avantages),
+          offres (*),
           regions (id, nom),
           departements (id, nom),
           districts (id, nom),
-          sous_prefectures (id, nom)
+          sous_prefectures (id, nom),
+          promotions:promotion_id (id, nom, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active)
         `)
         .eq("telephone", phone)
         .maybeSingle();
@@ -120,6 +121,7 @@ serve(async (req) => {
         break;
       }
     }
+
 
     if (!souscripteur) {
       // Log failed attempt for audit

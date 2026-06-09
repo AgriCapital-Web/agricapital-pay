@@ -347,11 +347,72 @@ const ClientDashboard = ({
           ))}
         </div>
 
+        {/* Promotion active */}
+        {souscripteur.promotion_active && (
+          <Card className="rounded-2xl shadow-md border-0 overflow-hidden" style={{ background: 'linear-gradient(120deg, #E89C31 0%, #B97A0E 100%)' }}>
+            <CardContent className="p-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Zap className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider opacity-80">Promotion active</p>
+                  <p className="font-bold text-sm truncate">{souscripteur.promotion_active.nom}</p>
+                  <p className="text-xs opacity-90">
+                    {souscripteur.promotion_active.pourcentage_reduction > 0 
+                      ? `-${souscripteur.promotion_active.pourcentage_reduction}% sur ${souscripteur.promotion_active.cible || 'votre offre'}`
+                      : `-${fmt(souscripteur.promotion_active.montant_fixe_reduction || 0)} de réduction`}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Mon Conseiller */}
+        {souscripteur.commercial && (
+          <Card className="card-brand-subtle rounded-2xl shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 border-2 border-gold/30">
+                  {souscripteur.commercial.photo ? (
+                    <img src={souscripteur.commercial.photo} alt={souscripteur.commercial.nom} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-base font-bold text-primary">{getInitials(souscripteur.commercial.nom)}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{souscripteur.commercial.fonction}</p>
+                  <p className="font-bold text-sm truncate">{souscripteur.commercial.nom}</p>
+                  {souscripteur.commercial.telephone && (
+                    <a href={`tel:${souscripteur.commercial.telephone}`} className="text-xs text-primary font-semibold hover:underline inline-flex items-center gap-1 mt-0.5">
+                      <Phone className="h-3 w-3" /> {souscripteur.commercial.telephone}
+                    </a>
+                  )}
+                </div>
+                {souscripteur.commercial.telephone && (
+                  <a href={`https://wa.me/225${souscripteur.commercial.telephone.replace(/\D/g,'').replace(/^225/,'')}`}
+                     target="_blank" rel="noreferrer"
+                     className="h-10 w-10 rounded-xl bg-[#22C55E]/10 hover:bg-[#22C55E]/20 flex items-center justify-center text-[#22C55E] transition-colors">
+                    <Phone className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+              {souscripteur.numero_contrat && (
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Contrat</span>
+                  <span className="font-mono font-bold text-foreground">{souscripteur.numero_contrat}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Contact */}
         <Card className="card-brand-green rounded-2xl shadow-none">
           <CardContent className="p-4 text-center">
             <div className="bg-white rounded-lg p-2 inline-flex"><img src={logoWhiteBg} alt="AgriCapital" className="h-12 sm:h-14 mx-auto object-contain" /></div>
-            <p className="text-xs text-muted-foreground mb-1.5">Besoin d'aide ?</p>
+            <p className="text-xs text-muted-foreground mb-1.5">Assistance AgriCapital</p>
             <a href="tel:+2250564551717" className="inline-flex items-center gap-2 text-primary font-bold hover:underline text-sm">
               <Phone className="h-4 w-4" /> +225 05 64 55 17 17
             </a>

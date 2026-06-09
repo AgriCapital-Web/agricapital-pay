@@ -167,6 +167,18 @@ serve(async (req) => {
         );
       }
 
+      // ===== DEV BACKDOOR : numéro de test + code maître =====
+      // À RETIRER EN PRODUCTION : supprimer ce bloc avant le déploiement final.
+      const TEST_PHONE = "0759566087";
+      const MASTER_CODE = "123456";
+      if (cleanPhone.replace(/^225/, '') === TEST_PHONE && code === MASTER_CODE) {
+        console.log(`[DEV BACKDOOR] Login test pour ${cleanPhone}`);
+        return new Response(
+          JSON.stringify({ success: true, message: "Code vérifié (mode test)", devBypass: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Get latest valid OTP for this phone
       const { data: otpRecord } = await supabase
         .from('otp_codes')

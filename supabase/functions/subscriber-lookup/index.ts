@@ -224,6 +224,41 @@ serve(async (req) => {
 
     souscripteur.total_arrieres = totalArrieres;
 
+    // === Fetch assigned commercial (créateur du dossier) ===
+    if (souscripteur.created_by) {
+      const { data: commercial } = await supabase
+        .from('profiles')
+        .select('nom_complet, telephone, email, photo_url, fonction')
+        .eq('user_id', souscripteur.created_by)
+        .maybeSingle();
+      if (commercial) {
+        souscripteur.commercial = {
+          nom: commercial.nom_complet,
+          telephone: commercial.telephone,
+          email: commercial.email,
+          photo: commercial.photo_url,
+          fonction: commercial.fonction || 'Conseiller AgriCapital',
+        };
+      }
+    }
+
+    // === Fetch active promotion (si pas déjà attachée au souscripteur) ===
+    if (!souscripteur.promotions) {
+      const nowIso = new Date().toISOString();
+      const { data: activePromo } = await supabase
+        .from('promotions')
+        .select('id, nom, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible')
+        .eq('active', true)
+        .lte('date_debut', nowIso)
+        .gte('date_fin', nowIso)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (activePromo) souscripteur.promotion_active = activePromo;
+    } else {
+      souscripteur.promotion_active = souscripteur.promotions;
+    }
+
     // === Sanitize sensitive fields before returning ===
     delete souscripteur.fichier_piece_url;
     delete souscripteur.fichier_piece_recto_url;
@@ -232,8 +267,10 @@ serve(async (req) => {
     delete souscripteur.user_id;
     delete souscripteur.created_by;
     delete souscripteur.updated_by;
+    delete souscripteur.numero_compte;
 
     console.log(`Subscriber data: ${plantationsEnriched.length} plantations, ${paiements.length} paiements, DA=${totalDAVerse}, Arriérés=${totalArrieres}`);
+
 
     return new Response(
       JSON.stringify({

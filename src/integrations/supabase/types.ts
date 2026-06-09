@@ -197,6 +197,8 @@ export type Database = {
       }
       conventions_foncieres: {
         Row: {
+          caution_par_ha: number | null
+          caution_totale: number | null
           code_dom: string | null
           code_parc: string | null
           code_sp: string | null
@@ -211,6 +213,10 @@ export type Database = {
           id: string
           notes: string | null
           parcelle_id: string | null
+          part_agricapital_ha: number | null
+          part_agricapital_pct: number | null
+          part_proprietaire_ha: number | null
+          part_proprietaire_pct: number | null
           proprietaire_id: string
           reference: string | null
           sous_prefecture_id: string | null
@@ -220,6 +226,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          caution_par_ha?: number | null
+          caution_totale?: number | null
           code_dom?: string | null
           code_parc?: string | null
           code_sp?: string | null
@@ -234,6 +242,10 @@ export type Database = {
           id?: string
           notes?: string | null
           parcelle_id?: string | null
+          part_agricapital_ha?: number | null
+          part_agricapital_pct?: number | null
+          part_proprietaire_ha?: number | null
+          part_proprietaire_pct?: number | null
           proprietaire_id: string
           reference?: string | null
           sous_prefecture_id?: string | null
@@ -243,6 +255,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          caution_par_ha?: number | null
+          caution_totale?: number | null
           code_dom?: string | null
           code_parc?: string | null
           code_sp?: string | null
@@ -257,6 +271,10 @@ export type Database = {
           id?: string
           notes?: string | null
           parcelle_id?: string | null
+          part_agricapital_ha?: number | null
+          part_agricapital_pct?: number | null
+          part_proprietaire_ha?: number | null
+          part_proprietaire_pct?: number | null
           proprietaire_id?: string
           reference?: string | null
           sous_prefecture_id?: string | null
@@ -271,6 +289,20 @@ export type Database = {
             columns: ["domaine_id"]
             isOneToOne: false
             referencedRelation: "domaines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conventions_foncieres_parcelle_id_fkey"
+            columns: ["parcelle_id"]
+            isOneToOne: false
+            referencedRelation: "parcelles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conventions_foncieres_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
             referencedColumns: ["id"]
           },
           {
@@ -517,6 +549,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "souscripteurs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_souscription_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
           },
         ]
       }
@@ -826,6 +865,27 @@ export type Database = {
             referencedRelation: "conventions_foncieres"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lots_hectares_parcelle_id_fkey"
+            columns: ["parcelle_id"]
+            isOneToOne: false
+            referencedRelation: "parcelles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_hectares_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "souscripteurs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_hectares_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
+          },
         ]
       }
       notifications: {
@@ -873,10 +933,20 @@ export type Database = {
           couleur: string | null
           created_at: string | null
           description: string | null
+          duree_installation_mois: number
+          duree_paiement_mois: number
+          duree_production_ans: number
+          gestion_type: string
           id: string
+          montant_cash_par_ha: number
           montant_da_par_ha: number
+          montant_depot_initial_par_ha: number
+          montant_total_par_ha: number
           nom: string
           ordre: number | null
+          pourcentage_revenus_reverses: number
+          redevance_production_par_ha_an: number
+          tranches_paiement: Json
           type_offre: string | null
           updated_at: string | null
         }
@@ -888,10 +958,20 @@ export type Database = {
           couleur?: string | null
           created_at?: string | null
           description?: string | null
+          duree_installation_mois?: number
+          duree_paiement_mois?: number
+          duree_production_ans?: number
+          gestion_type?: string
           id?: string
+          montant_cash_par_ha?: number
           montant_da_par_ha?: number
+          montant_depot_initial_par_ha?: number
+          montant_total_par_ha?: number
           nom: string
           ordre?: number | null
+          pourcentage_revenus_reverses?: number
+          redevance_production_par_ha_an?: number
+          tranches_paiement?: Json
           type_offre?: string | null
           updated_at?: string | null
         }
@@ -903,10 +983,20 @@ export type Database = {
           couleur?: string | null
           created_at?: string | null
           description?: string | null
+          duree_installation_mois?: number
+          duree_paiement_mois?: number
+          duree_production_ans?: number
+          gestion_type?: string
           id?: string
+          montant_cash_par_ha?: number
           montant_da_par_ha?: number
+          montant_depot_initial_par_ha?: number
+          montant_total_par_ha?: number
           nom?: string
           ordre?: number | null
+          pourcentage_revenus_reverses?: number
+          redevance_production_par_ha_an?: number
+          tranches_paiement?: Json
           type_offre?: string | null
           updated_at?: string | null
         }
@@ -952,9 +1042,12 @@ export type Database = {
           date_paiement: string | null
           date_upload_preuve: string | null
           date_validation: string | null
+          est_depot_initial: boolean
           fichier_preuve_url: string | null
           id: string
           id_transaction: string | null
+          jours_couverts: number
+          jours_retard: number
           kkiapay_transaction_id: string | null
           metadata: Json | null
           mode_paiement: string | null
@@ -962,8 +1055,12 @@ export type Database = {
           montant_paye: number | null
           montant_theorique: number | null
           notes: string | null
+          numero_echeance: number | null
           observations: string | null
           operateur_mobile_money: string | null
+          periode_debut: string | null
+          periode_fin: string | null
+          phase: string | null
           plantation_id: string | null
           preuve_paiement_url: string | null
           reference: string | null
@@ -986,9 +1083,12 @@ export type Database = {
           date_paiement?: string | null
           date_upload_preuve?: string | null
           date_validation?: string | null
+          est_depot_initial?: boolean
           fichier_preuve_url?: string | null
           id?: string
           id_transaction?: string | null
+          jours_couverts?: number
+          jours_retard?: number
           kkiapay_transaction_id?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
@@ -996,8 +1096,12 @@ export type Database = {
           montant_paye?: number | null
           montant_theorique?: number | null
           notes?: string | null
+          numero_echeance?: number | null
           observations?: string | null
           operateur_mobile_money?: string | null
+          periode_debut?: string | null
+          periode_fin?: string | null
+          phase?: string | null
           plantation_id?: string | null
           preuve_paiement_url?: string | null
           reference?: string | null
@@ -1020,9 +1124,12 @@ export type Database = {
           date_paiement?: string | null
           date_upload_preuve?: string | null
           date_validation?: string | null
+          est_depot_initial?: boolean
           fichier_preuve_url?: string | null
           id?: string
           id_transaction?: string | null
+          jours_couverts?: number
+          jours_retard?: number
           kkiapay_transaction_id?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
@@ -1030,8 +1137,12 @@ export type Database = {
           montant_paye?: number | null
           montant_theorique?: number | null
           notes?: string | null
+          numero_echeance?: number | null
           observations?: string | null
           operateur_mobile_money?: string | null
+          periode_debut?: string | null
+          periode_fin?: string | null
+          phase?: string | null
           plantation_id?: string | null
           preuve_paiement_url?: string | null
           reference?: string | null
@@ -1059,6 +1170,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "souscripteurs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paiements_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
           },
         ]
       }
@@ -1405,6 +1523,13 @@ export type Database = {
             referencedRelation: "souscripteurs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "plantations_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
+          },
         ]
       }
       portefeuilles: {
@@ -1540,11 +1665,14 @@ export type Database = {
         Row: {
           active: boolean | null
           applique_toutes_offres: boolean | null
+          cible: string
+          code: string | null
           created_at: string | null
           date_debut: string
           date_fin: string
           description: string | null
           id: string
+          montant_fixe_reduction: number | null
           nom: string
           offre_ids: Json | null
           pourcentage_reduction: number
@@ -1554,11 +1682,14 @@ export type Database = {
         Insert: {
           active?: boolean | null
           applique_toutes_offres?: boolean | null
+          cible?: string
+          code?: string | null
           created_at?: string | null
           date_debut: string
           date_fin: string
           description?: string | null
           id?: string
+          montant_fixe_reduction?: number | null
           nom: string
           offre_ids?: Json | null
           pourcentage_reduction?: number
@@ -1568,11 +1699,14 @@ export type Database = {
         Update: {
           active?: boolean | null
           applique_toutes_offres?: boolean | null
+          cible?: string
+          code?: string | null
           created_at?: string | null
           date_debut?: string
           date_fin?: string
           description?: string | null
           id?: string
+          montant_fixe_reduction?: number | null
           nom?: string
           offre_ids?: Json | null
           pourcentage_reduction?: number
@@ -1583,7 +1717,14 @@ export type Database = {
       }
       proprietaires_terres: {
         Row: {
+          caution_par_ha: number | null
+          caution_totale: number | null
           civilite: string | null
+          co_titulaire_lien: string | null
+          co_titulaire_nom: string | null
+          co_titulaire_piece: string | null
+          co_titulaire_telephone: string | null
+          coordonnees_gps: string | null
           created_at: string | null
           created_by: string | null
           croquis_joint: boolean | null
@@ -1598,6 +1739,8 @@ export type Database = {
           fichier_piece_verso_url: string | null
           id: string
           id_unique: string | null
+          leader_communautaire_nom: string | null
+          leader_communautaire_qualite: string | null
           lieu_naissance: string | null
           limites_est: string | null
           limites_nord: string | null
@@ -1613,25 +1756,45 @@ export type Database = {
           notes: string | null
           numero_enregistrement: string | null
           numero_piece: string | null
+          part_agricapital_ha: number | null
+          part_agricapital_pct: number | null
+          part_proprietaire_ha: number | null
+          part_proprietaire_pct: number | null
           photo_profil_url: string | null
           prenoms: string | null
           reference_cadastrale: string | null
           region_id: string | null
+          representant_agricapital_nom: string | null
+          representant_agricapital_qualite: string | null
           servitudes: string | null
           sous_prefecture_id: string | null
           statut: string | null
           statut_foncier: string | null
+          surface_totale_declaree_ha: number | null
           surface_totale_ha: number | null
           telephone: string
+          temoin_proprietaire_nom: string | null
+          temoin_proprietaire_qualite: string | null
           type_piece: string | null
           type_proprietaire: string | null
           updated_at: string | null
           updated_by: string | null
           village: string | null
+          voisin_1_cote: string | null
+          voisin_1_nom: string | null
+          voisin_2_cote: string | null
+          voisin_2_nom: string | null
           whatsapp: string | null
         }
         Insert: {
+          caution_par_ha?: number | null
+          caution_totale?: number | null
           civilite?: string | null
+          co_titulaire_lien?: string | null
+          co_titulaire_nom?: string | null
+          co_titulaire_piece?: string | null
+          co_titulaire_telephone?: string | null
+          coordonnees_gps?: string | null
           created_at?: string | null
           created_by?: string | null
           croquis_joint?: boolean | null
@@ -1646,6 +1809,8 @@ export type Database = {
           fichier_piece_verso_url?: string | null
           id?: string
           id_unique?: string | null
+          leader_communautaire_nom?: string | null
+          leader_communautaire_qualite?: string | null
           lieu_naissance?: string | null
           limites_est?: string | null
           limites_nord?: string | null
@@ -1661,25 +1826,45 @@ export type Database = {
           notes?: string | null
           numero_enregistrement?: string | null
           numero_piece?: string | null
+          part_agricapital_ha?: number | null
+          part_agricapital_pct?: number | null
+          part_proprietaire_ha?: number | null
+          part_proprietaire_pct?: number | null
           photo_profil_url?: string | null
           prenoms?: string | null
           reference_cadastrale?: string | null
           region_id?: string | null
+          representant_agricapital_nom?: string | null
+          representant_agricapital_qualite?: string | null
           servitudes?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_foncier?: string | null
+          surface_totale_declaree_ha?: number | null
           surface_totale_ha?: number | null
           telephone: string
+          temoin_proprietaire_nom?: string | null
+          temoin_proprietaire_qualite?: string | null
           type_piece?: string | null
           type_proprietaire?: string | null
           updated_at?: string | null
           updated_by?: string | null
           village?: string | null
+          voisin_1_cote?: string | null
+          voisin_1_nom?: string | null
+          voisin_2_cote?: string | null
+          voisin_2_nom?: string | null
           whatsapp?: string | null
         }
         Update: {
+          caution_par_ha?: number | null
+          caution_totale?: number | null
           civilite?: string | null
+          co_titulaire_lien?: string | null
+          co_titulaire_nom?: string | null
+          co_titulaire_piece?: string | null
+          co_titulaire_telephone?: string | null
+          coordonnees_gps?: string | null
           created_at?: string | null
           created_by?: string | null
           croquis_joint?: boolean | null
@@ -1694,6 +1879,8 @@ export type Database = {
           fichier_piece_verso_url?: string | null
           id?: string
           id_unique?: string | null
+          leader_communautaire_nom?: string | null
+          leader_communautaire_qualite?: string | null
           lieu_naissance?: string | null
           limites_est?: string | null
           limites_nord?: string | null
@@ -1709,21 +1896,34 @@ export type Database = {
           notes?: string | null
           numero_enregistrement?: string | null
           numero_piece?: string | null
+          part_agricapital_ha?: number | null
+          part_agricapital_pct?: number | null
+          part_proprietaire_ha?: number | null
+          part_proprietaire_pct?: number | null
           photo_profil_url?: string | null
           prenoms?: string | null
           reference_cadastrale?: string | null
           region_id?: string | null
+          representant_agricapital_nom?: string | null
+          representant_agricapital_qualite?: string | null
           servitudes?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_foncier?: string | null
+          surface_totale_declaree_ha?: number | null
           surface_totale_ha?: number | null
           telephone?: string
+          temoin_proprietaire_nom?: string | null
+          temoin_proprietaire_qualite?: string | null
           type_piece?: string | null
           type_proprietaire?: string | null
           updated_at?: string | null
           updated_by?: string | null
           village?: string | null
+          voisin_1_cote?: string | null
+          voisin_1_nom?: string | null
+          voisin_2_cote?: string | null
+          voisin_2_nom?: string | null
           whatsapp?: string | null
         }
         Relationships: [
@@ -1877,6 +2077,13 @@ export type Database = {
             referencedRelation: "souscripteurs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "remboursements_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
+          },
         ]
       }
       retraits_portefeuille: {
@@ -1976,12 +2183,17 @@ export type Database = {
           banque_operateur: string | null
           civilite: string | null
           code_sp_contrat: string | null
+          compte_actif: boolean
+          contrat_debut_at: string | null
+          contrat_fin_at: string | null
           created_at: string | null
           created_by: string | null
+          da_paye_at: string | null
           date_delivrance_piece: string | null
           date_naissance: string | null
           departement_id: string | null
           district_id: string | null
+          documents_valides_at: string | null
           domicile: string | null
           domicile_residence: string | null
           email: string | null
@@ -1990,8 +2202,14 @@ export type Database = {
           fichier_piece_verso_url: string | null
           id: string
           id_unique: string | null
+          jours_contrat_total: number
+          jours_payes: number
+          jours_retard: number
           lieu_naissance: string | null
           localite: string | null
+          mensualite_montant: number | null
+          montant_promo_applique: number
+          montant_total_contrat: number
           nationalite: string | null
           nom: string | null
           nom_complet: string | null
@@ -2004,13 +2222,17 @@ export type Database = {
           numero_piece: string | null
           offre_id: string | null
           parcelle_id: string | null
+          phase_actuelle: string
           photo_profil_url: string | null
           prenoms: string | null
+          prochaine_echeance: string | null
+          promotion_id: string | null
           region_id: string | null
           sous_prefecture_id: string | null
           statut: string | null
           statut_global: string | null
           statut_marital: string | null
+          taux_journalier_ha: number
           telephone: string
           total_hectares: number | null
           type_compte: string | null
@@ -2027,12 +2249,17 @@ export type Database = {
           banque_operateur?: string | null
           civilite?: string | null
           code_sp_contrat?: string | null
+          compte_actif?: boolean
+          contrat_debut_at?: string | null
+          contrat_fin_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          da_paye_at?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
           departement_id?: string | null
           district_id?: string | null
+          documents_valides_at?: string | null
           domicile?: string | null
           domicile_residence?: string | null
           email?: string | null
@@ -2041,8 +2268,14 @@ export type Database = {
           fichier_piece_verso_url?: string | null
           id?: string
           id_unique?: string | null
+          jours_contrat_total?: number
+          jours_payes?: number
+          jours_retard?: number
           lieu_naissance?: string | null
           localite?: string | null
+          mensualite_montant?: number | null
+          montant_promo_applique?: number
+          montant_total_contrat?: number
           nationalite?: string | null
           nom?: string | null
           nom_complet?: string | null
@@ -2055,13 +2288,17 @@ export type Database = {
           numero_piece?: string | null
           offre_id?: string | null
           parcelle_id?: string | null
+          phase_actuelle?: string
           photo_profil_url?: string | null
           prenoms?: string | null
+          prochaine_echeance?: string | null
+          promotion_id?: string | null
           region_id?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_global?: string | null
           statut_marital?: string | null
+          taux_journalier_ha?: number
           telephone: string
           total_hectares?: number | null
           type_compte?: string | null
@@ -2078,12 +2315,17 @@ export type Database = {
           banque_operateur?: string | null
           civilite?: string | null
           code_sp_contrat?: string | null
+          compte_actif?: boolean
+          contrat_debut_at?: string | null
+          contrat_fin_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          da_paye_at?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
           departement_id?: string | null
           district_id?: string | null
+          documents_valides_at?: string | null
           domicile?: string | null
           domicile_residence?: string | null
           email?: string | null
@@ -2092,8 +2334,14 @@ export type Database = {
           fichier_piece_verso_url?: string | null
           id?: string
           id_unique?: string | null
+          jours_contrat_total?: number
+          jours_payes?: number
+          jours_retard?: number
           lieu_naissance?: string | null
           localite?: string | null
+          mensualite_montant?: number | null
+          montant_promo_applique?: number
+          montant_total_contrat?: number
           nationalite?: string | null
           nom?: string | null
           nom_complet?: string | null
@@ -2106,13 +2354,17 @@ export type Database = {
           numero_piece?: string | null
           offre_id?: string | null
           parcelle_id?: string | null
+          phase_actuelle?: string
           photo_profil_url?: string | null
           prenoms?: string | null
+          prochaine_echeance?: string | null
+          promotion_id?: string | null
           region_id?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_global?: string | null
           statut_marital?: string | null
+          taux_journalier_ha?: number
           telephone?: string
           total_hectares?: number | null
           type_compte?: string | null
@@ -2151,6 +2403,13 @@ export type Database = {
             columns: ["parcelle_id"]
             isOneToOne: false
             referencedRelation: "parcelles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "souscripteurs_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
             referencedColumns: ["id"]
           },
           {
@@ -2341,11 +2600,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transferts_dest_id_fkey"
+            columns: ["souscripteur_dest_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
+          },
+          {
             foreignKeyName: "transferts_paiements_souscripteur_dest_id_fkey"
             columns: ["souscripteur_dest_id"]
             isOneToOne: false
             referencedRelation: "souscripteurs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferts_paiements_souscripteur_dest_id_fkey"
+            columns: ["souscripteur_dest_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
           },
           {
             foreignKeyName: "transferts_paiements_souscripteur_source_id_fkey"
@@ -2355,11 +2628,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transferts_paiements_souscripteur_source_id_fkey"
+            columns: ["souscripteur_source_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
+          },
+          {
             foreignKeyName: "transferts_source_id_fkey"
             columns: ["souscripteur_source_id"]
             isOneToOne: false
             referencedRelation: "souscripteurs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferts_source_id_fkey"
+            columns: ["souscripteur_source_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
           },
         ]
       }
@@ -2445,12 +2732,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_souscripteur_synthese: {
+        Row: {
+          compte_actif: boolean | null
+          contrat_debut_at: string | null
+          contrat_fin_at: string | null
+          duree_paiement_mois: number | null
+          gestion_type: string | null
+          id_unique: string | null
+          jours_retard: number | null
+          mois_payes: number | null
+          mois_restants: number | null
+          montant_total_contrat: number | null
+          nom_complet: string | null
+          offre_id: string | null
+          offre_nom: string | null
+          phase_actuelle: string | null
+          pourcentage_avancement: number | null
+          pourcentage_revenus_reverses: number | null
+          prochaine_echeance: string | null
+          reste_a_payer: number | null
+          souscripteur_id: string | null
+          taux_journalier_ha: number | null
+          total_hectares: number | null
+          total_paye: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "souscripteurs_offre_id_fkey"
+            columns: ["offre_id"]
+            isOneToOne: false
+            referencedRelation: "offres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       assign_sp_code: { Args: { _sp_id: string }; Returns: string }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      create_depot_initial: {
+        Args: { _souscripteur_id: string }
+        Returns: string
+      }
       current_profile_id: { Args: never; Returns: string }
       generate_parcelle_id: { Args: never; Returns: string }
       generate_plantation_id: { Args: never; Returns: string }
@@ -2459,6 +2784,7 @@ export type Database = {
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      mark_overdue_payments: { Args: never; Returns: undefined }
       notify_hierarchy: {
         Args: {
           p_data?: Json
@@ -2467,6 +2793,20 @@ export type Database = {
           p_type: string
         }
         Returns: undefined
+      }
+      recompute_contrat_totaux: {
+        Args: { _souscripteur_id: string }
+        Returns: undefined
+      }
+      simuler_paiement_fractionne: {
+        Args: { _montant: number; _souscripteur_id: string }
+        Returns: {
+          jours_couverts: number
+          periode_debut: string
+          periode_fin: string
+          phase: string
+          taux_journalier: number
+        }[]
       }
     }
     Enums: {

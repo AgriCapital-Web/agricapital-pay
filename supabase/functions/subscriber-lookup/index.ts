@@ -14,6 +14,33 @@ function sanitizePhone(input: string): string {
   return cleaned;
 }
 
+function normalizeOfferCode(code: string | null | undefined): string {
+  return (code || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]+/g, '').replace(/_PLUS/g, '+').replace(/PLUS/g, '+');
+}
+
+function getProgressiveAmount(offre: any, startDayOffset: number, daysCount: number, hectares: number): number {
+  const tranches = Array.isArray(offre?.tranches_paiement) ? offre.tranches_paiement : [];
+  const schedule = tranches
+    .map((t: any) => ({ mois: Number(t?.mois || 0), mensuel: Number(t?.mensualite_par_ha || 0) }))
+    .filter((t: any) => t.mois > 0 && t.mensuel > 0);
+  if (schedule.length === 0) {
+    return (Number(offre?.contribution_mensuelle_par_ha || 0) / 30) * daysCount * hectares;
+  }
+  let cursor = Math.max(0, Math.floor(startDayOffset || 0));
+  let remaining = Math.max(0, Math.floor(daysCount || 0));
+  let total = 0;
+  for (const tranche of schedule) {
+    const trancheDays = tranche.mois * 30;
+    if (cursor >= trancheDays) { cursor -= trancheDays; continue; }
+    const days = Math.min(remaining, trancheDays - cursor);
+    total += (tranche.mensuel / 30) * days * hectares;
+    remaining -= days;
+    cursor = 0;
+    if (remaining <= 0) break;
+  }
+  return total;
+}
+
 // === SECURITY: Rate limiting ===
 async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 5, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
   const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
@@ -111,7 +138,7 @@ serve(async (req) => {
           departements (id, nom),
           districts (id, nom),
           sous_prefectures (id, nom),
-          promotions:promotion_id (id, nom, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active)
+          promotions:promotion_id (id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids)
         `)
         .eq("telephone", phone)
         .maybeSingle();
@@ -201,23 +228,19 @@ serve(async (req) => {
     souscripteur.total_paiements = paiements.filter((p: any) => p.statut === 'valide').length;
     souscripteur.total_paye = totalDAVerse + totalRedevances;
 
-    // Compute per-plantation arrears (default to PalmInvest An 1 daily rate if no offer)
-    const tarifJour = souscripteur.offres?.contribution_mensuelle_par_ha 
-      ? (souscripteur.offres.contribution_mensuelle_par_ha / 30) 
-      : 2000;
-
     let totalArrieres = 0;
     const plantationsEnriched = (plantations || []).map((p: any) => {
       if (p.date_activation && (p.superficie_activee || 0) > 0) {
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
-        const attendu = jours * tarifJour * (p.superficie_activee || 0);
+        const attendu = getProgressiveAmount(souscripteur.offres, 0, jours, p.superficie_activee || 0);
         const paye = paiements
           .filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')
           .reduce((sum: number, pay: any) => sum + (pay.montant_paye || pay.montant || 0), 0);
         
         const arriere = Math.max(0, attendu - paye);
         totalArrieres += arriere;
-        return { ...p, _arriere: arriere, _jours_retard: arriere > 0 ? Math.floor(arriere / (tarifJour * (p.superficie_activee || 1))) : 0 };
+        const tarifMoyenJour = jours > 0 ? attendu / jours : 0;
+        return { ...p, _arriere: arriere, _jours_retard: arriere > 0 && tarifMoyenJour > 0 ? Math.floor(arriere / tarifMoyenJour) : 0 };
       }
       return { ...p, _arriere: 0, _jours_retard: 0 };
     });
@@ -242,18 +265,24 @@ serve(async (req) => {
       }
     }
 
-    // === Fetch active promotion (si pas déjà attachée au souscripteur) ===
+    // === Fetch active and applicable promotion (client-specific first, then current CRM promotion) ===
     if (!souscripteur.promotions) {
       const nowIso = new Date().toISOString();
-      const { data: activePromo } = await supabase
+      const { data: promos } = await supabase
         .from('promotions')
-        .select('id, nom, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible')
+        .select('id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids')
         .eq('active', true)
         .lte('date_debut', nowIso)
         .gte('date_fin', nowIso)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(10);
+      const offerId = souscripteur.offre_id;
+      const offerCode = normalizeOfferCode(souscripteur.offres?.code);
+      const activePromo = (promos || []).find((promo: any) => {
+        if (promo.applique_toutes_offres) return true;
+        const offerIds = Array.isArray(promo.offre_ids) ? promo.offre_ids : [];
+        return offerIds.includes(offerId) || offerIds.map((v: any) => normalizeOfferCode(String(v))).includes(offerCode);
+      });
       if (activePromo) souscripteur.promotion_active = activePromo;
     } else {
       souscripteur.promotion_active = souscripteur.promotions;

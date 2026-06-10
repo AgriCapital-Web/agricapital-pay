@@ -5,7 +5,7 @@
 AgriCapital est une société agro-industrielle ivoirienne qui propose à ses clients la souscription à des plantations de palmier à huile clé en main. Le Portail Client (pay.agricapital.ci) permet à chaque client de :
 
 - consulter ses plantations (superficie, statut, localisation)
-- payer son Dépôt Initial et ses Mensualités via Mobile Money (Orange Money, MTN, Moov, Wave) grâce au tunnel sécurisé KKiaPay
+- payer son Dépôt Initial et ses Mensualités via Mobile Money et carte bancaire grâce au tunnel sécurisé KKiaPay
 - suivre son portefeuille, ses arriérés et ses statistiques en temps réel
 - recevoir notifications et reçus de paiement
 

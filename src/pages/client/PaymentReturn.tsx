@@ -34,10 +34,10 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
     const check = async () => {
       if (!reference && !transactionId) { setStatus('pending'); return; }
       try {
-        let query = supabase.from('paiements').select('*, plantations(nom_plantation, id_unique, superficie_ha), souscripteurs(nom_complet, telephone, id_unique)');
-        if (reference) query = query.eq('reference', reference);
-        else if (transactionId) query = query.or(`metadata->>kkiapay_transaction_id.eq.${transactionId},reference.eq.${transactionId}`);
-        const { data: db } = await query.maybeSingle();
+        const { data: statusData } = await supabase.functions.invoke('create-payment', {
+          body: { action: 'status', reference, transaction_id: transactionId }
+        });
+        const db = statusData?.paiement;
         if (db) {
           setPaiement(db);
           if (db.statut === 'valide') { setStatus('success'); fetchReceipt(db.reference); return; }
@@ -50,12 +50,19 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                 const fail = ['failed', 'canceled'].includes(data.transaction?.status?.toLowerCase());
                 if (ok || fail) {
                   const s = ok ? 'valide' : 'echec';
-                  await supabase.from('paiements').update({ statut: s, montant_paye: ok ? (data.transaction?.amount ?? db.montant) : 0, date_paiement: ok ? new Date().toISOString() : null, metadata: { ...(db.metadata as any || {}), kkiapay_transaction_id: transactionId, verified_at: new Date().toISOString() } }).eq('id', db.id);
-                  setPaiement({ ...db, statut: s, montant_paye: ok ? (data.transaction?.amount ?? db.montant) : 0 });
-                  if (ok && db.type_paiement === 'DA' && db.plantation_id) {
-                    const { data: pl } = await supabase.from('plantations').select('*').eq('id', db.plantation_id).single();
-                    if (pl) await supabase.from('plantations').update({ superficie_activee: pl.superficie_ha, date_activation: new Date().toISOString(), statut: 'active', statut_global: 'actif' }).eq('id', db.plantation_id);
+                  if (ok) {
+                    await supabase.functions.invoke('create-payment', {
+                      body: {
+                        action: 'confirm',
+                        reference: db.reference,
+                        kkiapay_transaction_id: transactionId,
+                        montant_paye: data.transaction?.amount ?? db.montant,
+                        method: data.transaction?.source || data.transaction?.method || null,
+                        fees: data.transaction?.fees || 0,
+                      }
+                    });
                   }
+                  setPaiement({ ...db, statut: s, montant_paye: ok ? (data.transaction?.amount ?? db.montant) : 0 });
                   if (ok) fetchReceipt(db.reference);
                   setStatus(ok ? 'success' : 'error'); return;
                 }
@@ -63,7 +70,7 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
             } catch {}
           }
           if (urlStatus === 'success' || urlStatus === 'approved') {
-            await supabase.from('paiements').update({ statut: 'valide', montant_paye: db.montant, date_paiement: new Date().toISOString() }).eq('id', db.id);
+            await supabase.functions.invoke('create-payment', { body: { action: 'confirm', reference: db.reference, kkiapay_transaction_id: transactionId, montant_paye: db.montant } });
             setPaiement({ ...db, statut: 'valide', montant_paye: db.montant });
             fetchReceipt(db.reference);
             setStatus('success'); return;

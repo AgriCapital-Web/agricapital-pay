@@ -9,7 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useKkiapay } from "@/hooks/useKkiapay";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
-import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
+import {
+  calculateProgressiveAmountByDays,
+  calculateProgressivePeriodAmount,
+  formatCFA,
+  getCurrentRateFromOffer,
+  getFullTariffGridFromOffer,
+} from "@/utils/pricing";
 import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 
 interface ClientPaymentProps {
@@ -67,17 +73,35 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const plantation = useMemo(() => plantations.find(p => p.id === selectedPlantation), [selectedPlantation, plantations]);
 
-  // Get progressive rate for the selected plantation
+  const activePromotion = souscripteur?.promotion_active || souscripteur?.promotions || null;
+
+  const isPromotionApplicable = (target: 'depot_initial' | 'redevance') => {
+    if (!activePromotion?.active && !souscripteur?.promotion_id) return false;
+    const now = Date.now();
+    const starts = activePromotion.date_debut ? new Date(activePromotion.date_debut).getTime() : 0;
+    const ends = activePromotion.date_fin ? new Date(activePromotion.date_fin).getTime() : Number.MAX_SAFE_INTEGER;
+    if (Number.isFinite(starts) && now < starts) return false;
+    if (Number.isFinite(ends) && now > ends) return false;
+    const cible = (activePromotion.cible || '').toLowerCase();
+    return cible === 'total_contrat' || cible === 'toutes' || cible === 'all'
+      || (target === 'depot_initial' && ['depot_initial', 'da', 'di'].includes(cible))
+      || (target === 'redevance' && ['redevance', 'mensualite', 'mensualité'].includes(cible));
+  };
+
+  const applyPromotion = (amount: number, target: 'depot_initial' | 'redevance') => {
+    if (!isPromotionApplicable(target)) return { amount, savings: 0, applied: false };
+    const fixed = Number(activePromotion?.montant_fixe_reduction || 0);
+    const percent = Number(activePromotion?.pourcentage_reduction || 0);
+    const discounted = fixed > 0 ? Math.max(0, amount - fixed) : Math.max(0, amount - (amount * percent / 100));
+    return { amount: discounted, savings: Math.max(0, amount - discounted), applied: discounted < amount };
+  };
+
+  // Get progressive rate for the selected plantation from CRM offer tranches
   const plantationRate = useMemo(() => {
-    return getCurrentRate(
-      souscripteur?.offres?.code,
-      plantation?.date_activation,
-      souscripteur?.offres?.contribution_mensuelle_par_ha || 0,
-      souscripteur?.offres?.montant_da_par_ha || 0,
-    );
+    return getCurrentRateFromOffer(souscripteur?.offres, plantation?.date_activation);
   }, [souscripteur, plantation]);
 
-  const tariffGrid = useMemo(() => getFullTariffGrid(souscripteur?.offres?.code), [souscripteur]);
+  const tariffGrid = useMemo(() => getFullTariffGridFromOffer(souscripteur?.offres), [souscripteur]);
 
   const TARIFS = useMemo(() => {
     if (plantationRate) {
@@ -94,7 +118,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     const offre = souscripteur?.offres;
     if (offre) {
       const cm = offre.contribution_mensuelle_par_ha || 0;
-      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_da_par_ha || 0 };
+      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_depot_initial_par_ha || offre.montant_da_par_ha || 0 };
     }
     // Defensive fallback (used only if no offre is loaded — should never happen for valid subscribers)
     return { jour: 2000, semaine: 13846, mois: 60000, trimestre: 180000, semestre: 360000, annee: 720000, da_par_hectare: 90700 };
@@ -133,37 +157,53 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const calculerArrieres = (plant: any) => {
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };
-    const rate = getCurrentRate(souscripteur?.offres?.code, plant.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
-    const tarifJour = rate?.jour_par_ha || 2000;
     const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
-    const attendu = jours * tarifJour * (plant.superficie_activee || 0);
+    const attendu = calculateProgressiveAmountByDays(souscripteur?.offres, 0, jours, plant.superficie_activee || 0).montant;
     const paye = paiements.filter((p: any) => p.plantation_id === plant.id && (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || 0), 0);
     const diff = attendu - paye;
-    if (diff > 0) return { montant: diff, jours: Math.floor(diff / (tarifJour * (plant.superficie_activee || 1))), enAvance: false };
-    return { montant: Math.abs(diff), jours: Math.floor(Math.abs(diff) / (tarifJour * (plant.superficie_activee || 1))), enAvance: true };
+    const averageDaily = jours > 0 ? attendu / jours : ((plantationRate?.jour_par_ha || 0) * (plant.superficie_activee || 1));
+    if (diff > 0) return { montant: diff, jours: averageDaily > 0 ? Math.floor(diff / averageDaily) : 0, enAvance: false };
+    return { montant: Math.abs(diff), jours: averageDaily > 0 ? Math.floor(Math.abs(diff) / averageDaily) : 0, enAvance: true };
   };
 
   const calculerMontantAvance = () => {
     if (!plantation) return 0;
-    return TARIFS[avancePeriodType] * avancePeriodCount * (plantation.superficie_activee || plantation.superficie_ha || 1);
+    const sup = plantation.superficie_activee || plantation.superficie_ha || 1;
+    const progressive = calculateProgressivePeriodAmount(souscripteur?.offres, plantation.date_activation, avancePeriodType, avancePeriodCount, sup);
+    return applyPromotion(progressive.montant, 'redevance').amount;
   };
+
+  const redevanceBreakdown = useMemo(() => {
+    if (!plantation || periodType === 'custom') return { montant: Number(customAmount) || 0, totalJours: 0, segments: [] };
+    const sup = plantation.superficie_activee || plantation.superficie_ha || 1;
+    const progressive = calculateProgressivePeriodAmount(souscripteur?.offres, plantation.date_activation, periodType, periodCount, sup);
+    const promo = applyPromotion(progressive.montant, 'redevance');
+    return { ...progressive, montant: promo.amount, economie: promo.savings, promotionAppliquee: promo.applied };
+  }, [plantation, periodType, periodCount, customAmount, souscripteur?.offres, activePromotion]);
+
+  const depotInitialDetails = useMemo(() => {
+    if (!plantation) return { montant: 0, brut: 0, economie: 0, promotionAppliquee: false };
+    const hectares = Math.max(0, (plantation.superficie_ha || 0) - (plantation.superficie_activee || 0));
+    const brut = hectares * TARIFS.da_par_hectare;
+    const promo = applyPromotion(brut, 'depot_initial');
+    return { montant: promo.amount, brut, economie: promo.savings, promotionAppliquee: promo.applied };
+  }, [plantation, TARIFS.da_par_hectare, activePromotion]);
 
   const calculerMontantRedevance = () => {
     if (!plantation) return 0;
-    const sup = plantation.superficie_activee || plantation.superficie_ha || 1;
     if (periodType === 'custom') return Number(customAmount) || 0;
-    return TARIFS[periodType] * periodCount * sup;
+    return redevanceBreakdown.montant;
   };
 
   const montantArriere = plantation ? calculerArrieres(plantation).montant : 0;
   const montantAvance = calculerMontantAvance();
   const montantTotal = useMemo(() => {
-    if (typePaiement === 'da') { if (!plantation) return 0; return (plantation.superficie_ha - (plantation.superficie_activee || 0)) * TARIFS.da_par_hectare; }
+    if (typePaiement === 'da') return depotInitialDetails.montant;
     if (modeArriere === 'only') return montantArriere;
     if (modeArriere === 'avance') return montantArriere + montantAvance;
     return calculerMontantRedevance();
-  }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, periodType, periodCount, customAmount, avancePeriodType, avancePeriodCount]);
+  }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, depotInitialDetails.montant, periodType, periodCount, customAmount, redevanceBreakdown.montant]);
 
   const handleSubmit = async () => {
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
@@ -180,7 +220,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           montant: montantTotal,
           mode_paiement: 'Mobile Money',
           reference,
-          metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay', annee_tarif: plantationRate?.annee || 1, tarif_mensuel: TARIFS.mois }
+          metadata: {
+            mode_arriere: modeArriere,
+            montant_arriere: modeArriere ? montantArriere : null,
+            montant_avance: modeArriere === 'avance' ? montantAvance : null,
+            payment_provider: 'kkiapay',
+            annee_tarif: plantationRate?.annee || 1,
+            tarif_mensuel: TARIFS.mois,
+            offre_id: souscripteur?.offre_id || souscripteur?.offres?.id,
+            promotion_id: activePromotion?.id || null,
+            economie_promotion: typePaiement === 'da' ? depotInitialDetails.economie : (redevanceBreakdown as any).economie || 0,
+            ventilation_tarifaire: typePaiement === 'redevance' ? redevanceBreakdown.segments : [],
+          }
         }
       });
       if (insertError || !invokeData?.success) throw new Error(invokeData?.error || insertError?.message || 'Erreur création paiement');
@@ -347,7 +398,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 <div className="space-y-2">
                   {plantations.map((plant: any) => {
                     const etat = calculerArrieres(plant);
-                    const pRate = getCurrentRate(souscripteur?.offres?.code, plant.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
+                    const pRate = getCurrentRateFromOffer(souscripteur?.offres, plant.date_activation);
                     const isSelectable = typePaiement === 'da' ? (plant.superficie_ha - (plant.superficie_activee || 0)) > 0 : (plant.superficie_activee || 0) > 0;
                     return (
                       <div key={plant.id} onClick={() => isSelectable && setSelectedPlantation(plant.id)}
@@ -421,6 +472,9 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                   {[['Superficie totale', `${plantation.superficie_ha} ha`], ['Activée', `${plantation.superficie_activee || 0} ha`], ['À activer', `${plantation.superficie_ha - (plantation.superficie_activee || 0)} ha`], ['Dépôt initial', `${fmt(TARIFS.da_par_hectare)}/ha`]].map(([l, v], i) => (
                     <div key={i} className="flex justify-between py-2 border-b last:border-0"><span className="text-muted-foreground">{l}</span><span className="font-bold">{v}</span></div>
                   ))}
+                  {depotInitialDetails.promotionAppliquee && (
+                    <div className="flex justify-between py-2 text-primary"><span>Réduction appliquée</span><span className="font-bold">- {fmt(depotInitialDetails.economie)}</span></div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -496,6 +550,22 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                         <div className="flex items-center gap-2"><Label className="text-xs shrink-0">Quantité</Label><Input type="number" min="1" max="36" value={periodCount} onChange={e => setPeriodCount(Math.max(1, Number(e.target.value)))} className="h-9 rounded-xl" /></div>
                       ) : (
                         <div><Label className="text-xs">Montant (F CFA)</Label><Input type="number" value={customAmount} onChange={e => setCustomAmount(e.target.value)} placeholder="50000" className="h-12 mt-1 rounded-xl" /></div>
+                      )}
+                      {periodType !== 'custom' && redevanceBreakdown.segments.length > 0 && (
+                        <div className="rounded-xl border border-dashed bg-muted/20 p-3 space-y-1.5">
+                          <p className="text-[11px] font-bold text-muted-foreground">Ventilation automatique selon les années tarifaires</p>
+                          {redevanceBreakdown.segments.map((segment, i) => (
+                            <div key={`${segment.label}-${i}`} className="flex justify-between text-[11px]">
+                              <span>{segment.label} · {segment.jours} j · {fmt(segment.mensuel_par_ha)}/mois/ha</span>
+                              <span className="font-bold">{fmt(segment.montant)}</span>
+                            </div>
+                          ))}
+                          {(redevanceBreakdown as any).promotionAppliquee && (
+                            <div className="flex justify-between text-[11px] text-primary pt-1 border-t border-dashed">
+                              <span>Réduction appliquée</span><span className="font-bold">- {fmt((redevanceBreakdown as any).economie)}</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

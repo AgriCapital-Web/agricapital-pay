@@ -90,6 +90,21 @@ serve(async (req) => {
       });
     }
 
+    if (action === "status") {
+      const { reference, transaction_id } = body;
+      if (!reference && !transaction_id) throw new Error("Reference requise");
+      let query = supabase
+        .from("paiements")
+        .select("id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha), souscripteurs(nom_complet, telephone, id_unique)");
+      if (reference) query = query.eq("reference", reference);
+      else query = query.or(`kkiapay_transaction_id.eq.${transaction_id},metadata->>kkiapay_transaction_id.eq.${transaction_id}`);
+      const { data, error } = await query.maybeSingle();
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true, paiement: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     throw new Error("Action inconnue");
   } catch (e: any) {
     console.error("create-payment error:", e);

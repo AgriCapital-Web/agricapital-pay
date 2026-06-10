@@ -53,6 +53,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     }
   }, [prefillType]);
 
+  // Auto-select most recent plantation when entering plantation step
+  useEffect(() => {
+    if (step !== 'plantation' || selectedPlantation || plantations.length === 0) return;
+    const candidates = typePaiement === 'da'
+      ? plantations.filter((p: any) => (p.superficie_ha - (p.superficie_activee || 0)) > 0)
+      : plantations.filter((p: any) => (p.superficie_activee || 0) > 0);
+    const sorted = [...candidates].sort((a, b) =>
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    if (sorted[0]) setSelectedPlantation(sorted[0].id);
+  }, [step, typePaiement, plantations]);
+
   const plantation = useMemo(() => plantations.find(p => p.id === selectedPlantation), [selectedPlantation, plantations]);
 
   // Get progressive rate for the selected plantation
@@ -93,18 +105,20 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   useEffect(() => {
     onSuccess(async (response) => {
       if (currentPaiementRef) {
-        const { data: paiementData } = await supabase.from('paiements').select('*, plantations(*)').eq('reference', currentPaiementRef).maybeSingle();
-        const { error } = await supabase.from('paiements').update({
-          statut: 'valide', date_paiement: new Date().toISOString(),
-          montant_paye: response.amount || paiementData?.montant || 0,
-          metadata: { payment_provider: 'kkiapay', kkiapay_transaction_id: response.transactionId, method: response.method || null, fees: response.fees || 0 }
-        }).eq('reference', currentPaiementRef);
-        if (!error && paiementData?.type_paiement === 'DA' && paiementData?.plantation_id) {
-          const p = paiementData.plantations;
-          if (p) await supabase.from('plantations').update({ superficie_activee: p.superficie_ha, date_activation: new Date().toISOString(), statut: 'active', statut_global: 'actif' }).eq('id', paiementData.plantation_id);
-        }
         try {
-          const montantPaye = response.amount || paiementData?.montant || 0;
+          await supabase.functions.invoke('create-payment', {
+            body: {
+              action: 'confirm',
+              reference: currentPaiementRef,
+              kkiapay_transaction_id: response.transactionId,
+              montant_paye: response.amount,
+              method: response.method || null,
+              fees: response.fees || 0,
+            }
+          });
+        } catch (e) { console.error('confirm error', e); }
+        try {
+          const montantPaye = response.amount || 0;
           await supabase.functions.invoke('send-otp', {
             body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
           }).catch(() => {});

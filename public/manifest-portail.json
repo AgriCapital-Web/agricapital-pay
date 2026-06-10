@@ -1,7 +1,7 @@
 {
   "name": "AgriCapital Pay",
   "short_name": "AgriCapital Pay",
-  "description": "Portail de paiement et suivi des souscriptions AgriCapital - Redevances mensuelles et droits d'accès",
+  "description": "Portail de paiement et suivi des souscriptions AgriCapital - Mensualités et Dépôt Initial",
   "theme_color": "#00643C",
   "background_color": "#f0fdf4",
   "display": "standalone",

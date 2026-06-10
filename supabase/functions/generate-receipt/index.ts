@@ -64,7 +64,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: wh
     <div class="info-row"><span class="info-label">Souscripteur</span><span class="info-value">${data.souscripteur_nom || '—'}</span></div>
     <div class="info-row"><span class="info-label">Téléphone</span><span class="info-value">${data.souscripteur_telephone || '—'}</span></div>
     <div class="info-row"><span class="info-label">Plantation</span><span class="info-value">${data.plantation_nom || '—'}</span></div>
-    <div class="info-row"><span class="info-label">Type</span><span class="info-value">${data.type_paiement === 'DA' ? "Droit d'Accès" : 'Redevance'}</span></div>
+    <div class="info-row"><span class="info-label">Type</span><span class="info-value">${data.type_paiement === 'DA' ? "Dépôt Initial" : 'Mensualité'}</span></div>
     <div class="info-row"><span class="info-label">Mode</span><span class="info-value">${data.mode_paiement || 'Mobile Money'}</span></div>
   </div>
   <div class="amount-section">

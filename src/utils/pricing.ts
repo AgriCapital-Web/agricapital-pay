@@ -245,7 +245,7 @@ function getCurrentRateFromSchedule(
     if (fallbackMensuel > 0) {
       return {
         annee: 1,
-        label: 'Tarif standard',
+        label: 'Tarif CRM',
         mensuel_par_ha: fallbackMensuel,
         jour_par_ha: Math.round(fallbackMensuel / 30),
         semaine_par_ha: Math.round(fallbackMensuel / 4),

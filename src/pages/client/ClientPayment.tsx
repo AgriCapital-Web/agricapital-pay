@@ -53,6 +53,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     }
   }, [prefillType]);
 
+  // Auto-select most recent plantation when entering plantation step
+  useEffect(() => {
+    if (step !== 'plantation' || selectedPlantation || plantations.length === 0) return;
+    const candidates = typePaiement === 'da'
+      ? plantations.filter((p: any) => (p.superficie_ha - (p.superficie_activee || 0)) > 0)
+      : plantations.filter((p: any) => (p.superficie_activee || 0) > 0);
+    const sorted = [...candidates].sort((a, b) =>
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    if (sorted[0]) setSelectedPlantation(sorted[0].id);
+  }, [step, typePaiement, plantations]);
+
   const plantation = useMemo(() => plantations.find(p => p.id === selectedPlantation), [selectedPlantation, plantations]);
 
   // Get progressive rate for the selected plantation
@@ -93,18 +105,20 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   useEffect(() => {
     onSuccess(async (response) => {
       if (currentPaiementRef) {
-        const { data: paiementData } = await supabase.from('paiements').select('*, plantations(*)').eq('reference', currentPaiementRef).maybeSingle();
-        const { error } = await supabase.from('paiements').update({
-          statut: 'valide', date_paiement: new Date().toISOString(),
-          montant_paye: response.amount || paiementData?.montant || 0,
-          metadata: { payment_provider: 'kkiapay', kkiapay_transaction_id: response.transactionId, method: response.method || null, fees: response.fees || 0 }
-        }).eq('reference', currentPaiementRef);
-        if (!error && paiementData?.type_paiement === 'DA' && paiementData?.plantation_id) {
-          const p = paiementData.plantations;
-          if (p) await supabase.from('plantations').update({ superficie_activee: p.superficie_ha, date_activation: new Date().toISOString(), statut: 'active', statut_global: 'actif' }).eq('id', paiementData.plantation_id);
-        }
         try {
-          const montantPaye = response.amount || paiementData?.montant || 0;
+          await supabase.functions.invoke('create-payment', {
+            body: {
+              action: 'confirm',
+              reference: currentPaiementRef,
+              kkiapay_transaction_id: response.transactionId,
+              montant_paye: response.amount,
+              method: response.method || null,
+              fees: response.fees || 0,
+            }
+          });
+        } catch (e) { console.error('confirm error', e); }
+        try {
+          const montantPaye = response.amount || 0;
           await supabase.functions.invoke('send-otp', {
             body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
           }).catch(() => {});
@@ -157,13 +171,20 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     try {
       const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       setCurrentPaiementRef(reference);
-      const { data: paiementRow, error: insertError } = await supabase.from('paiements').insert({
-        souscripteur_id: souscripteur.id, plantation_id: plantation.id,
-        type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
-        montant: montantTotal, statut: 'en_attente', mode_paiement: 'Mobile Money', reference,
-        metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay', annee_tarif: plantationRate?.annee || 1, tarif_mensuel: TARIFS.mois }
-      }).select().single();
-      if (insertError) throw insertError;
+      const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'insert',
+          souscripteur_id: souscripteur.id,
+          plantation_id: plantation.id,
+          type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
+          montant: montantTotal,
+          mode_paiement: 'Mobile Money',
+          reference,
+          metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay', annee_tarif: plantationRate?.annee || 1, tarif_mensuel: TARIFS.mois }
+        }
+      });
+      if (insertError || !invokeData?.success) throw new Error(invokeData?.error || insertError?.message || 'Erreur création paiement');
+      const paiementRow = invokeData.paiement;
       const opened = await openPayment({
         amount: Math.round(montantTotal),
         email: souscripteur.email || 'client@agricapital.ci',
@@ -528,7 +549,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
                 {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Ouverture...</> : <><CreditCard className="h-5 w-5 mr-2" />Procéder au paiement</>}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé — Mobile Money, Wave, Carte bancaire</p>
+              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — Mobile Money, Carte bancaire</p>
             </CardContent>
           </Card>
         )}

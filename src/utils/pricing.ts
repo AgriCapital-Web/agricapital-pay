@@ -30,6 +30,16 @@ export interface PricingSchedule {
   cash_price: number;
 }
 
+export interface OfferPricingSource {
+  code?: string | null;
+  montant_da_par_ha?: number | null;
+  montant_depot_initial_par_ha?: number | null;
+  contribution_mensuelle_par_ha?: number | null;
+  montant_total_par_ha?: number | null;
+  duree_paiement_mois?: number | null;
+  tranches_paiement?: unknown;
+}
+
 export interface CurrentRate {
   annee: number; // 1, 2, or 3
   label: string; // "An 1", "An 2", "An 3"
@@ -42,6 +52,21 @@ export interface CurrentRate {
   mois_restants_dans_annee: number;
   mois_ecoules: number;
   schedule: PricingSchedule;
+}
+
+export interface PaymentBreakdownSegment {
+  label: string;
+  annee: number;
+  jours: number;
+  moisEquivalent: number;
+  mensuel_par_ha: number;
+  montant: number;
+}
+
+export interface ProgressivePaymentResult {
+  montant: number;
+  totalJours: number;
+  segments: PaymentBreakdownSegment[];
 }
 
 const PRICING: Record<string, PricingSchedule> = {
@@ -99,7 +124,7 @@ const PRICING: Record<string, PricingSchedule> = {
  * Determine the current pricing year and rate based on offer code and activation date.
  * Falls back to DB rates if offer code not in progressive schedule.
  */
-function normalizeOfferCode(offreCode: string | undefined): string {
+function normalizeOfferCode(offreCode: string | null | undefined): string {
   return (offreCode || '')
     .toUpperCase()
     .normalize('NFD')
@@ -110,14 +135,110 @@ function normalizeOfferCode(offreCode: string | undefined): string {
     .replace(/PALMINVESTISSEMENT/g, 'PALMINVEST');
 }
 
+function toNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function getTranches(offre?: OfferPricingSource | null): Array<{ annee: number; mois: number; mensualite_par_ha: number }> {
+  const raw = offre?.tranches_paiement;
+  const parsed = Array.isArray(raw) ? raw : [];
+  return parsed
+    .map((t: any) => ({
+      annee: toNumber(t?.annee),
+      mois: toNumber(t?.mois),
+      mensualite_par_ha: toNumber(t?.mensualite_par_ha),
+    }))
+    .filter((t) => t.annee > 0 && t.mois > 0 && t.mensualite_par_ha > 0)
+    .sort((a, b) => a.annee - b.annee);
+}
+
+export function getPricingScheduleFromOffer(offre?: OfferPricingSource | null): PricingSchedule | null {
+  const tranches = getTranches(offre);
+  if (tranches.length > 0) {
+    const byYear = [tranches[0], tranches[1] || tranches[0], tranches[2] || tranches[1] || tranches[0]];
+    const totalParHa = tranches.reduce((sum, t) => sum + t.mensualite_par_ha * t.mois, 0)
+      + toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha));
+    return {
+      depot_initial: toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha)),
+      an1_mensuel: byYear[0].mensualite_par_ha,
+      an1_duree_mois: byYear[0].mois,
+      an2_mensuel: byYear[1].mensualite_par_ha,
+      an2_duree_mois: byYear[1].mois,
+      an3_mensuel: byYear[2].mensualite_par_ha,
+      an3_duree_mois: byYear[2].mois,
+      total_par_ha: toNumber(offre?.montant_total_par_ha, totalParHa) || totalParHa,
+      duree_totale_mois: toNumber(offre?.duree_paiement_mois, tranches.reduce((sum, t) => sum + t.mois, 0)),
+      cash_price: Math.max(0, (toNumber(offre?.montant_total_par_ha, totalParHa) || totalParHa) - 300000),
+    };
+  }
+
+  const staticSchedule = PRICING[normalizeOfferCode(offre?.code)];
+  if (staticSchedule) return staticSchedule;
+
+  const fallbackMensuel = toNumber(offre?.contribution_mensuelle_par_ha);
+  if (fallbackMensuel <= 0) return null;
+  const fallbackDA = toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha));
+  const duration = toNumber(offre?.duree_paiement_mois, 34);
+  return {
+    depot_initial: fallbackDA,
+    an1_mensuel: fallbackMensuel,
+    an1_duree_mois: Math.min(12, duration),
+    an2_mensuel: fallbackMensuel,
+    an2_duree_mois: Math.min(12, Math.max(0, duration - 12)),
+    an3_mensuel: fallbackMensuel,
+    an3_duree_mois: Math.max(0, duration - 24),
+    total_par_ha: fallbackDA + fallbackMensuel * duration,
+    duree_totale_mois: duration,
+    cash_price: fallbackDA + fallbackMensuel * duration,
+  };
+}
+
+function getElapsedDays(dateActivation: string | null | undefined): number {
+  if (!dateActivation) return 0;
+  const activation = new Date(dateActivation).getTime();
+  if (!Number.isFinite(activation)) return 0;
+  return Math.max(0, Math.floor((Date.now() - activation) / 86400000));
+}
+
+function getElapsedMonths(dateActivation: string | null | undefined): number {
+  if (!dateActivation) return 0;
+  const activation = new Date(dateActivation);
+  if (Number.isNaN(activation.getTime())) return 0;
+  const now = new Date();
+  return Math.max(0, (now.getFullYear() - activation.getFullYear()) * 12 + (now.getMonth() - activation.getMonth()));
+}
+
+function getScheduleTranches(schedule: PricingSchedule) {
+  return [
+    { annee: 1, label: 'An 1', mois: schedule.an1_duree_mois, mensuel: schedule.an1_mensuel },
+    { annee: 2, label: 'An 2', mois: schedule.an2_duree_mois, mensuel: schedule.an2_mensuel },
+    { annee: 3, label: 'An 3', mois: schedule.an3_duree_mois, mensuel: schedule.an3_mensuel },
+  ].filter((t) => t.mois > 0 && t.mensuel > 0);
+}
+
 export function getCurrentRate(
   offreCode: string | undefined,
   dateActivation: string | null | undefined,
   fallbackMensuel: number = 0,
   fallbackDA: number = 0,
 ): CurrentRate | null {
-  const code = normalizeOfferCode(offreCode);
-  const schedule = PRICING[code];
+  return getCurrentRateFromSchedule(PRICING[normalizeOfferCode(offreCode)] || null, dateActivation, fallbackMensuel, fallbackDA);
+}
+
+export function getCurrentRateFromOffer(
+  offre: OfferPricingSource | null | undefined,
+  dateActivation: string | null | undefined,
+): CurrentRate | null {
+  return getCurrentRateFromSchedule(getPricingScheduleFromOffer(offre), dateActivation, toNumber(offre?.contribution_mensuelle_par_ha), toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha)));
+}
+
+function getCurrentRateFromSchedule(
+  schedule: PricingSchedule | null,
+  dateActivation: string | null | undefined,
+  fallbackMensuel: number = 0,
+  fallbackDA: number = 0,
+): CurrentRate | null {
 
   if (!schedule) {
     // Fallback to flat DB rate (e.g. PalmÉlite or unknown offers)
@@ -150,14 +271,7 @@ export function getCurrentRate(
     return null;
   }
 
-  // Calculate months since activation
-  let moisEcoules = 0;
-  if (dateActivation) {
-    const activation = new Date(dateActivation);
-    const now = new Date();
-    moisEcoules = (now.getFullYear() - activation.getFullYear()) * 12 + (now.getMonth() - activation.getMonth());
-    if (moisEcoules < 0) moisEcoules = 0;
-  }
+  const moisEcoules = getElapsedMonths(dateActivation);
 
   let annee: number;
   let mensuel: number;
@@ -212,9 +326,99 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   ];
 }
 
+export function getFullTariffGridFromOffer(offre: OfferPricingSource | null | undefined): {
+  label: string;
+  mensuel: number;
+  duree: number;
+  total: number;
+}[] | null {
+  const schedule = getPricingScheduleFromOffer(offre);
+  if (!schedule) return null;
+
+  return getScheduleTranches(schedule).map((t) => ({
+    label: `${t.label} — ${t.mois} mois`,
+    mensuel: t.mensuel,
+    duree: t.mois,
+    total: t.mensuel * t.mois,
+  }));
+}
+
 export function getPricingSchedule(offreCode: string | undefined): PricingSchedule | null {
   const code = normalizeOfferCode(offreCode);
   return PRICING[code] || null;
+}
+
+export function periodToDays(periodType: 'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee', count: number): number {
+  const safeCount = Math.max(1, Math.floor(Number(count) || 1));
+  const unitDays: Record<typeof periodType, number> = {
+    jour: 1,
+    semaine: 7,
+    mois: 30,
+    trimestre: 90,
+    semestre: 180,
+    annee: 360,
+  };
+  return unitDays[periodType] * safeCount;
+}
+
+export function calculateProgressiveAmountByDays(
+  offre: OfferPricingSource | null | undefined,
+  startDayOffset: number,
+  daysCount: number,
+  superficieHa: number,
+): ProgressivePaymentResult {
+  const schedule = getPricingScheduleFromOffer(offre);
+  const sup = Math.max(0, Number(superficieHa) || 0);
+  const totalDays = Math.max(0, Math.floor(Number(daysCount) || 0));
+  if (!schedule || sup <= 0 || totalDays <= 0) return { montant: 0, totalJours: totalDays, segments: [] };
+
+  const segments: PaymentBreakdownSegment[] = [];
+  let cursor = Math.max(0, Math.floor(Number(startDayOffset) || 0));
+  let remaining = totalDays;
+
+  for (const tranche of getScheduleTranches(schedule)) {
+    const trancheDays = tranche.mois * 30;
+    if (cursor >= trancheDays) {
+      cursor -= trancheDays;
+      continue;
+    }
+
+    const available = trancheDays - cursor;
+    const days = Math.min(remaining, available);
+    const amount = (tranche.mensuel / 30) * days * sup;
+    segments.push({
+      label: tranche.label,
+      annee: tranche.annee,
+      jours: days,
+      moisEquivalent: days / 30,
+      mensuel_par_ha: tranche.mensuel,
+      montant: amount,
+    });
+    remaining -= days;
+    cursor = 0;
+    if (remaining <= 0) break;
+  }
+
+  return {
+    montant: segments.reduce((sum, segment) => sum + segment.montant, 0),
+    totalJours: totalDays - remaining,
+    segments,
+  };
+}
+
+export function calculateProgressivePeriodAmount(
+  offre: OfferPricingSource | null | undefined,
+  dateActivation: string | null | undefined,
+  periodType: 'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee',
+  count: number,
+  superficieHa: number,
+): ProgressivePaymentResult {
+  return calculateProgressiveAmountByDays(
+    offre,
+    getElapsedDays(dateActivation),
+    periodToDays(periodType, count),
+    superficieHa,
+  );
 }
 
 export function formatCFA(amount: number): string {

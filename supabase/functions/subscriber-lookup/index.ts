@@ -14,6 +14,33 @@ function sanitizePhone(input: string): string {
   return cleaned;
 }
 
+function normalizeOfferCode(code: string | null | undefined): string {
+  return (code || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]+/g, '').replace(/_PLUS/g, '+').replace(/PLUS/g, '+');
+}
+
+function getProgressiveAmount(offre: any, startDayOffset: number, daysCount: number, hectares: number): number {
+  const tranches = Array.isArray(offre?.tranches_paiement) ? offre.tranches_paiement : [];
+  const schedule = tranches
+    .map((t: any) => ({ mois: Number(t?.mois || 0), mensuel: Number(t?.mensualite_par_ha || 0) }))
+    .filter((t: any) => t.mois > 0 && t.mensuel > 0);
+  if (schedule.length === 0) {
+    return (Number(offre?.contribution_mensuelle_par_ha || 0) / 30) * daysCount * hectares;
+  }
+  let cursor = Math.max(0, Math.floor(startDayOffset || 0));
+  let remaining = Math.max(0, Math.floor(daysCount || 0));
+  let total = 0;
+  for (const tranche of schedule) {
+    const trancheDays = tranche.mois * 30;
+    if (cursor >= trancheDays) { cursor -= trancheDays; continue; }
+    const days = Math.min(remaining, trancheDays - cursor);
+    total += (tranche.mensuel / 30) * days * hectares;
+    remaining -= days;
+    cursor = 0;
+    if (remaining <= 0) break;
+  }
+  return total;
+}
+
 // === SECURITY: Rate limiting ===
 async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 5, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
   const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();

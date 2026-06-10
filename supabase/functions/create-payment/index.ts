@@ -23,14 +23,19 @@ serve(async (req) => {
       if (!souscripteur_id || !type_paiement || !montant || !reference) {
         throw new Error("Champs requis manquants");
       }
+      const isDepotInitial = type_paiement === "DA";
+      const paymentPhase = isDepotInitial ? null : (metadata?.phase || (metadata?.annee_tarif ? `annee_${metadata.annee_tarif}` : null));
       const { data, error } = await supabase.from("paiements").insert({
         souscripteur_id,
         plantation_id: plantation_id || null,
         type_paiement,
         montant,
+        montant_theorique: montant,
         statut: "en_attente",
         mode_paiement: mode_paiement || "Mobile Money",
         reference,
+        est_depot_initial: isDepotInitial,
+        phase: paymentPhase,
         metadata: metadata || {},
       }).select().single();
       if (error) throw error;
@@ -55,6 +60,7 @@ serve(async (req) => {
         statut: "valide",
         date_paiement: new Date().toISOString(),
         montant_paye: montant_paye || paiementData.montant,
+        kkiapay_transaction_id: kkiapay_transaction_id || paiementData.kkiapay_transaction_id || null,
         metadata: {
           ...(paiementData.metadata || {}),
           payment_provider: "kkiapay",

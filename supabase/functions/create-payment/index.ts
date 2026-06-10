@@ -83,6 +83,66 @@ serve(async (req) => {
             statut_global: "actif",
           }).eq("id", paiementData.plantation_id);
         }
+
+        const { data: souscripteur } = await supabase
+          .from("souscripteurs")
+          .select("*, offres(*)")
+          .eq("id", paiementData.souscripteur_id)
+          .maybeSingle();
+
+        if (souscripteur) {
+          const debut = new Date();
+          const dureeMois = Number(souscripteur.offres?.duree_paiement_mois || 34);
+          const fin = new Date(debut);
+          fin.setMonth(fin.getMonth() + dureeMois);
+          const prochaine = new Date(debut);
+          prochaine.setMonth(prochaine.getMonth() + 1);
+
+          await supabase.from("souscripteurs").update({
+            compte_actif: true,
+            da_paye_at: new Date().toISOString(),
+            contrat_debut_at: debut.toISOString().slice(0, 10),
+            contrat_fin_at: fin.toISOString().slice(0, 10),
+            phase_actuelle: "annee_1",
+            prochaine_echeance: prochaine.toISOString().slice(0, 10),
+          }).eq("id", paiementData.souscripteur_id);
+
+          const { count } = await supabase
+            .from("paiements")
+            .select("id", { count: "exact", head: true })
+            .eq("souscripteur_id", paiementData.souscripteur_id)
+            .eq("type_paiement", "REDEVANCE");
+
+          const tranches = Array.isArray(souscripteur.offres?.tranches_paiement) ? souscripteur.offres.tranches_paiement : [];
+          if ((count || 0) === 0 && tranches.length > 0) {
+            const echeances: any[] = [];
+            let numero = 0;
+            for (const tranche of tranches) {
+              const mois = Number(tranche?.mois || 0);
+              const anneeOffre = Number(tranche?.annee || 1);
+              const mensualite = Number(tranche?.mensualite_par_ha || 0) * Number(souscripteur.total_hectares || 0);
+              for (let i = 0; i < mois; i++) {
+                numero += 1;
+                const due = new Date(debut);
+                due.setMonth(due.getMonth() + numero);
+                echeances.push({
+                  souscripteur_id: paiementData.souscripteur_id,
+                  type_paiement: "REDEVANCE",
+                  statut: "en_attente",
+                  montant: mensualite,
+                  montant_theorique: mensualite,
+                  numero_echeance: numero,
+                  date_echeance: due.toISOString().slice(0, 10),
+                  annee: due.getFullYear(),
+                  phase: `annee_${anneeOffre}`,
+                  est_depot_initial: false,
+                  metadata: { generated_by: "create-payment", offer_tranche: tranche },
+                });
+              }
+            }
+            if (echeances.length > 0) await supabase.from("paiements").insert(echeances);
+          }
+        }
       }
 
       return new Response(JSON.stringify({ success: true }), {

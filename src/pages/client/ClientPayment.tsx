@@ -171,13 +171,20 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     try {
       const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       setCurrentPaiementRef(reference);
-      const { data: paiementRow, error: insertError } = await supabase.from('paiements').insert({
-        souscripteur_id: souscripteur.id, plantation_id: plantation.id,
-        type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
-        montant: montantTotal, statut: 'en_attente', mode_paiement: 'Mobile Money', reference,
-        metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay', annee_tarif: plantationRate?.annee || 1, tarif_mensuel: TARIFS.mois }
-      }).select().single();
-      if (insertError) throw insertError;
+      const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'insert',
+          souscripteur_id: souscripteur.id,
+          plantation_id: plantation.id,
+          type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
+          montant: montantTotal,
+          mode_paiement: 'Mobile Money',
+          reference,
+          metadata: { mode_arriere: modeArriere, montant_arriere: modeArriere ? montantArriere : null, montant_avance: modeArriere === 'avance' ? montantAvance : null, payment_provider: 'kkiapay', annee_tarif: plantationRate?.annee || 1, tarif_mensuel: TARIFS.mois }
+        }
+      });
+      if (insertError || !invokeData?.success) throw new Error(invokeData?.error || insertError?.message || 'Erreur création paiement');
+      const paiementRow = invokeData.paiement;
       const opened = await openPayment({
         amount: Math.round(montantTotal),
         email: souscripteur.email || 'client@agricapital.ci',
@@ -542,7 +549,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
                 {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Ouverture...</> : <><CreditCard className="h-5 w-5 mr-2" />Procéder au paiement</>}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé — Mobile Money, Wave, Carte bancaire</p>
+              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — Mobile Money, Carte bancaire</p>
             </CardContent>
           </Card>
         )}

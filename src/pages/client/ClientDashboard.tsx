@@ -102,7 +102,7 @@ const ClientDashboard = ({
     .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
 
   const getInitials = (name: string) => name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'AC';
-  const offreNom = souscripteur.offres?.nom || 'Standard';
+  const offreNom = souscripteur.offres?.nom || '—';
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

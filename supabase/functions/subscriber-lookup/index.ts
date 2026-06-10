@@ -138,7 +138,7 @@ serve(async (req) => {
           departements (id, nom),
           districts (id, nom),
           sous_prefectures (id, nom),
-          promotions:promotion_id (id, nom, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active)
+          promotions:promotion_id (id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids)
         `)
         .eq("telephone", phone)
         .maybeSingle();

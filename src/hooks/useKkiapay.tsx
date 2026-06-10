@@ -112,7 +112,7 @@ export const useKkiapay = () => {
         key,
         sandbox: false,
         countries: ['CI'],
-        paymentMethods: ['momo', 'wave', 'card'],
+        paymentMethods: ['momo', 'card'],
         theme: '#00643C'
       });
       return true;

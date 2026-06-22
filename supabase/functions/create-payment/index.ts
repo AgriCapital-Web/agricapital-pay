@@ -25,6 +25,46 @@ serve(async (req) => {
       }
       const isDepotInitial = type_paiement === "DA";
       const paymentPhase = isDepotInitial ? null : (metadata?.phase || (metadata?.annee_tarif ? `annee_${metadata.annee_tarif}` : null));
+
+      if (isDepotInitial && plantation_id) {
+        const { data: existingDepot, error: existingError } = await supabase
+          .from("paiements")
+          .select("id, reference, statut, metadata")
+          .eq("souscripteur_id", souscripteur_id)
+          .eq("plantation_id", plantation_id)
+          .eq("est_depot_initial", true)
+          .maybeSingle();
+
+        if (existingError) throw existingError;
+        if (existingDepot) {
+          if (existingDepot.statut === "valide") {
+            throw new Error("Le Dépôt Initial de cette plantation est déjà validé.");
+          }
+
+          const { data: updatedDepot, error: updateExistingError } = await supabase
+            .from("paiements")
+            .update({
+              type_paiement,
+              montant,
+              montant_theorique: montant,
+              montant_paye: null,
+              statut: "en_attente",
+              mode_paiement: mode_paiement || "Mobile Money",
+              reference,
+              phase: paymentPhase,
+              metadata: { ...(existingDepot.metadata || {}), ...(metadata || {}), refreshed_for_retry: true },
+            })
+            .eq("id", existingDepot.id)
+            .select()
+            .single();
+
+          if (updateExistingError) throw updateExistingError;
+          return new Response(JSON.stringify({ success: true, paiement: updatedDepot, reused: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       const { data, error } = await supabase.from("paiements").insert({
         souscripteur_id,
         plantation_id: plantation_id || null,

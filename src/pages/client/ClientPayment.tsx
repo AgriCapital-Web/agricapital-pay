@@ -30,6 +30,26 @@ const STEPS = [
   { key: 'confirm', label: 'Payer' },
 ] as const;
 
+const KKIAPAY_MOBILE_MONEY_FEE_RATE = 0.019;
+type ClientPaymentMethod = 'momo' | 'card';
+
+const calculateKkiapayAbsorption = (amount: number, method: ClientPaymentMethod) => {
+  const clientDebitAmount = Math.round(amount || 0);
+  if (method === 'card') {
+    return { clientDebitAmount, widgetAmount: clientDebitAmount, estimatedFees: 0, feeRate: 0, absorbedByAgriCapital: 0 };
+  }
+
+  const widgetAmount = Math.max(0, Math.round(clientDebitAmount / (1 + KKIAPAY_MOBILE_MONEY_FEE_RATE)));
+  const estimatedFees = Math.max(0, clientDebitAmount - widgetAmount);
+  return {
+    clientDebitAmount,
+    widgetAmount,
+    estimatedFees,
+    feeRate: KKIAPAY_MOBILE_MONEY_FEE_RATE,
+    absorbedByAgriCapital: estimatedFees,
+  };
+};
+
 const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAmount, prefillType }: ClientPaymentProps) => {
   const { toast } = useToast();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
@@ -44,6 +64,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [modeArriere, setModeArriere] = useState<'only' | 'avance' | null>(null);
   const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');
 
   useEffect(() => {
     if (prefillType === 'arriere') {
@@ -204,6 +225,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     if (modeArriere === 'avance') return montantArriere + montantAvance;
     return calculerMontantRedevance();
   }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, depotInitialDetails.montant, periodType, periodCount, customAmount, redevanceBreakdown.montant]);
+
+  const kkiapayPricing = useMemo(() => calculateKkiapayAbsorption(montantTotal, paymentMethod), [montantTotal, paymentMethod]);
 
   const handleSubmit = async () => {
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }

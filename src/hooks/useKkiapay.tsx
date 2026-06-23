@@ -20,7 +20,7 @@ export interface KkiapayConfig {
   data?: Record<string, any>;
   theme?: string;
   countries?: string[];
-  paymentMethods?: string[];
+  paymentMethods?: ('momo' | 'card')[];
 }
 
 export interface KkiapayResponse {
@@ -112,7 +112,7 @@ export const useKkiapay = () => {
         key,
         sandbox: false,
         countries: ['CI'],
-        paymentMethods: ['momo', 'card'],
+        paymentMethods: config.paymentMethods || ['momo', 'card'],
         theme: '#00643C'
       });
       return true;

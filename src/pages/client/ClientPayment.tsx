@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -75,6 +75,11 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');
+  const paymentContextRef = useRef<{
+    reference: string;
+    montantTotal: number;
+    pricing: ReturnType<typeof calculateKkiapayAbsorption>;
+  } | null>(null);
 
   useEffect(() => {
     if (prefillType === 'arriere') {
@@ -211,26 +216,27 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   useEffect(() => {
     onSuccess(async (response) => {
-      if (currentPaiementRef) {
+      const paymentContext = paymentContextRef.current;
+      if (paymentContext?.reference) {
         try {
           await supabase.functions.invoke('create-payment', {
             body: {
               action: 'confirm',
-              reference: currentPaiementRef,
+              reference: paymentContext.reference,
               kkiapay_transaction_id: response.transactionId,
-              montant_paye: montantTotal,
+              montant_paye: paymentContext.montantTotal,
               method: response.method || null,
               fees: response.fees || 0,
-              kkiapay_amount: response.amount || kkiapayPricing.widgetAmount,
-              client_debit_amount: kkiapayPricing.clientDebitAmount,
-              fee_absorption_rate: kkiapayPricing.feeRate,
+              kkiapay_amount: response.amount || paymentContext.pricing.widgetAmount,
+              client_debit_amount: paymentContext.pricing.clientDebitAmount,
+              fee_absorption_rate: paymentContext.pricing.feeRate,
             }
           });
         } catch (e) { console.error('confirm error', e); }
         try {
-          const montantPaye = montantTotal || kkiapayPricing.clientDebitAmount;
+          const montantPaye = paymentContext.montantTotal || paymentContext.pricing.clientDebitAmount;
           await supabase.functions.invoke('send-otp', {
-            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
+            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${paymentContext.reference}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
           }).catch(() => {});
         } catch {}
       }
@@ -247,6 +253,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     try {
       const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       setCurrentPaiementRef(reference);
+      paymentContextRef.current = { reference, montantTotal, pricing: kkiapayPricing };
       const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'insert',

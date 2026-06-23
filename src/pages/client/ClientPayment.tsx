@@ -699,13 +699,17 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 {modeArriere === 'only' && (
                   <div className="flex justify-between text-xs text-gold-dark"><span>Régularisation arriéré</span><span className="font-bold">✓</span></div>
                 )}
+                <div className="flex justify-between text-xs text-muted-foreground"><span>Mode</span><span className="font-bold">{paymentMethod === 'momo' ? 'Mobile Money' : 'Carte bancaire'}</span></div>
+                {paymentMethod === 'momo' && (
+                  <div className="flex justify-between text-xs text-muted-foreground"><span>Frais KKiaPay absorbés</span><span className="font-bold text-gold-dark">{fmt(kkiapayPricing.estimatedFees)}</span></div>
+                )}
                 <div className="flex justify-between pt-2 border-t"><span className="font-black text-base">Total</span><span className="text-xl font-black text-primary">{fmt(montantTotal)}</span></div>
               </div>
 
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
                 {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Ouverture...</> : <><CreditCard className="h-5 w-5 mr-2" />Procéder au paiement</>}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — Mobile Money, Carte bancaire</p>
+              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
             </CardContent>
           </Card>
         )}

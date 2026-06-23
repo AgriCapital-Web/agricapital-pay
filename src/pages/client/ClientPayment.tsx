@@ -156,9 +156,12 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               action: 'confirm',
               reference: currentPaiementRef,
               kkiapay_transaction_id: response.transactionId,
-              montant_paye: response.amount,
+              montant_paye: montantTotal,
               method: response.method || null,
               fees: response.fees || 0,
+              kkiapay_amount: response.amount || kkiapayPricing.widgetAmount,
+              client_debit_amount: kkiapayPricing.clientDebitAmount,
+              fee_absorption_rate: kkiapayPricing.feeRate,
             }
           });
         } catch (e) { console.error('confirm error', e); }
@@ -241,7 +244,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           plantation_id: plantation.id,
           type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
           montant: montantTotal,
-          mode_paiement: 'Mobile Money',
+          mode_paiement: paymentMethod === 'momo' ? 'Mobile Money' : 'Carte bancaire',
           reference,
           metadata: {
             mode_arriere: modeArriere,
@@ -254,17 +257,34 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
             promotion_id: activePromotion?.id || null,
             economie_promotion: typePaiement === 'da' ? depotInitialDetails.economie : (redevanceBreakdown as any).economie || 0,
             ventilation_tarifaire: typePaiement === 'redevance' ? redevanceBreakdown.segments : [],
+            client_debit_amount: kkiapayPricing.clientDebitAmount,
+            kkiapay_widget_amount: kkiapayPricing.widgetAmount,
+            estimated_kkiapay_fees: kkiapayPricing.estimatedFees,
+            fee_absorption_rate: kkiapayPricing.feeRate,
+            fee_absorption_method: paymentMethod,
+            fee_absorption_note: paymentMethod === 'momo'
+              ? 'Montant KKiaPay réduit pour absorber les frais Mobile Money AgriCapital et garder le débit client exact.'
+              : 'Carte bancaire sans frais KKiaPay appliqués au client.',
           }
         }
       });
       if (insertError || !invokeData?.success) throw new Error(invokeData?.error || insertError?.message || 'Erreur création paiement');
       const paiementRow = invokeData.paiement;
       const opened = await openPayment({
-        amount: Math.round(montantTotal),
+        amount: kkiapayPricing.widgetAmount,
         email: souscripteur.email || 'client@agricapital.ci',
         phone: souscripteur.telephone,
         name: souscripteur.nom_complet || `${souscripteur.prenoms} ${souscripteur.nom}`,
-        data: { reference, paiement_id: paiementRow.id, plantation_id: plantation.id, type: typePaiement }
+        paymentMethods: [paymentMethod],
+        data: {
+          reference,
+          paiement_id: paiementRow.id,
+          plantation_id: plantation.id,
+          type: typePaiement,
+          client_debit_amount: kkiapayPricing.clientDebitAmount,
+          kkiapay_widget_amount: kkiapayPricing.widgetAmount,
+          fee_absorption_rate: kkiapayPricing.feeRate,
+        }
       });
       if (!opened) { toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ouvrir la page de paiement." }); setLoading(false); }
     } catch (error: any) { toast({ variant: "destructive", title: "Erreur", description: error.message }); setLoading(false); }

@@ -166,7 +166,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           });
         } catch (e) { console.error('confirm error', e); }
         try {
-          const montantPaye = response.amount || 0;
+          const montantPaye = montantTotal || kkiapayPricing.clientDebitAmount;
           await supabase.functions.invoke('send-otp', {
             body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
           }).catch(() => {});

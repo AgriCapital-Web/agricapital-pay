@@ -1,8 +1,8 @@
 {
-  "name": "AgriCapital Pay",
+  "name": "AgriCapital Portail Client",
   "short_name": "AgriCapital",
   "description": "Portail Client AgriCapital - Suivi de plantations et paiement des mensualités en toute sécurité.",
-  "start_url": "/",
+  "start_url": "/?app=agricapital-client-v4",
   "scope": "/",
   "display": "standalone",
   "background_color": "#00643C",
@@ -25,7 +25,7 @@
   "categories": ["finance", "lifestyle"],
   "lang": "fr-FR",
   "dir": "ltr",
-  "id": "agricapital-pay-v3",
+  "id": "agricapital-client-v4",
   "prefer_related_applications": false,
   "related_applications": []
 }

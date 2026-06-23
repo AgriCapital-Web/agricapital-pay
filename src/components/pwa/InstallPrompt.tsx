@@ -150,7 +150,7 @@ const InstallPrompt = () => {
             <Button 
               onClick={handleInstall}
               size="lg"
-              className="w-full gap-2 rounded-2xl h-13 btn-brand-green shadow-xl"
+              className="w-full gap-2 rounded-2xl h-14 btn-brand-green shadow-xl"
             >
               <Download className="h-5 w-5" />
               Installer l'application

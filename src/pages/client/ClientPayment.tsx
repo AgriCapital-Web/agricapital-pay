@@ -629,6 +629,49 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </div>
               </div>
 
+              <div className="rounded-2xl p-4 card-brand-subtle bg-card space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold">Mode de paiement</p>
+                    <p className="text-[11px] text-muted-foreground">Le client est débité du montant exact AgriCapital.</p>
+                  </div>
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Frais absorbés</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('momo')}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${paymentMethod === 'momo' ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40'}`}
+                  >
+                    <p className="text-xs font-black">Mobile Money</p>
+                    <p className="text-[10px] text-muted-foreground">1,9% absorbé</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                  >
+                    <p className="text-xs font-black">Carte bancaire</p>
+                    <p className="text-[10px] text-muted-foreground">0% de frais</p>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-muted/40 p-3">
+                    <p className="text-muted-foreground">Débit client</p>
+                    <p className="font-black text-primary">{fmt(kkiapayPricing.clientDebitAmount)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/40 p-3">
+                    <p className="text-muted-foreground">Coût AgriCapital</p>
+                    <p className="font-black text-gold-dark">{fmt(kkiapayPricing.absorbedByAgriCapital)}</p>
+                  </div>
+                </div>
+                {paymentMethod === 'momo' && (
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    Pour garder {fmt(kkiapayPricing.clientDebitAmount)} côté client, le montant transmis à KKiaPay est ajusté à {fmt(kkiapayPricing.widgetAmount)} afin d'absorber environ {fmt(kkiapayPricing.estimatedFees)} de frais Mobile Money.
+                  </p>
+                )}
+              </div>
+
               <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0} className="w-full h-12 rounded-xl font-bold btn-brand">
                 <CreditCard className="h-5 w-5 mr-2" />Confirmer et payer
               </Button>

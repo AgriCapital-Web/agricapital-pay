@@ -39,7 +39,17 @@ const calculateKkiapayAbsorption = (amount: number, method: ClientPaymentMethod)
     return { clientDebitAmount, widgetAmount: clientDebitAmount, estimatedFees: 0, feeRate: 0, absorbedByAgriCapital: 0 };
   }
 
-  const widgetAmount = Math.max(0, Math.round(clientDebitAmount / (1 + KKIAPAY_MOBILE_MONEY_FEE_RATE)));
+  const theoreticalAmount = Math.max(0, Math.round(clientDebitAmount / (1 + KKIAPAY_MOBILE_MONEY_FEE_RATE)));
+  let widgetAmount = theoreticalAmount;
+
+  for (let candidate = Math.max(0, theoreticalAmount - 20); candidate <= theoreticalAmount + 20; candidate += 1) {
+    const totalWithRoundedFee = candidate + Math.ceil(candidate * KKIAPAY_MOBILE_MONEY_FEE_RATE);
+    if (totalWithRoundedFee === clientDebitAmount) {
+      widgetAmount = candidate;
+      break;
+    }
+  }
+
   const estimatedFees = Math.max(0, clientDebitAmount - widgetAmount);
   return {
     clientDebitAmount,

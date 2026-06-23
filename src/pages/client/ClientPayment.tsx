@@ -147,38 +147,6 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const fmt = (m: number) => formatCFA(m);
 
-  useEffect(() => {
-    onSuccess(async (response) => {
-      if (currentPaiementRef) {
-        try {
-          await supabase.functions.invoke('create-payment', {
-            body: {
-              action: 'confirm',
-              reference: currentPaiementRef,
-              kkiapay_transaction_id: response.transactionId,
-              montant_paye: montantTotal,
-              method: response.method || null,
-              fees: response.fees || 0,
-              kkiapay_amount: response.amount || kkiapayPricing.widgetAmount,
-              client_debit_amount: kkiapayPricing.clientDebitAmount,
-              fee_absorption_rate: kkiapayPricing.feeRate,
-            }
-          });
-        } catch (e) { console.error('confirm error', e); }
-        try {
-          const montantPaye = montantTotal || kkiapayPricing.clientDebitAmount;
-          await supabase.functions.invoke('send-otp', {
-            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
-          }).catch(() => {});
-        } catch {}
-      }
-      toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
-      setTimeout(() => onBack(), 2000);
-    });
-    onFailed((error) => { toast({ variant: "destructive", title: "Paiement échoué", description: error.reason }); setLoading(false); });
-    onClose(() => setLoading(false));
-  }, [currentPaiementRef, montantTotal, kkiapayPricing, souscripteur.telephone, onBack, toast]);
-
   const calculerArrieres = (plant: any) => {
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };
     const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
@@ -230,6 +198,38 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, depotInitialDetails.montant, periodType, periodCount, customAmount, redevanceBreakdown.montant]);
 
   const kkiapayPricing = useMemo(() => calculateKkiapayAbsorption(montantTotal, paymentMethod), [montantTotal, paymentMethod]);
+
+  useEffect(() => {
+    onSuccess(async (response) => {
+      if (currentPaiementRef) {
+        try {
+          await supabase.functions.invoke('create-payment', {
+            body: {
+              action: 'confirm',
+              reference: currentPaiementRef,
+              kkiapay_transaction_id: response.transactionId,
+              montant_paye: montantTotal,
+              method: response.method || null,
+              fees: response.fees || 0,
+              kkiapay_amount: response.amount || kkiapayPricing.widgetAmount,
+              client_debit_amount: kkiapayPricing.clientDebitAmount,
+              fee_absorption_rate: kkiapayPricing.feeRate,
+            }
+          });
+        } catch (e) { console.error('confirm error', e); }
+        try {
+          const montantPaye = montantTotal || kkiapayPricing.clientDebitAmount;
+          await supabase.functions.invoke('send-otp', {
+            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
+          }).catch(() => {});
+        } catch {}
+      }
+      toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
+      setTimeout(() => onBack(), 2000);
+    });
+    onFailed((error) => { toast({ variant: "destructive", title: "Paiement échoué", description: error.reason }); setLoading(false); });
+    onClose(() => setLoading(false));
+  }, [currentPaiementRef, montantTotal, kkiapayPricing, souscripteur.telephone, onBack, toast, onSuccess, onFailed, onClose]);
 
   const handleSubmit = async () => {
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }

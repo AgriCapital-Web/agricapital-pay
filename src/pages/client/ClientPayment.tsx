@@ -303,8 +303,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
-        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
+      <header className="py-3 px-4 shadow-lg sticky top-0 z-50 bg-[image:var(--gradient-hero)]">
+        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-7xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
           <div className="bg-white rounded-lg p-1 flex items-center justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-9 sm:h-10 object-contain" /></div>
           <span className="font-semibold text-white text-sm">Paiement</span>
@@ -313,7 +313,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
       {/* Step Progress */}
       <div className="px-4 py-3 bg-card border-b">
-        <div className="container mx-auto max-w-lg lg:max-w-4xl">
+        <div className="container mx-auto max-w-lg lg:max-w-7xl">
           <div className="flex items-center justify-between">
             {STEPS.map((s, i) => (
               <div key={s.key} className="flex items-center gap-1 flex-1">
@@ -328,7 +328,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         </div>
       </div>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl">
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-4 max-w-lg lg:max-w-7xl">
 
         {/* Bannière offre active */}
         {souscripteur?.offres && (

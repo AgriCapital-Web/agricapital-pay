@@ -121,10 +121,10 @@ const ClientDashboard = ({
   }, [souscripteur.telephone, toast]);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 35%, #f8f7f4 35.1%, #f8f7f4 100%)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 28%, #f8f7f4 28.1%, #f8f7f4 100%)' }}>
       {/* Header */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 100%)' }}>
-        <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-4xl">
+        <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-7xl">
           <div className="bg-white rounded-lg p-1 flex items-center justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-10 sm:h-12 object-contain" /></div>
           <div className="flex items-center gap-1">
             {isSupported && permission !== 'granted' && (
@@ -141,10 +141,10 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 space-y-3 max-w-lg lg:max-w-4xl pb-8" style={{ marginTop: '-1rem' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-7xl pb-8 lg:pb-12" style={{ marginTop: '-1rem' }}>
         
         {/* Profile Card */}
-        <Card className="border-0 shadow-xl overflow-hidden rounded-2xl" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+        <Card className="border-0 shadow-xl overflow-hidden rounded-2xl lg:col-span-5" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 rounded-2xl overflow-hidden border-2 border-gold/40 shadow-lg flex-shrink-0">
@@ -170,7 +170,7 @@ const ClientDashboard = ({
         </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 lg:col-span-7">
           {[
             { icon: Sprout, value: plantations.length, label: "Plantation(s)", color: "text-green-400" },
             { icon: MapPin, value: totalHectares, label: "Hectare(s)", color: "text-gold" },
@@ -188,7 +188,7 @@ const ClientDashboard = ({
 
         {/* Progressive Tarifs */}
         {currentRate && (
-          <Card className="card-brand-gold rounded-2xl shadow-sm">
+          <Card className="card-brand-gold rounded-2xl shadow-sm lg:col-span-8">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
                 <div className="h-7 w-7 rounded-lg bg-gold/10 flex items-center justify-center"><Leaf className="h-3.5 w-3.5 text-gold" /></div>
@@ -229,7 +229,7 @@ const ClientDashboard = ({
 
         {/* Alerte arriérés */}
         {totalArrieres > 0 && (
-          <Card className="card-brand rounded-2xl shadow-lg border-destructive/20">
+          <Card className="card-brand rounded-2xl shadow-lg border-destructive/20 lg:col-span-4">
             <CardContent className="p-4">
               <div className="flex items-start gap-3 mb-3">
                 <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center flex-shrink-0">
@@ -254,7 +254,7 @@ const ClientDashboard = ({
 
         {/* Dépôt Initial Progress */}
         {daProgress.totalDA > 0 && (
-          <Card className="card-brand-subtle rounded-2xl shadow-md">
+          <Card className="card-brand-subtle rounded-2xl shadow-md lg:col-span-4">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ const ClientDashboard = ({
 
         {/* Prochaines échéances */}
         {prochaines.length > 0 && (
-          <Card className="card-brand-subtle rounded-2xl shadow-sm">
+          <Card className="card-brand-subtle rounded-2xl shadow-sm lg:col-span-4">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <div className="h-8 w-8 rounded-xl bg-gold/10 flex items-center justify-center"><Clock className="h-4 w-4 text-gold" /></div>
@@ -296,17 +296,17 @@ const ClientDashboard = ({
         )}
 
         {/* CTA Paiement */}
-        <Button onClick={() => onPayment()} className="w-full h-14 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand">
+        <Button onClick={() => onPayment()} className="w-full h-14 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-4 lg:h-full lg:min-h-24">
           <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><CreditCard className="h-5 w-5" /></div>
           <span className="flex-1 text-left">Effectuer un paiement</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
 
         {/* Suivi temps réel des transactions (créée / payée / échouée / remboursée) */}
-        <TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} />
+        <div className="lg:col-span-6"><TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} /></div>
 
         {/* Navigation */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3 lg:col-span-6">
           {[
             { action: onPortfolio, icon: Wallet, label: "Mon portefeuille", desc: "Plantations & parcelles" },
             { action: onHistory, icon: History, label: "Historique paiements", desc: "Toutes vos transactions" },
@@ -328,7 +328,7 @@ const ClientDashboard = ({
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3 lg:col-span-12">
           {[
             { icon: CheckCircle, label: "DI versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Mensualités", value: fmt(totalRedevances), color: "text-gold-dark" },
@@ -349,7 +349,7 @@ const ClientDashboard = ({
 
         {/* Promotion active */}
         {souscripteur.promotion_active && (
-          <Card className="rounded-2xl shadow-md border-0 overflow-hidden" style={{ background: 'linear-gradient(120deg, #E89C31 0%, #B97A0E 100%)' }}>
+          <Card className="rounded-2xl shadow-md border-0 overflow-hidden lg:col-span-6" style={{ background: 'linear-gradient(120deg, #E89C31 0%, #B97A0E 100%)' }}>
             <CardContent className="p-4 text-white">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -371,7 +371,7 @@ const ClientDashboard = ({
 
         {/* Mon Conseiller */}
         {souscripteur.commercial && (
-          <Card className="card-brand-subtle rounded-2xl shadow-sm">
+          <Card className="card-brand-subtle rounded-2xl shadow-sm lg:col-span-6">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-2xl overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 border-2 border-gold/30">
@@ -409,7 +409,7 @@ const ClientDashboard = ({
         )}
 
         {/* Contact */}
-        <Card className="card-brand-green rounded-2xl shadow-none">
+        <Card className="card-brand-green rounded-2xl shadow-none lg:col-span-12">
           <CardContent className="p-4 text-center">
             <div className="bg-white rounded-lg p-2 inline-flex"><img src={logoWhiteBg} alt="AgriCapital" className="h-12 sm:h-14 mx-auto object-contain" /></div>
             <p className="text-xs text-muted-foreground mb-1.5">Assistance AgriCapital</p>

@@ -11,13 +11,13 @@
   "id": "agricapital-client-v4",
   "icons": [
     {
-      "src": "/icons/icon-pay.png",
+      "src": "/icons/icon-pay.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-pay.png",
+      "src": "/icons/icon-pay.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"

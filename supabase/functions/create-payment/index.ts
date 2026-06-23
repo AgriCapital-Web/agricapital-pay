@@ -85,7 +85,7 @@ serve(async (req) => {
     }
 
     if (action === "confirm") {
-      const { reference, kkiapay_transaction_id, montant_paye, method, fees } = body;
+      const { reference, kkiapay_transaction_id, montant_paye, method, fees, kkiapay_amount, client_debit_amount, fee_absorption_rate } = body;
       if (!reference) throw new Error("Reference requise");
 
       const { data: paiementData } = await supabase
@@ -105,6 +105,9 @@ serve(async (req) => {
           ...(paiementData.metadata || {}),
           payment_provider: "kkiapay",
           kkiapay_transaction_id,
+          kkiapay_amount: kkiapay_amount ?? null,
+          client_debit_amount: client_debit_amount ?? montant_paye ?? paiementData.montant,
+          fee_absorption_rate: fee_absorption_rate ?? paiementData.metadata?.fee_absorption_rate ?? 0,
           method: method || null,
           fees: fees || 0,
         },

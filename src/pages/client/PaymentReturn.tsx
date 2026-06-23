@@ -56,13 +56,16 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
                         action: 'confirm',
                         reference: db.reference,
                         kkiapay_transaction_id: transactionId,
-                        montant_paye: data.transaction?.amount ?? db.montant,
+                        montant_paye: db.metadata?.client_debit_amount ?? db.montant,
                         method: data.transaction?.source || data.transaction?.method || null,
                         fees: data.transaction?.fees || 0,
+                        kkiapay_amount: data.transaction?.amount ?? null,
+                        client_debit_amount: db.metadata?.client_debit_amount ?? db.montant,
+                        fee_absorption_rate: db.metadata?.fee_absorption_rate ?? 0,
                       }
                     });
                   }
-                  setPaiement({ ...db, statut: s, montant_paye: ok ? (data.transaction?.amount ?? db.montant) : 0 });
+                  setPaiement({ ...db, statut: s, montant_paye: ok ? (db.metadata?.client_debit_amount ?? db.montant) : 0 });
                   if (ok) fetchReceipt(db.reference);
                   setStatus(ok ? 'success' : 'error'); return;
                 }
@@ -70,8 +73,8 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
             } catch {}
           }
           if (urlStatus === 'success' || urlStatus === 'approved') {
-            await supabase.functions.invoke('create-payment', { body: { action: 'confirm', reference: db.reference, kkiapay_transaction_id: transactionId, montant_paye: db.montant } });
-            setPaiement({ ...db, statut: 'valide', montant_paye: db.montant });
+            await supabase.functions.invoke('create-payment', { body: { action: 'confirm', reference: db.reference, kkiapay_transaction_id: transactionId, montant_paye: db.metadata?.client_debit_amount ?? db.montant, client_debit_amount: db.metadata?.client_debit_amount ?? db.montant, fee_absorption_rate: db.metadata?.fee_absorption_rate ?? 0 } });
+            setPaiement({ ...db, statut: 'valide', montant_paye: db.metadata?.client_debit_amount ?? db.montant });
             fetchReceipt(db.reference);
             setStatus('success'); return;
           }

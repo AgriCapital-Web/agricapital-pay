@@ -177,7 +177,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     });
     onFailed((error) => { toast({ variant: "destructive", title: "Paiement échoué", description: error.reason }); setLoading(false); });
     onClose(() => setLoading(false));
-  }, [currentPaiementRef]);
+  }, [currentPaiementRef, montantTotal, kkiapayPricing, souscripteur.telephone, onBack, toast]);
 
   const calculerArrieres = (plant: any) => {
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Download, Smartphone, Sparkles, ShieldCheck, X } from 'lucide-react';
+import { Download, Smartphone, Sparkles, ShieldCheck } from 'lucide-react';
 import { isOnClientPortal } from '@/hooks/useClientPortal';
 
 const ogLogoImage = 'https://storage.googleapis.com/gpt-engineer-file-uploads/OI6nUHN0rMdlKjHmlXGUEQqHcM52/social-images/social-1776354157716-139657.webp';
@@ -86,15 +86,6 @@ const InstallPrompt = () => {
   return (
     <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
       <DialogContent className="max-w-[92vw] overflow-hidden rounded-[2rem] border border-primary/15 bg-card/95 p-0 shadow-2xl backdrop-blur sm:max-w-md">
-        <button
-          type="button"
-          aria-label="Fermer"
-          onClick={handleDismiss}
-          className="absolute right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
         <div className="relative bg-[image:var(--gradient-hero)] px-6 pb-7 pt-8 text-primary-foreground">
           <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-accent/30 blur-3xl" />
           <div className="absolute -bottom-20 left-8 h-36 w-36 rounded-full bg-primary-foreground/15 blur-3xl" />

@@ -1,23 +1,23 @@
 {
   "name": "AgriCapital Pay",
   "short_name": "AgriCapital Pay",
-  "description": "Portail de paiement et suivi des souscriptions AgriCapital - Mensualités et Dépôt Initial",
+  "description": "Portail client AgriCapital - Mensualités et Dépôt Initial",
   "theme_color": "#00643C",
   "background_color": "#f0fdf4",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "start_url": "/",
+  "start_url": "/?app=agricapital-client-v4",
   "scope": "/",
-  "id": "agricapital-pay",
+  "id": "agricapital-client-v4",
   "icons": [
     {
-      "src": "/icons/icon-pay.png",
+      "src": "/icons/icon-pay.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-pay.png",
+      "src": "/icons/icon-pay.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,36 @@ const STEPS = [
   { key: 'confirm', label: 'Payer' },
 ] as const;
 
+const KKIAPAY_MOBILE_MONEY_FEE_RATE = 0.019;
+type ClientPaymentMethod = 'momo' | 'card';
+
+const calculateKkiapayAbsorption = (amount: number, method: ClientPaymentMethod) => {
+  const clientDebitAmount = Math.round(amount || 0);
+  if (method === 'card') {
+    return { clientDebitAmount, widgetAmount: clientDebitAmount, estimatedFees: 0, feeRate: 0, absorbedByAgriCapital: 0 };
+  }
+
+  const theoreticalAmount = Math.max(0, Math.round(clientDebitAmount / (1 + KKIAPAY_MOBILE_MONEY_FEE_RATE)));
+  let widgetAmount = theoreticalAmount;
+
+  for (let candidate = Math.max(0, theoreticalAmount - 20); candidate <= theoreticalAmount + 20; candidate += 1) {
+    const totalWithRoundedFee = candidate + Math.ceil(candidate * KKIAPAY_MOBILE_MONEY_FEE_RATE);
+    if (totalWithRoundedFee === clientDebitAmount) {
+      widgetAmount = candidate;
+      break;
+    }
+  }
+
+  const estimatedFees = Math.max(0, clientDebitAmount - widgetAmount);
+  return {
+    clientDebitAmount,
+    widgetAmount,
+    estimatedFees,
+    feeRate: KKIAPAY_MOBILE_MONEY_FEE_RATE,
+    absorbedByAgriCapital: estimatedFees,
+  };
+};
+
 const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAmount, prefillType }: ClientPaymentProps) => {
   const { toast } = useToast();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
@@ -44,6 +74,12 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [modeArriere, setModeArriere] = useState<'only' | 'avance' | null>(null);
   const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');
+  const paymentContextRef = useRef<{
+    reference: string;
+    montantTotal: number;
+    pricing: ReturnType<typeof calculateKkiapayAbsorption>;
+  } | null>(null);
 
   useEffect(() => {
     if (prefillType === 'arriere') {
@@ -126,35 +162,6 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const fmt = (m: number) => formatCFA(m);
 
-  useEffect(() => {
-    onSuccess(async (response) => {
-      if (currentPaiementRef) {
-        try {
-          await supabase.functions.invoke('create-payment', {
-            body: {
-              action: 'confirm',
-              reference: currentPaiementRef,
-              kkiapay_transaction_id: response.transactionId,
-              montant_paye: response.amount,
-              method: response.method || null,
-              fees: response.fees || 0,
-            }
-          });
-        } catch (e) { console.error('confirm error', e); }
-        try {
-          const montantPaye = response.amount || 0;
-          await supabase.functions.invoke('send-otp', {
-            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${currentPaiementRef}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
-          }).catch(() => {});
-        } catch {}
-      }
-      toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
-      setTimeout(() => onBack(), 2000);
-    });
-    onFailed((error) => { toast({ variant: "destructive", title: "Paiement échoué", description: error.reason }); setLoading(false); });
-    onClose(() => setLoading(false));
-  }, [currentPaiementRef]);
-
   const calculerArrieres = (plant: any) => {
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };
     const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
@@ -205,12 +212,48 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     return calculerMontantRedevance();
   }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, depotInitialDetails.montant, periodType, periodCount, customAmount, redevanceBreakdown.montant]);
 
+  const kkiapayPricing = useMemo(() => calculateKkiapayAbsorption(montantTotal, paymentMethod), [montantTotal, paymentMethod]);
+
+  useEffect(() => {
+    onSuccess(async (response) => {
+      const paymentContext = paymentContextRef.current;
+      if (paymentContext?.reference) {
+        try {
+          await supabase.functions.invoke('create-payment', {
+            body: {
+              action: 'confirm',
+              reference: paymentContext.reference,
+              kkiapay_transaction_id: response.transactionId,
+              montant_paye: paymentContext.montantTotal,
+              method: response.method || null,
+              fees: response.fees || 0,
+              kkiapay_amount: response.amount || paymentContext.pricing.widgetAmount,
+              client_debit_amount: paymentContext.pricing.clientDebitAmount,
+              fee_absorption_rate: paymentContext.pricing.feeRate,
+            }
+          });
+        } catch (e) { console.error('confirm error', e); }
+        try {
+          const montantPaye = paymentContext.montantTotal || paymentContext.pricing.clientDebitAmount;
+          await supabase.functions.invoke('send-otp', {
+            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${paymentContext.reference}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
+          }).catch(() => {});
+        } catch {}
+      }
+      toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
+      setTimeout(() => onBack(), 2000);
+    });
+    onFailed((error) => { toast({ variant: "destructive", title: "Paiement échoué", description: error.reason }); setLoading(false); });
+    onClose(() => setLoading(false));
+  }, [currentPaiementRef, montantTotal, kkiapayPricing, souscripteur.telephone, onBack, toast, onSuccess, onFailed, onClose]);
+
   const handleSubmit = async () => {
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
     setLoading(true);
     try {
       const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       setCurrentPaiementRef(reference);
+      paymentContextRef.current = { reference, montantTotal, pricing: kkiapayPricing };
       const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'insert',
@@ -218,7 +261,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           plantation_id: plantation.id,
           type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
           montant: montantTotal,
-          mode_paiement: 'Mobile Money',
+          mode_paiement: paymentMethod === 'momo' ? 'Mobile Money' : 'Carte bancaire',
           reference,
           metadata: {
             mode_arriere: modeArriere,
@@ -231,17 +274,34 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
             promotion_id: activePromotion?.id || null,
             economie_promotion: typePaiement === 'da' ? depotInitialDetails.economie : (redevanceBreakdown as any).economie || 0,
             ventilation_tarifaire: typePaiement === 'redevance' ? redevanceBreakdown.segments : [],
+            client_debit_amount: kkiapayPricing.clientDebitAmount,
+            kkiapay_widget_amount: kkiapayPricing.widgetAmount,
+            estimated_kkiapay_fees: kkiapayPricing.estimatedFees,
+            fee_absorption_rate: kkiapayPricing.feeRate,
+            fee_absorption_method: paymentMethod,
+            fee_absorption_note: paymentMethod === 'momo'
+              ? 'Montant KKiaPay réduit pour absorber les frais Mobile Money AgriCapital et garder le débit client exact.'
+              : 'Carte bancaire sans frais KKiaPay appliqués au client.',
           }
         }
       });
       if (insertError || !invokeData?.success) throw new Error(invokeData?.error || insertError?.message || 'Erreur création paiement');
       const paiementRow = invokeData.paiement;
       const opened = await openPayment({
-        amount: Math.round(montantTotal),
+        amount: kkiapayPricing.widgetAmount,
         email: souscripteur.email || 'client@agricapital.ci',
         phone: souscripteur.telephone,
         name: souscripteur.nom_complet || `${souscripteur.prenoms} ${souscripteur.nom}`,
-        data: { reference, paiement_id: paiementRow.id, plantation_id: plantation.id, type: typePaiement }
+        paymentMethods: [paymentMethod],
+        data: {
+          reference,
+          paiement_id: paiementRow.id,
+          plantation_id: plantation.id,
+          type: typePaiement,
+          client_debit_amount: kkiapayPricing.clientDebitAmount,
+          kkiapay_widget_amount: kkiapayPricing.widgetAmount,
+          fee_absorption_rate: kkiapayPricing.feeRate,
+        }
       });
       if (!opened) { toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ouvrir la page de paiement." }); setLoading(false); }
     } catch (error: any) { toast({ variant: "destructive", title: "Erreur", description: error.message }); setLoading(false); }
@@ -260,8 +320,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
-        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
+      <header className="py-3 px-4 shadow-lg sticky top-0 z-50 bg-[image:var(--gradient-hero)]">
+        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-7xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
           <div className="bg-white rounded-lg p-1 flex items-center justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-9 sm:h-10 object-contain" /></div>
           <span className="font-semibold text-white text-sm">Paiement</span>
@@ -270,7 +330,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
       {/* Step Progress */}
       <div className="px-4 py-3 bg-card border-b">
-        <div className="container mx-auto max-w-lg lg:max-w-4xl">
+        <div className="container mx-auto max-w-lg lg:max-w-7xl">
           <div className="flex items-center justify-between">
             {STEPS.map((s, i) => (
               <div key={s.key} className="flex items-center gap-1 flex-1">
@@ -285,7 +345,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         </div>
       </div>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl">
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-4 max-w-lg lg:max-w-7xl">
 
         {/* Bannière offre active */}
         {souscripteur?.offres && (
@@ -586,6 +646,49 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </div>
               </div>
 
+              <div className="rounded-2xl p-4 card-brand-subtle bg-card space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold">Mode de paiement</p>
+                    <p className="text-[11px] text-muted-foreground">Le client est débité du montant exact AgriCapital.</p>
+                  </div>
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Frais absorbés</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('momo')}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${paymentMethod === 'momo' ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40'}`}
+                  >
+                    <p className="text-xs font-black">Mobile Money</p>
+                    <p className="text-[10px] text-muted-foreground">1,9% absorbé</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                  >
+                    <p className="text-xs font-black">Carte bancaire</p>
+                    <p className="text-[10px] text-muted-foreground">0% de frais</p>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-muted/40 p-3">
+                    <p className="text-muted-foreground">Débit client</p>
+                    <p className="font-black text-primary">{fmt(kkiapayPricing.clientDebitAmount)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/40 p-3">
+                    <p className="text-muted-foreground">Coût AgriCapital</p>
+                    <p className="font-black text-gold-dark">{fmt(kkiapayPricing.absorbedByAgriCapital)}</p>
+                  </div>
+                </div>
+                {paymentMethod === 'momo' && (
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    Pour garder {fmt(kkiapayPricing.clientDebitAmount)} côté client, le montant transmis à KKiaPay est ajusté à {fmt(kkiapayPricing.widgetAmount)} afin d'absorber environ {fmt(kkiapayPricing.estimatedFees)} de frais Mobile Money.
+                  </p>
+                )}
+              </div>
+
               <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0} className="w-full h-12 rounded-xl font-bold btn-brand">
                 <CreditCard className="h-5 w-5 mr-2" />Confirmer et payer
               </Button>
@@ -613,13 +716,17 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 {modeArriere === 'only' && (
                   <div className="flex justify-between text-xs text-gold-dark"><span>Régularisation arriéré</span><span className="font-bold">✓</span></div>
                 )}
+                <div className="flex justify-between text-xs text-muted-foreground"><span>Mode</span><span className="font-bold">{paymentMethod === 'momo' ? 'Mobile Money' : 'Carte bancaire'}</span></div>
+                {paymentMethod === 'momo' && (
+                  <div className="flex justify-between text-xs text-muted-foreground"><span>Frais KKiaPay absorbés</span><span className="font-bold text-gold-dark">{fmt(kkiapayPricing.estimatedFees)}</span></div>
+                )}
                 <div className="flex justify-between pt-2 border-t"><span className="font-black text-base">Total</span><span className="text-xl font-black text-primary">{fmt(montantTotal)}</span></div>
               </div>
 
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
                 {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Ouverture...</> : <><CreditCard className="h-5 w-5 mr-2" />Procéder au paiement</>}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — Mobile Money, Carte bancaire</p>
+              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
             </CardContent>
           </Card>
         )}

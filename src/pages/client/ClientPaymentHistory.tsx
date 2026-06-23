@@ -66,15 +66,15 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 28%, #f8f7f4 28.1%, #f8f7f4 100%)' }}>
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
-        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
+        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-7xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
           <div className="bg-white rounded-lg p-1 flex items-center justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-9 sm:h-10 object-contain" /></div>
           <span className="font-semibold text-white text-sm">Historique</span>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl" style={{ marginTop: '-0.5rem' }}>
-        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-3 lg:grid lg:grid-cols-12 lg:gap-5 lg:space-y-0 max-w-lg lg:max-w-7xl" style={{ marginTop: '-0.5rem' }}>
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-green-300" },
             { icon: CreditCard, label: "Dépôt Initial", value: fmt(stats.da), color: "text-gold" },
@@ -91,7 +91,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
           ))}
         </div>
 
-        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 lg:col-span-4 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardContent className="p-3 space-y-2">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -113,7 +113,7 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
           </CardContent>
         </Card>
 
-        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 lg:col-span-8 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardHeader className="p-3 pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <History className="h-4 w-4 text-primary" /> Transactions

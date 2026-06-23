@@ -42,18 +42,18 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 35%, #f8f7f4 35.1%, #f8f7f4 100%)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 28%, #f8f7f4 28.1%, #f8f7f4 100%)' }}>
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
-        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
+        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-7xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
           <div className="bg-white rounded-lg p-1 flex items-center justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-9 sm:h-10 object-contain" /></div>
           <span className="font-semibold text-white text-sm">Mon Portefeuille</span>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-lg lg:max-w-4xl" style={{ marginTop: '-0.5rem' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-4 lg:grid lg:grid-cols-12 lg:gap-5 lg:space-y-0 max-w-lg lg:max-w-7xl" style={{ marginTop: '-0.5rem' }}>
         {/* Profile - Glassmorphism */}
-        <Card className={`border-0 shadow-xl overflow-hidden rounded-2xl transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+        <Card className={`border-0 shadow-xl overflow-hidden rounded-2xl transition-all duration-500 lg:col-span-5 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 rounded-2xl border-2 border-gold/30 overflow-hidden bg-white/15 flex items-center justify-center shrink-0">
@@ -84,7 +84,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
         </Card>
 
         {/* Stats - Glassmorphism */}
-        <div className={`grid grid-cols-2 gap-2 transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 delay-100 lg:col-span-7 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-green-300" },
             { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold" },
@@ -102,7 +102,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
         </div>
 
         {/* Tabs */}
-        <div className={`transition-all duration-500 delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`transition-all duration-500 delay-150 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <Tabs defaultValue="plantations" className="w-full">
             <TabsList className="w-full grid grid-cols-2 rounded-2xl bg-muted p-1 h-auto">
               <TabsTrigger value="plantations" className="rounded-xl text-xs py-2">Plantations</TabsTrigger>

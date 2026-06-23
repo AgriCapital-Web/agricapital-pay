@@ -64,15 +64,15 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 25%, #f8f7f4 25.1%, #f8f7f4 100%)' }}>
       <header className="py-3 px-4 shadow-lg sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #00643C, #004d2e)' }}>
-        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-4xl">
+        <div className="container mx-auto flex items-center gap-3 max-w-lg lg:max-w-7xl">
           <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/15 h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
           <div className="bg-white rounded-lg p-1 flex items-center justify-center"><img src={logoWhiteBg} alt="AgriCapital" className="h-9 sm:h-10 object-contain" /></div>
           <span className="font-semibold text-white text-sm">Statistiques</span>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-3 max-w-lg lg:max-w-4xl" style={{ marginTop: '-0.5rem' }}>
-        <div className={`grid grid-cols-2 gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-3 lg:grid lg:grid-cols-12 lg:gap-5 lg:space-y-0 max-w-lg lg:max-w-7xl" style={{ marginTop: '-0.5rem' }}>
+        <div className={`grid grid-cols-2 gap-2 transition-all duration-500 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <Card className="border-0 rounded-2xl shadow-lg" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
             <CardContent className="p-3">
               <TrendingUp className="h-4 w-4 text-green-300 mb-1" />
@@ -90,7 +90,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
         </div>
 
         {paiementStats.length > 0 && (
-          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 lg:col-span-5 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4 text-gold" />Répartition</CardTitle></CardHeader>
             <CardContent className="p-3 pt-0">
               <div className="h-48">
@@ -113,7 +113,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
           </Card>
         )}
 
-        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 lg:col-span-7 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />Évolution (12 mois)</CardTitle></CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="h-48">
@@ -137,7 +137,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
         </Card>
 
         {arrieres.length > 0 && (
-          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-200 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <CardHeader className="p-3 pb-1">
               <CardTitle className="text-sm flex items-center gap-2">
                 {totalArr > 0 ? <TrendingDown className="h-4 w-4 text-destructive" /> : <TrendingUp className="h-4 w-4 text-primary" />}

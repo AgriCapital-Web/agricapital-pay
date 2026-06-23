@@ -120,7 +120,13 @@ serve(async (req) => {
 
   if (newStatut === "valide") {
     updateData.date_paiement = new Date().toISOString();
-    updateData.montant_paye = amount || paiement.montant;
+    updateData.montant_paye = paiement.metadata?.client_debit_amount || paiement.montant;
+    updateData.metadata = {
+      ...updateData.metadata,
+      kkiapay_amount: amount || null,
+      client_debit_amount: paiement.metadata?.client_debit_amount || paiement.montant,
+      fee_absorption_rate: paiement.metadata?.fee_absorption_rate || 0,
+    };
 
     // Activate plantation for DA
     if (paiement.type_paiement === "DA" && paiement.plantation_id) {

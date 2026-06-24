@@ -6,15 +6,15 @@
  *   Dépôt initial: 90,700 F/ha
  *   An 1 (12 mois): 60,000 F/mois/ha
  *   An 2 (12 mois): 120,000 F/mois/ha
- *   An 3 (10 mois): 194,000 F/mois/ha
- *   Total: 4,190,700 F/ha (34 mois)
+ *   An 3 (11 mois): 194,000 F/mois/ha
+ *   Total: 4,384,700 F/ha (35 mois)
  * 
  * TerraPalm / TerraPalm+:
  *   Dépôt initial: 84,700 F/ha
  *   An 1 (12 mois): 54,000 F/mois/ha
  *   An 2 (12 mois): 75,000 F/mois/ha
- *   An 3 (10 mois): 96,200 F/mois/ha
- *   Total: 2,594,700 F/ha (34 mois)
+ *   An 3 (11 mois): 96,200 F/mois/ha
+ *   Total: 2,690,900 F/ha (35 mois)
  */
 
 export interface PricingSchedule {
@@ -77,10 +77,10 @@ const PRICING: Record<string, PricingSchedule> = {
     an2_mensuel: 120000,
     an2_duree_mois: 12,
     an3_mensuel: 194000,
-    an3_duree_mois: 10,
-    total_par_ha: 4190700,
-    duree_totale_mois: 34,
-    cash_price: 3890700,
+    an3_duree_mois: 11,
+    total_par_ha: 4384700,
+    duree_totale_mois: 35,
+    cash_price: 4070812,
   },
   'PALMINVEST+': {
     depot_initial: 90700,
@@ -89,10 +89,10 @@ const PRICING: Record<string, PricingSchedule> = {
     an2_mensuel: 120000,
     an2_duree_mois: 12,
     an3_mensuel: 194000,
-    an3_duree_mois: 10,
-    total_par_ha: 4190700,
-    duree_totale_mois: 34,
-    cash_price: 3890700,
+    an3_duree_mois: 11,
+    total_par_ha: 4384700,
+    duree_totale_mois: 35,
+    cash_price: 4070812,
   },
   TERRAPALM: {
     depot_initial: 84700,
@@ -101,10 +101,10 @@ const PRICING: Record<string, PricingSchedule> = {
     an2_mensuel: 75000,
     an2_duree_mois: 12,
     an3_mensuel: 96200,
-    an3_duree_mois: 10,
-    total_par_ha: 2594700,
-    duree_totale_mois: 34,
-    cash_price: 2294700,
+    an3_duree_mois: 11,
+    total_par_ha: 2690900,
+    duree_totale_mois: 35,
+    cash_price: 2379777,
   },
   'TERRAPALM+': {
     depot_initial: 84700,
@@ -113,10 +113,10 @@ const PRICING: Record<string, PricingSchedule> = {
     an2_mensuel: 75000,
     an2_duree_mois: 12,
     an3_mensuel: 96200,
-    an3_duree_mois: 10,
-    total_par_ha: 2594700,
-    duree_totale_mois: 34,
-    cash_price: 2294700,
+    an3_duree_mois: 11,
+    total_par_ha: 2690900,
+    duree_totale_mois: 35,
+    cash_price: 2379777,
   },
 };
 
@@ -322,7 +322,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   return [
     { label: 'An 1 — 12 mois', mensuel: schedule.an1_mensuel, duree: schedule.an1_duree_mois, total: schedule.an1_mensuel * schedule.an1_duree_mois },
     { label: 'An 2 — 12 mois', mensuel: schedule.an2_mensuel, duree: schedule.an2_duree_mois, total: schedule.an2_mensuel * schedule.an2_duree_mois },
-    { label: 'An 3 — 10 mois', mensuel: schedule.an3_mensuel, duree: schedule.an3_duree_mois, total: schedule.an3_mensuel * schedule.an3_duree_mois },
+    { label: 'An 3 — 11 mois', mensuel: schedule.an3_mensuel, duree: schedule.an3_duree_mois, total: schedule.an3_mensuel * schedule.an3_duree_mois },
   ];
 }
 

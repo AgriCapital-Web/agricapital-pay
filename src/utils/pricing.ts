@@ -322,7 +322,7 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   return [
     { label: 'An 1 — 12 mois', mensuel: schedule.an1_mensuel, duree: schedule.an1_duree_mois, total: schedule.an1_mensuel * schedule.an1_duree_mois },
     { label: 'An 2 — 12 mois', mensuel: schedule.an2_mensuel, duree: schedule.an2_duree_mois, total: schedule.an2_mensuel * schedule.an2_duree_mois },
-    { label: 'An 3 — 10 mois', mensuel: schedule.an3_mensuel, duree: schedule.an3_duree_mois, total: schedule.an3_mensuel * schedule.an3_duree_mois },
+    { label: 'An 3 — 11 mois', mensuel: schedule.an3_mensuel, duree: schedule.an3_duree_mois, total: schedule.an3_mensuel * schedule.an3_duree_mois },
   ];
 }
 

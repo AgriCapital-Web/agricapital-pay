@@ -141,7 +141,7 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-7xl pb-8 lg:pb-12" style={{ marginTop: '-1rem' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-[1400px] pb-8 lg:pb-12 -mt-4 lg:mt-8">
         
         {/* Profile Card */}
         <Card className="border-0 shadow-xl overflow-hidden rounded-2xl lg:col-span-5" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>

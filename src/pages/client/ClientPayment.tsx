@@ -684,7 +684,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </div>
                 {paymentMethod === 'momo' && (
                   <p className="text-[10px] leading-relaxed text-muted-foreground">
-                    Pour garder {fmt(kkiapayPricing.clientDebitAmount)} côté client, le montant transmis à KKiaPay est ajusté à {fmt(kkiapayPricing.widgetAmount)} afin d'absorber environ {fmt(kkiapayPricing.estimatedFees)} de frais Mobile Money.
+                    Les frais de transaction sont suporté par AgriCapital, afin de ......... .
                   </p>
                 )}
               </div>

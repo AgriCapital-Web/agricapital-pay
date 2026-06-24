@@ -141,7 +141,7 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-7xl pb-8 lg:pb-12" style={{ marginTop: '-1rem' }}>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-[1400px] pb-8 lg:pb-12 -mt-4 lg:mt-4">
         
         {/* Profile Card */}
         <Card className="border-0 shadow-xl overflow-hidden rounded-2xl lg:col-span-5" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
@@ -296,56 +296,53 @@ const ClientDashboard = ({
         )}
 
         {/* CTA Paiement */}
-        <Button onClick={() => onPayment()} className="w-full h-14 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-4 lg:h-full lg:min-h-24">
+        <Button onClick={() => onPayment()} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-12">
           <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><CreditCard className="h-5 w-5" /></div>
           <span className="flex-1 text-left">Effectuer un paiement</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
 
-        {/* Suivi temps réel des transactions (créée / payée / échouée / remboursée) */}
-        <div className="lg:col-span-6"><TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} /></div>
+        {/* Suivi temps réel des transactions */}
+        <div className="lg:col-span-12"><TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} /></div>
 
-        {/* Navigation */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3 lg:col-span-6">
+        {/* Navigation + Summary unifiés (7 blocs sur desktop) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2 lg:gap-3 lg:col-span-12">
           {[
             { action: onPortfolio, icon: Wallet, label: "Mon portefeuille", desc: "Plantations & parcelles" },
             { action: onHistory, icon: History, label: "Historique paiements", desc: "Toutes vos transactions" },
             { action: onStatistics, icon: BarChart2, label: "Mes statistiques", desc: "Graphiques & analyses" }
           ].map((btn, i) => (
             <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={btn.action}>
-              <CardContent className="p-3 lg:p-4 flex items-center gap-3">
-                <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-                  <btn.icon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
+              <CardContent className="p-3 lg:p-4 flex items-center gap-3 h-full">
+                <div className="h-10 w-10 lg:h-11 lg:w-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+                  <btn.icon className="h-5 w-5 lg:h-5 lg:w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm lg:text-base font-semibold">{btn.label}</p>
-                  <p className="text-[10px] lg:text-xs text-muted-foreground">{btn.desc}</p>
+                  <p className="text-sm font-semibold truncate">{btn.label}</p>
+                  <p className="text-[10px] lg:text-[11px] text-muted-foreground truncate">{btn.desc}</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-gold/40" />
+                <ChevronRight className="h-4 w-4 text-gold/40 shrink-0" />
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        {/* Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3 lg:col-span-12">
           {[
             { icon: CheckCircle, label: "DI versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Mensualités", value: fmt(totalRedevances), color: "text-gold-dark" },
             { icon: TrendingUp, label: "Validés", value: String(paiements.filter((p: any) => p.statut === 'valide').length), color: "text-primary" },
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-gold-dark" }
           ].map((card, i) => (
-            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm">
-              <CardContent className="p-3 lg:p-4">
+            <Card key={`s-${i}`} className="card-brand-subtle rounded-2xl shadow-sm">
+              <CardContent className="p-3 lg:p-4 h-full flex flex-col justify-center">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <card.icon className={`h-3.5 w-3.5 lg:h-4 lg:w-4 ${card.color}`} />
-                  <span className="text-[10px] lg:text-xs text-muted-foreground">{card.label}</span>
+                  <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
+                  <span className="text-[10px] lg:text-[11px] text-muted-foreground truncate">{card.label}</span>
                 </div>
                 <p className="text-sm lg:text-base font-bold truncate">{card.value}</p>
               </CardContent>
             </Card>
           ))}
         </div>
+
 
         {/* Promotion active */}
         {souscripteur.promotion_active && (

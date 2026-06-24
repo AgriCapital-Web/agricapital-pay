@@ -6,15 +6,15 @@
  *   Dépôt initial: 90,700 F/ha
  *   An 1 (12 mois): 60,000 F/mois/ha
  *   An 2 (12 mois): 120,000 F/mois/ha
- *   An 3 (10 mois): 194,000 F/mois/ha
- *   Total: 4,190,700 F/ha (34 mois)
+ *   An 3 (11 mois): 194,000 F/mois/ha
+ *   Total: 4,384,700 F/ha (35 mois)
  * 
  * TerraPalm / TerraPalm+:
  *   Dépôt initial: 84,700 F/ha
  *   An 1 (12 mois): 54,000 F/mois/ha
  *   An 2 (12 mois): 75,000 F/mois/ha
- *   An 3 (10 mois): 96,200 F/mois/ha
- *   Total: 2,594,700 F/ha (34 mois)
+ *   An 3 (11 mois): 96,200 F/mois/ha
+ *   Total: 2,690,900 F/ha (35 mois)
  */
 
 export interface PricingSchedule {

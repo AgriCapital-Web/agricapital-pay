@@ -372,7 +372,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               <div className="flex items-center gap-2 mb-1"><CreditCard className="h-5 w-5 text-primary" /><h3 className="text-base font-bold">Type de paiement</h3></div>
               <RadioGroup value={typePaiement} onValueChange={(v) => setTypePaiement(v as any)} className="space-y-3">
                 {[
-                  { val: 'redevance', title: "Mensualité", desc: "Contributions mensuelles progressives", badge: plantationRate ? `${fmt(plantationRate.mensuel_par_ha)}/mois` : '', icon: "📅" },
+                  { val: 'redevance', title: "Mensualité", desc: "Paiements mensuels progressifs", badge: plantationRate ? `${fmt(plantationRate.mensuel_par_ha)}/mois` : '', icon: "📅" },
                   { val: 'da', title: "Dépôt Initial", desc: "Activer vos hectares", badge: `${fmt(TARIFS.da_par_hectare)}/ha`, icon: "🔑" },
                 ].map(opt => (
                   <div key={opt.val} onClick={() => setTypePaiement(opt.val as any)}
@@ -684,7 +684,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </div>
                 {paymentMethod === 'momo' && (
                   <p className="text-[10px] leading-relaxed text-muted-foreground">
-                    Les frais de transaction sont suporté par AgriCapital, afin de ......... .
+                    Les frais de transaction sont pris en charge par AgriCapital, afin que le montant payé par le client reste strictement celui annoncé.
                   </p>
                 )}
               </div>

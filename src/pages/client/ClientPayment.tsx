@@ -684,7 +684,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </div>
                 {paymentMethod === 'momo' && (
                   <p className="text-[10px] leading-relaxed text-muted-foreground">
-                    Les frais de transaction sont suporté par AgriCapital, afin de ......... .
+                    Les frais de transaction sont pris en charge par AgriCapital, afin que le montant payé par le client reste strictement celui annoncé.
                   </p>
                 )}
               </div>

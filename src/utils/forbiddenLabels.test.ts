@@ -1,8 +1,10 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = join(__dirname, "..");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FORBIDDEN = [
   /contribution[s]?\s+mensuel/i, // « contribution mensuelle » / « contributions mensuelles »
 ];

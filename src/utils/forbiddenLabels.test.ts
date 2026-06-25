@@ -28,7 +28,9 @@ function walk(dir: string, files: string[] = []): string[] {
 
 describe("Aucune ancienne formulation « contribution mensuelle progressive » dans l'UI", () => {
   const files = walk(ROOT).filter(
-    (f) => !ALLOWLIST.some((a) => f.replace(/\\/g, "/").endsWith(a)),
+    (f) =>
+      !/\.test\.tsx?$/.test(f) &&
+      !ALLOWLIST.some((a) => f.replace(/\\/g, "/").endsWith(a)),
   );
 
   it.each(files)("%s ne contient pas l'ancien libellé", (file) => {

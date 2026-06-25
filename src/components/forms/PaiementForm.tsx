@@ -372,7 +372,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="DA">Droit d'Accès (DA)</SelectItem>
-              <SelectItem value="CONTRIBUTION">Contribution Annuelle</SelectItem>
+              <SelectItem value="CONTRIBUTION">Paiements mensuels progressifs</SelectItem>
             </SelectContent>
           </Select>
         </div>

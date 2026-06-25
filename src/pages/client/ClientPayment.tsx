@@ -135,6 +135,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   // Get progressive rate for the selected plantation from CRM offer tranches
   const plantationRate = useMemo(() => {
+    assertOfferPricingFresh(souscripteur?.offres);
     return getCurrentRateFromOffer(souscripteur?.offres, plantation?.date_activation);
   }, [souscripteur, plantation]);
 

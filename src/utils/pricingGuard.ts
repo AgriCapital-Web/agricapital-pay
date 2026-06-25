@@ -54,14 +54,47 @@ export function validateOfferPricing(offre: OfferPricingSource | null | undefine
   return issues;
 }
 
-const warned = new Set<string>();
+export const PRICING_GUARD_EVENT = "agc:pricing-guard-issue";
+
+const reported = new Set<string>();
+
+/**
+ * Émet :
+ *  - un log structuré JSON (consommable par toute stack d'observabilité)
+ *  - un CustomEvent `agc:pricing-guard-issue` consommé par <PricingGuardAlert />
+ *    pour afficher une bannière rouge dans l'UI.
+ */
 export function assertOfferPricingFresh(offre: OfferPricingSource | null | undefined): void {
   const issues = validateOfferPricing(offre);
+  if (issues.length === 0) return;
+
   for (const issue of issues) {
     const key = `${issue.code}:${issue.field}`;
-    if (warned.has(key)) continue;
-    warned.add(key);
+    if (reported.has(key)) continue;
+    reported.add(key);
+    // Log structuré (sérialisable)
     // eslint-disable-next-line no-console
-    console.warn("[pricing-guard]", issue.message, issue);
+    console.error(
+      JSON.stringify({
+        level: "error",
+        scope: "pricing-guard",
+        offre: issue.code,
+        field: issue.field,
+        expected: issue.expected,
+        actual: issue.actual,
+        message: issue.message,
+        ts: new Date().toISOString(),
+      }),
+    );
+  }
+
+  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new CustomEvent(PRICING_GUARD_EVENT, { detail: { issues } }));
   }
 }
+
+/** Réinitialise le cache de déduplication (tests uniquement). */
+export function __resetPricingGuardForTests(): void {
+  reported.clear();
+}
+

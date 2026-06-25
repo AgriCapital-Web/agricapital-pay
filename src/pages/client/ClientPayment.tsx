@@ -16,6 +16,7 @@ import {
   getCurrentRateFromOffer,
   getFullTariffGridFromOffer,
 } from "@/utils/pricing";
+import { assertOfferPricingFresh } from "@/utils/pricingGuard";
 import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 
 interface ClientPaymentProps {
@@ -134,6 +135,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   // Get progressive rate for the selected plantation from CRM offer tranches
   const plantationRate = useMemo(() => {
+    assertOfferPricingFresh(souscripteur?.offres);
     return getCurrentRateFromOffer(souscripteur?.offres, plantation?.date_activation);
   }, [souscripteur, plantation]);
 

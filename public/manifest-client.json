@@ -1,8 +1,8 @@
 {
-  "name": "AgriCapital Portail Client",
+  "name": "AgriCapital · Espace Client",
   "short_name": "AgriCapital",
-  "description": "Portail Client AgriCapital - Suivi de plantations et paiement des mensualités en toute sécurité.",
-  "start_url": "/?app=agricapital-client-v4",
+  "description": "Espace Client AgriCapital — suivi complet de vos plantations de palmier à huile (progression, médias, documents, carte, rapports, messagerie) et paiement sécurisé.",
+  "start_url": "/?app=agricapital-client-v5",
   "scope": "/",
   "display": "standalone",
   "background_color": "#00643C",
@@ -25,7 +25,7 @@
   "categories": ["finance", "lifestyle"],
   "lang": "fr-FR",
   "dir": "ltr",
-  "id": "agricapital-client-v4",
+  "id": "agricapital-client-v5",
   "prefer_related_applications": false,
   "related_applications": []
 }

@@ -26,6 +26,7 @@ export type Database = {
           justification: string | null
           motif_rejet: string | null
           nom_complet: string
+          password_souhaite: string | null
           photo_url: string | null
           poste_souhaite: string | null
           region_id: string | null
@@ -47,6 +48,7 @@ export type Database = {
           justification?: string | null
           motif_rejet?: string | null
           nom_complet: string
+          password_souhaite?: string | null
           photo_url?: string | null
           poste_souhaite?: string | null
           region_id?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           justification?: string | null
           motif_rejet?: string | null
           nom_complet?: string
+          password_souhaite?: string | null
           photo_url?: string | null
           poste_souhaite?: string | null
           region_id?: string | null
@@ -134,46 +137,58 @@ export type Database = {
       }
       commissions: {
         Row: {
+          annee_contrat: number | null
           created_at: string | null
           date_calcul: string | null
           date_validation: string | null
           id: string
           montant_base: number | null
           montant_commission: number | null
+          paiement_id: string | null
           periode: string | null
           plantation_id: string | null
           profile_id: string | null
+          souscripteur_id: string | null
           statut: string | null
+          taux_applique: number | null
           taux_commission: number | null
           type_commission: string
           valide_par: string | null
         }
         Insert: {
+          annee_contrat?: number | null
           created_at?: string | null
           date_calcul?: string | null
           date_validation?: string | null
           id?: string
           montant_base?: number | null
           montant_commission?: number | null
+          paiement_id?: string | null
           periode?: string | null
           plantation_id?: string | null
           profile_id?: string | null
+          souscripteur_id?: string | null
           statut?: string | null
+          taux_applique?: number | null
           taux_commission?: number | null
           type_commission: string
           valide_par?: string | null
         }
         Update: {
+          annee_contrat?: number | null
           created_at?: string | null
           date_calcul?: string | null
           date_validation?: string | null
           id?: string
           montant_base?: number | null
           montant_commission?: number | null
+          paiement_id?: string | null
           periode?: string | null
           plantation_id?: string | null
           profile_id?: string | null
+          souscripteur_id?: string | null
           statut?: string | null
+          taux_applique?: number | null
           taux_commission?: number | null
           type_commission?: string
           valide_par?: string | null
@@ -2772,6 +2787,10 @@ export type Database = {
       assign_sp_code: { Args: { _sp_id: string }; Returns: string }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      compute_commission_for_paiement: {
+        Args: { p_paiement_id: string }
+        Returns: undefined
+      }
       create_depot_initial: {
         Args: { _souscripteur_id: string }
         Returns: string

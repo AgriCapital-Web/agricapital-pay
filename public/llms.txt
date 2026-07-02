@@ -1,27 +1,36 @@
-# AgriCapital — Portail Client
+# AgriCapital — Espace Client (client.agricapital.ci)
 
-> Espace client officiel d'AgriCapital (Côte d'Ivoire) pour le suivi des plantations de palmier à huile, le paiement du Dépôt Initial et des Mensualités, et la gestion du portefeuille agricole.
+> Espace client officiel d'AgriCapital (Côte d'Ivoire) : suivi complet des plantations de palmier à huile, paiements (Dépôt Initial et Mensualités), progression technique, médias terrain, rapports, documents, cartographie GPS, messagerie, et — pour les formules PalmInvest+ / TerraPalm+ — production, intrants et répartition des revenus 70/30 sur 28 ans.
 
-AgriCapital est une société agro-industrielle ivoirienne qui propose à ses clients la souscription à des plantations de palmier à huile clé en main. Le Portail Client (pay.agricapital.ci) permet à chaque client de :
+AgriCapital est une société agro-industrielle ivoirienne qui propose à ses clients la souscription à des plantations de palmier à huile clé en main. L'espace client (client.agricapital.ci) est synchronisé en temps réel avec le CRM AgriCapital (source unique de vérité) et permet à chaque client de :
 
-- consulter ses plantations (superficie, statut, localisation)
-- payer son Dépôt Initial et ses Mensualités via Mobile Money et carte bancaire grâce au tunnel sécurisé KKiaPay
-- suivre son portefeuille, ses arriérés et ses statistiques en temps réel
-- recevoir notifications et reçus de paiement
+- consulter ses plantations (formule PalmInvest / PalmInvest+ / TerraPalm / TerraPalm+, superficie, statut, localisation GPS)
+- suivre la progression des 9 étapes techniques (Défrichage → Piquetage → Trouaison → Planting → Remplacement → Entretien → Fertilisation → Mise en production → Remise)
+- accéder aux photos et vidéos terrain publiées par les techniciens
+- télécharger le contrat, les annexes, les plans topographiques et les plans de plantation
+- visualiser sa plantation sur carte interactive + ouvrir dans Google Maps
+- consulter les rapports mensuels, trimestriels et annuels
+- échanger via messagerie avec le support, le technicien et le commercial
+- payer le Dépôt Initial et les Mensualités via Mobile Money et carte bancaire (tunnel KKiaPay sécurisé, frais absorbés par AgriCapital)
+- suivre son portefeuille, ses arriérés et ses statistiques
+- (formules +) consulter la production annuelle/cumulée, les tonnages récoltés, le prix bord champ, la valeur brute
+- (formules +) gérer les intrants (recommandés, quantités, coût, approvisionnement) et leur paiement (comptant, échelonné, retenue sur revenus)
+- (formules +) suivre la répartition des revenus 70% client / 30% AgriCapital sur toute la durée du cycle (jusqu'à 28 ans)
 
-Authentification par numéro de téléphone + code OTP envoyé par SMS. Les données affichées sont strictement personnelles et protégées (RLS Supabase, PII filtrées côté API).
+Authentification par numéro de téléphone + code OTP envoyé par SMS. Les données affichées sont strictement personnelles et protégées (RLS Supabase, PII filtrées côté API, buckets privés avec signed URLs).
 
 ## Pages
 
-- [Portail Client AgriCapital](/): point d'entrée unique — connexion par téléphone, tableau de bord, paiements et suivi des plantations
+- [Espace Client AgriCapital](/) : connexion, tableau de bord, paiements, "Ma Plantation" (progression, médias, documents, carte, rapports, messagerie, production, intrants, revenus)
 
 ## Contact
 
 - Site institutionnel : https://agricapital.ci
+- CRM interne : https://app.agricapital.ci
 - Support client : +225 05 64 55 17 17
 - Adresse : Abidjan, Côte d'Ivoire
 
 ## Optional
 
-- [Manifeste PWA](/manifest-client.json): métadonnées de l'application installable
-- [Plan du site](/sitemap.xml): URLs indexables
+- [Manifeste PWA](/manifest-client.json) : métadonnées de l'application installable
+- [Plan du site](/sitemap.xml) : URLs indexables

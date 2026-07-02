@@ -7,9 +7,10 @@ import ClientPortfolio from "./client/ClientPortfolio";
 import ClientPaymentHistory from "./client/ClientPaymentHistory";
 import ClientStatistics from "./client/ClientStatistics";
 import PaymentReturn from "./client/PaymentReturn";
+import ClientPlantationHub from "./client/ClientPlantationHub";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 
-type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return';
+type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return' | 'plantation-hub';
 
 interface PaymentOptions {
   prefillAmount?: number;
@@ -55,7 +56,7 @@ const ClientPortal = () => {
 
   // PWA meta
   useEffect(() => {
-    document.title = "Portail Client | AgriCapital";
+    document.title = "Espace Client | AgriCapital";
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (manifestLink) manifestLink.setAttribute('href', '/manifest-client.json');
     const themeColor = document.querySelector('meta[name="theme-color"]');
@@ -130,7 +131,16 @@ const ClientPortal = () => {
           onPortfolio={() => setView('portfolio')}
           onHistory={() => setView('history')}
           onStatistics={() => setView('statistics')}
+          onPlantationHub={() => setView('plantation-hub')}
           onLogout={handleLogout}
+        />
+      )}
+
+      {view === 'plantation-hub' && (
+        <ClientPlantationHub
+          souscripteur={souscripteur}
+          plantations={plantations}
+          onBack={() => setView('dashboard')}
         />
       )}
       

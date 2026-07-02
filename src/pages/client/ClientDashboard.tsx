@@ -25,6 +25,7 @@ interface ClientDashboardProps {
   onPortfolio: () => void;
   onHistory: () => void;
   onStatistics: () => void;
+  onPlantationHub: () => void;
   onLogout: () => void;
 }
 
@@ -32,7 +33,7 @@ const ClientDashboard = ({
   souscripteur: initialSouscripteur, 
   plantations: initialPlantations, 
   paiements: initialPaiements, 
-  onPayment, onPortfolio, onHistory, onStatistics, onLogout 
+  onPayment, onPortfolio, onHistory, onStatistics, onPlantationHub, onLogout 
 }: ClientDashboardProps) => {
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, checkAndNotifyArrears } = usePushNotifications();
@@ -295,8 +296,15 @@ const ClientDashboard = ({
           </Card>
         )}
 
+        {/* CTA Ma Plantation (nouveau hub complet) */}
+        <Button onClick={onPlantationHub} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white lg:col-span-6">
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><Leaf className="h-5 w-5" /></div>
+          <span className="flex-1 text-left">Ma Plantation<span className="block text-[10px] font-normal opacity-80">Progression · Médias · Carte · Rapports</span></span>
+          <ArrowRight className="h-5 w-5" />
+        </Button>
+
         {/* CTA Paiement */}
-        <Button onClick={() => onPayment()} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-12">
+        <Button onClick={() => onPayment()} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-6">
           <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><CreditCard className="h-5 w-5" /></div>
           <span className="flex-1 text-left">Effectuer un paiement</span>
           <ArrowRight className="h-5 w-5" />

@@ -1,4 +1,4 @@
-# Portail Souscripteur AgriCapital - pay.agricapital.ci
+# Portail Client AgriCapital - client.agricapital.ci
 User-agent: Googlebot
 Allow: /
 
@@ -11,10 +11,18 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
 User-agent: *
 Allow: /
 
-# Block client data from indexing (SPA - all dynamic)
-# Only the homepage (/) is indexable, client data is loaded dynamically
+# Only the public login (/) is indexable. All authenticated views send noindex,nofollow client-side.
 
-Sitemap: https://pay.agricapital.ci/sitemap.xml
+Sitemap: https://client.agricapital.ci/sitemap.xml

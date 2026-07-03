@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, AlertTriangle, CheckCircle, BarChart3, Wallet } from "lucide-react";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
-import { getCurrentRate, formatCFA } from "@/utils/pricing";
+import { getCurrentRateFromOffer, formatCFA } from "@/utils/pricing";
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, parseISO, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -37,7 +37,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
   const arrieres = useMemo(() => {
     return plantations.map(p => {
       if (!p.date_activation || p.statut_global === 'en_attente_da') return { nom: p.nom_plantation || p.id_unique, arrieres: 0, enAvance: false, enAttente: true };
-      const rate = getCurrentRate(souscripteur?.offres?.code, p.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
+      const rate = getCurrentRateFromOffer(souscripteur?.offres, p.date_activation);
       const tarifJour = rate?.jour_par_ha || 2000;
       const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
       const attendu = jours * tarifJour * (p.superficie_activee || 0);

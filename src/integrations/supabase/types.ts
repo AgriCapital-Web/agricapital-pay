@@ -1593,6 +1593,8 @@ export type Database = {
           contact_urgence_telephone1: string | null
           contact_urgence_telephone2: string | null
           created_at: string | null
+          departement: string | null
+          district_id: string | null
           email: string | null
           equipe_id: string | null
           id: string
@@ -1600,7 +1602,12 @@ export type Database = {
           numero_piece_identite: string | null
           photo_url: string | null
           piece_identite_url: string | null
+          poste: string | null
           quartier: string | null
+          region_id: string | null
+          relation_rh: string | null
+          role: string | null
+          taux_commission: number | null
           telephone: string | null
           telephone_secondaire: string | null
           type_piece_identite: string | null
@@ -1608,6 +1615,7 @@ export type Database = {
           user_id: string | null
           username: string | null
           ville: string | null
+          whatsapp: string | null
         }
         Insert: {
           actif?: boolean | null
@@ -1618,6 +1626,8 @@ export type Database = {
           contact_urgence_telephone1?: string | null
           contact_urgence_telephone2?: string | null
           created_at?: string | null
+          departement?: string | null
+          district_id?: string | null
           email?: string | null
           equipe_id?: string | null
           id?: string
@@ -1625,7 +1635,12 @@ export type Database = {
           numero_piece_identite?: string | null
           photo_url?: string | null
           piece_identite_url?: string | null
+          poste?: string | null
           quartier?: string | null
+          region_id?: string | null
+          relation_rh?: string | null
+          role?: string | null
+          taux_commission?: number | null
           telephone?: string | null
           telephone_secondaire?: string | null
           type_piece_identite?: string | null
@@ -1633,6 +1648,7 @@ export type Database = {
           user_id?: string | null
           username?: string | null
           ville?: string | null
+          whatsapp?: string | null
         }
         Update: {
           actif?: boolean | null
@@ -1643,6 +1659,8 @@ export type Database = {
           contact_urgence_telephone1?: string | null
           contact_urgence_telephone2?: string | null
           created_at?: string | null
+          departement?: string | null
+          district_id?: string | null
           email?: string | null
           equipe_id?: string | null
           id?: string
@@ -1650,7 +1668,12 @@ export type Database = {
           numero_piece_identite?: string | null
           photo_url?: string | null
           piece_identite_url?: string | null
+          poste?: string | null
           quartier?: string | null
+          region_id?: string | null
+          relation_rh?: string | null
+          role?: string | null
+          taux_commission?: number | null
           telephone?: string | null
           telephone_secondaire?: string | null
           type_piece_identite?: string | null
@@ -1658,6 +1681,7 @@ export type Database = {
           user_id?: string | null
           username?: string | null
           ville?: string | null
+          whatsapp?: string | null
         }
         Relationships: [
           {

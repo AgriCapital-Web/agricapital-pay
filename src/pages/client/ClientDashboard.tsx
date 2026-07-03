@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
-import { getCurrentRate, getFullTariffGrid, formatCFA } from "@/utils/pricing";
+import { getCurrentRateFromOffer, getFullTariffGridFromOffer, formatCFA } from "@/utils/pricing";
 import { 
   MapPin, Phone, Sprout, CreditCard, Wallet, Bell,
   ArrowRight, LogOut, CheckCircle, AlertTriangle, Clock, History, BarChart2,
@@ -52,20 +52,18 @@ const ClientDashboard = ({
 
   // Get current rate based on first active plantation's activation date
   const firstActivePlantation = plantations.find((p: any) => p.date_activation);
-  const currentRate = useMemo(() => getCurrentRate(
-    souscripteur.offres?.code,
+  const currentRate = useMemo(() => getCurrentRateFromOffer(
+    souscripteur.offres,
     firstActivePlantation?.date_activation,
-    souscripteur.offres?.contribution_mensuelle_par_ha || 0,
-    souscripteur.offres?.montant_da_par_ha || 0,
   ), [souscripteur, firstActivePlantation]);
 
-  const tariffGrid = useMemo(() => getFullTariffGrid(souscripteur.offres?.code), [souscripteur]);
+  const tariffGrid = useMemo(() => getFullTariffGridFromOffer(souscripteur.offres), [souscripteur]);
 
   const arriereData = useMemo(() => {
     let totalArrieres = 0, joursRetard = 0;
     plantations.forEach((p: any) => {
       if (p.date_activation && p.superficie_activee > 0) {
-        const plantRate = getCurrentRate(souscripteur.offres?.code, p.date_activation, souscripteur.offres?.contribution_mensuelle_par_ha || 0);
+        const plantRate = getCurrentRateFromOffer(souscripteur.offres, p.date_activation);
         const tarifJour = plantRate?.jour_par_ha || 2000;
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
         const attendu = jours * tarifJour * (p.superficie_activee || 0);
@@ -89,7 +87,7 @@ const ClientDashboard = ({
 
   const prochaines = useMemo(() => {
     return plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3).map((p: any) => {
-      const rate = getCurrentRate(souscripteur.offres?.code, p.date_activation, souscripteur.offres?.contribution_mensuelle_par_ha || 0);
+      const rate = getCurrentRateFromOffer(souscripteur.offres, p.date_activation);
       return {
         nom: p.nom_plantation || p.id_unique,
         montant: (rate?.mensuel_par_ha || 0) * (p.superficie_activee || 0),
@@ -142,7 +140,7 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-[1400px] pb-8 lg:pb-12 -mt-4 lg:mt-4">
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-[1400px] pb-8 lg:pb-12 pt-3 lg:pt-6">
         
         {/* Profile Card */}
         <Card className="border-0 shadow-xl overflow-hidden rounded-2xl lg:col-span-5" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>

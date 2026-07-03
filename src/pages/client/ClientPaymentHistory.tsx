@@ -76,16 +76,18 @@ const ClientPaymentHistory = ({ souscripteur, plantations, paiements, onBack }: 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-3 lg:grid lg:grid-cols-12 lg:gap-5 lg:space-y-0 max-w-lg lg:max-w-7xl" style={{ marginTop: '-0.5rem' }}>
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
-            { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-green-300" },
-            { icon: CreditCard, label: "Dépôt Initial", value: fmt(stats.da), color: "text-gold" },
-            { icon: Wallet, label: "Mensualités", value: fmt(stats.redev), color: "text-green-300" },
-            { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-gold" },
+            { icon: TrendingUp, label: "Total payé", value: fmt(stats.total), color: "text-primary", bg: "bg-primary/10" },
+            { icon: CreditCard, label: "Dépôt Initial", value: fmt(stats.da), color: "text-gold-dark", bg: "bg-gold/10" },
+            { icon: Wallet, label: "Mensualités", value: fmt(stats.redev), color: "text-primary", bg: "bg-primary/10" },
+            { icon: CheckCircle, label: "Transactions", value: stats.count, color: "text-gold-dark", bg: "bg-gold/10" },
           ].map((s, i) => (
-            <Card key={i} className="border-0 shadow-lg rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
+            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm bg-card">
               <CardContent className="p-3">
-                <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-                <p className={`text-sm font-bold text-white`}>{s.value}</p>
-                <p className="text-[10px] text-white/60">{s.label}</p>
+                <div className={`h-8 w-8 rounded-lg ${s.bg} flex items-center justify-center mb-1.5`}>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+                <p className="text-sm font-bold text-foreground truncate">{s.value}</p>
+                <p className="text-[10px] text-muted-foreground">{s.label}</p>
               </CardContent>
             </Card>
           ))}

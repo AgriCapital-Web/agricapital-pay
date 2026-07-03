@@ -9,6 +9,7 @@ import ClientStatistics from "./client/ClientStatistics";
 import PaymentReturn from "./client/PaymentReturn";
 import ClientPlantationHub from "./client/ClientPlantationHub";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return' | 'plantation-hub';
 
@@ -86,6 +87,18 @@ const ClientPortal = () => {
       isPrivate ? 'noindex, nofollow, noarchive' : 'index, follow'
     );
   }, [view]);
+
+  // Auto-refresh continu : Realtime sur offres/promotions + polling 15s.
+  // Garantit que tout changement CRM (prix, offre, promo, plantation, paiement)
+  // est répercuté sur le portail sans action manuelle du client.
+  useAutoRefresh(
+    souscripteur?.telephone,
+    (s, plts, pays) => {
+      setSouscripteur(s);
+      setPlantations(plts);
+      setPaiements(pays);
+    },
+  );
 
   const handleLogin = (sous: any, plants: any[], paies: any[]) => {
     setSouscripteur(sous);

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, AlertTriangle, CheckCircle, BarChart3, Wallet } from "lucide-react";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
-import { getCurrentRate, formatCFA } from "@/utils/pricing";
+import { getCurrentRateFromOffer, formatCFA } from "@/utils/pricing";
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, parseISO, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -37,7 +37,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
   const arrieres = useMemo(() => {
     return plantations.map(p => {
       if (!p.date_activation || p.statut_global === 'en_attente_da') return { nom: p.nom_plantation || p.id_unique, arrieres: 0, enAvance: false, enAttente: true };
-      const rate = getCurrentRate(souscripteur?.offres?.code, p.date_activation, souscripteur?.offres?.contribution_mensuelle_par_ha || 0);
+      const rate = getCurrentRateFromOffer(souscripteur?.offres, p.date_activation);
       const tarifJour = rate?.jour_par_ha || 2000;
       const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
       const attendu = jours * tarifJour * (p.superficie_activee || 0);
@@ -73,24 +73,28 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-3 lg:grid lg:grid-cols-12 lg:gap-5 lg:space-y-0 max-w-lg lg:max-w-7xl" style={{ marginTop: '-0.5rem' }}>
         <div className={`grid grid-cols-2 gap-2 transition-all duration-500 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <Card className="border-0 rounded-2xl shadow-lg" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
+          <Card className="card-brand-subtle rounded-2xl shadow-sm bg-card">
             <CardContent className="p-3">
-              <TrendingUp className="h-4 w-4 text-green-300 mb-1" />
-              <p className="text-lg font-black text-white">{fmt(totalPaye)}</p>
-              <p className="text-[10px] text-white/60">Total payé</p>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center mb-1.5">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-lg font-black text-foreground">{fmt(totalPaye)}</p>
+              <p className="text-[10px] text-muted-foreground">Total payé</p>
             </CardContent>
           </Card>
-          <Card className="border-0 rounded-2xl shadow-lg" style={{ background: totalArr > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
+          <Card className={`card-brand-subtle rounded-2xl shadow-sm bg-card ${totalArr > 0 ? 'border-destructive/40' : ''}`}>
             <CardContent className="p-3">
-              {totalArr > 0 ? <AlertTriangle className="h-4 w-4 text-red-300 mb-1" /> : <CheckCircle className="h-4 w-4 text-green-300 mb-1" />}
-              <p className={`text-lg font-black ${totalArr > 0 ? 'text-red-200' : 'text-white'}`}>{totalArr > 0 ? fmt(totalArr) : "À jour ✓"}</p>
-              <p className="text-[10px] text-white/60">{totalArr > 0 ? "Arriérés" : "Statut"}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center mb-1.5 ${totalArr > 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                {totalArr > 0 ? <AlertTriangle className="h-4 w-4 text-destructive" /> : <CheckCircle className="h-4 w-4 text-primary" />}
+              </div>
+              <p className={`text-lg font-black ${totalArr > 0 ? 'text-destructive' : 'text-foreground'}`}>{totalArr > 0 ? fmt(totalArr) : "À jour ✓"}</p>
+              <p className="text-[10px] text-muted-foreground">{totalArr > 0 ? "Arriérés" : "Statut"}</p>
             </CardContent>
           </Card>
         </div>
 
         {paiementStats.length > 0 && (
-          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 lg:col-span-5 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4 text-gold" />Répartition</CardTitle></CardHeader>
             <CardContent className="p-3 pt-0">
               <div className="h-48">
@@ -113,10 +117,10 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
           </Card>
         )}
 
-        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 lg:col-span-7 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />Évolution (12 mois)</CardTitle></CardHeader>
           <CardContent className="p-3 pt-0">
-            <div className="h-48">
+            <div className="h-48 lg:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
                   <defs>

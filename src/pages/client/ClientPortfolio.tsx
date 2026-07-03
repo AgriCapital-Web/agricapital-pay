@@ -83,19 +83,21 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
           </CardContent>
         </Card>
 
-        {/* Stats - Glassmorphism */}
+        {/* Stats - solid cards (lisibles sur fond clair) */}
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 transition-all duration-500 delay-100 lg:col-span-7 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
-            { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-green-300" },
-            { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold" },
-            { icon: TrendingUp, label: "Total payé", value: fmt(stats.totalPaye), color: "text-green-300" },
-            { icon: CreditCard, label: "DI versé", value: fmt(stats.totalDA), color: "text-gold" },
+            { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-primary", bg: "bg-primary/10" },
+            { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold-dark", bg: "bg-gold/10" },
+            { icon: TrendingUp, label: "Total payé", value: fmt(stats.totalPaye), color: "text-primary", bg: "bg-primary/10" },
+            { icon: CreditCard, label: "DI versé", value: fmt(stats.totalDA), color: "text-gold-dark", bg: "bg-gold/10" },
           ].map((s, i) => (
-            <Card key={i} className="border-0 shadow-lg rounded-2xl" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)' }}>
+            <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm bg-card">
               <CardContent className="p-3">
-                <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-                <p className="text-sm font-bold text-white">{s.value}</p>
-                <p className="text-[10px] text-white/60">{s.label}</p>
+                <div className={`h-8 w-8 rounded-lg ${s.bg} flex items-center justify-center mb-1.5`}>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+                <p className="text-sm font-bold text-foreground truncate">{s.value}</p>
+                <p className="text-[10px] text-muted-foreground">{s.label}</p>
               </CardContent>
             </Card>
           ))}

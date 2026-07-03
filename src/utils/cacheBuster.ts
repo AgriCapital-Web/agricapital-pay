@@ -19,8 +19,8 @@ declare const __APP_BUILD_ID__: string;
 
 const STORAGE_KEY = 'agc_app_build_id';
 const LAST_CHECK_KEY = 'agc_app_last_check';
-const POLL_INTERVAL_MS = 2 * 60 * 1000;
-const VISIBILITY_STALE_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_MS = 30 * 1000; // 30s : détecte les nouveaux déploiements sans surcharger
+const VISIBILITY_STALE_MS = 60 * 1000;
 
 const currentBuildId =
   typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : 'dev';

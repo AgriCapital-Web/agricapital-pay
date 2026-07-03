@@ -94,7 +94,7 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
         </div>
 
         {paiementStats.length > 0 && (
-          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 lg:col-span-5 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-100 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4 text-gold" />Répartition</CardTitle></CardHeader>
             <CardContent className="p-3 pt-0">
               <div className="h-48">
@@ -117,10 +117,10 @@ const ClientStatistics = ({ souscripteur, plantations, paiements, onBack }: Clie
           </Card>
         )}
 
-        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 lg:col-span-7 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Card className={`card-brand-subtle rounded-2xl shadow-sm transition-all duration-500 delay-150 lg:col-span-12 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />Évolution (12 mois)</CardTitle></CardHeader>
           <CardContent className="p-3 pt-0">
-            <div className="h-48">
+            <div className="h-48 lg:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
                   <defs>

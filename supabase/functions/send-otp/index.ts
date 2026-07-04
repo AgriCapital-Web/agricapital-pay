@@ -33,36 +33,10 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ===== SEND CUSTOM SMS (payment confirmations, etc.) =====
-    if (action === 'send_custom') {
-      const { customMessage } = body;
-      if (!customMessage) {
-        return new Response(JSON.stringify({ success: false, error: "Message requis" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
-      }
-
-      const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
-      const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
-      let smsSent = false;
-
-      if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
-        let formattedPhone = cleanPhone;
-        if (!formattedPhone.startsWith('225')) formattedPhone = '225' + formattedPhone;
-        try {
-          const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
-            method: 'POST',
-            headers: { 'Authorization': `App ${INFOBIP_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: [{ destinations: [{ to: formattedPhone }], from: "AgriCapital", text: customMessage }] }),
-          });
-          smsSent = smsRes.ok;
-        } catch (e) { console.error("Custom SMS error:", e); }
-      } else {
-        console.log(`[DEV] Custom SMS for ${cleanPhone}: ${customMessage}`);
-      }
-
-      return new Response(JSON.stringify({ success: true, sent: smsSent }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    // NOTE: The `send_custom` action has been removed. It was an unauthenticated
+    // SMS broadcast endpoint that let any caller send arbitrary messages billed
+    // to AgriCapital. Payment-confirmation SMS is now sent server-side from
+    // within `create-payment` after KKiaPay verification.
 
     // ===== SEND OTP =====
     if (action === 'send') {
@@ -141,9 +115,8 @@ serve(async (req) => {
         user_agent: req.headers.get('user-agent') || 'unknown',
       });
 
-      // DEV MODE : si Infobip n'est pas configuré OU si le flag DEV_OTP_VISIBLE est activé,
-      // on renvoie le code OTP au client pour affichage à l'écran.
-      // EN PROD : retirer DEV_OTP_VISIBLE des secrets ou le mettre à "false" pour cacher le code.
+      // DEV MODE : si Infobip n'est pas configuré on renvoie le code au client
+      // pour affichage. En prod, ne jamais activer DEV_OTP_VISIBLE.
       const DEV_OTP_VISIBLE = Deno.env.get("DEV_OTP_VISIBLE");
       const exposeCode = !smsSent || DEV_OTP_VISIBLE === "true";
 
@@ -164,18 +137,6 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ success: false, error: "Code invalide" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-
-      // ===== DEV BACKDOOR : numéro de test + code maître =====
-      // À RETIRER EN PRODUCTION : supprimer ce bloc avant le déploiement final.
-      const TEST_PHONE = "0759566087";
-      const MASTER_CODE = "123456";
-      if (cleanPhone.replace(/^225/, '') === TEST_PHONE && code === MASTER_CODE) {
-        console.log(`[DEV BACKDOOR] Login test pour ${cleanPhone}`);
-        return new Response(
-          JSON.stringify({ success: true, message: "Code vérifié (mode test)", devBypass: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 

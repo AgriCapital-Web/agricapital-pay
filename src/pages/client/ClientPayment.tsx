@@ -235,12 +235,10 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
             }
           });
         } catch (e) { console.error('confirm error', e); }
-        try {
-          const montantPaye = paymentContext.montantTotal || paymentContext.pricing.clientDebitAmount;
-          await supabase.functions.invoke('send-otp', {
-            body: { telephone: souscripteur.telephone, action: 'send_custom', customMessage: `AgriCapital: Paiement de ${new Intl.NumberFormat("fr-FR").format(montantPaye)} F CFA recu (Ref: ${paymentContext.reference}). Merci! Votre recu est disponible sur pay.agricapital.ci` }
-          }).catch(() => {});
-        } catch {}
+        // Confirmation SMS is now sent server-side inside `create-payment`
+        // after KKiaPay verification. The previous unauthenticated
+        // `send-otp/send_custom` client call has been removed.
+
       }
       toast({ title: "✅ Paiement réussi !", description: `Transaction ${response.transactionId} validée.` });
       setTimeout(() => onBack(), 2000);

@@ -6,6 +6,57 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Verify a KKiaPay transaction against KKiaPay's own API.
+ * This is the ONLY source of truth for whether a payment succeeded.
+ * We never trust client-supplied "success" flags, URL params, or amounts.
+ */
+async function verifyKkiapayTransaction(transactionId: string): Promise<
+  | { ok: true; amount: number | null; method: string | null; fees: number; raw: any }
+  | { ok: false; reason: string }
+> {
+  const privateKey = Deno.env.get("KKIAPAY_PRIVATE_KEY");
+  if (!privateKey) return { ok: false, reason: "KKIAPAY_PRIVATE_KEY not configured" };
+  try {
+    const res = await fetch("https://api.kkiapay.me/api/v1/transactions/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-private-key": privateKey },
+      body: JSON.stringify({ transactionId }),
+    });
+    const result = await res.json();
+    const status = String(result?.status || "").toUpperCase();
+    if (status !== "SUCCESS") return { ok: false, reason: `KKiaPay status=${status || "unknown"}` };
+    return {
+      ok: true,
+      amount: typeof result?.amount === "number" ? result.amount : null,
+      method: result?.source || null,
+      fees: Number(result?.fees || 0),
+      raw: result,
+    };
+  } catch (e: any) {
+    return { ok: false, reason: `verify error: ${e?.message || "unknown"}` };
+  }
+}
+
+async function sendConfirmationSms(phoneRaw: string | null | undefined, message: string) {
+  if (!phoneRaw) return;
+  const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
+  const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
+  if (!INFOBIP_API_KEY || !INFOBIP_BASE_URL) {
+    console.log("[DEV] confirmation SMS:", phoneRaw, message);
+    return;
+  }
+  let phone = String(phoneRaw).replace(/\D/g, "");
+  if (!phone.startsWith("225")) phone = "225" + phone;
+  try {
+    await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
+      method: "POST",
+      headers: { "Authorization": `App ${INFOBIP_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [{ destinations: [{ to: phone }], from: "AgriCapital", text: message }] }),
+    });
+  } catch (e) { console.error("SMS confirmation error:", e); }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -85,31 +136,56 @@ serve(async (req) => {
     }
 
     if (action === "confirm") {
-      const { reference, kkiapay_transaction_id, montant_paye, method, fees, kkiapay_amount, client_debit_amount, fee_absorption_rate } = body;
+      const { reference, kkiapay_transaction_id, client_debit_amount, fee_absorption_rate } = body;
       if (!reference) throw new Error("Reference requise");
+
+      // SECURITY: A payment can ONLY be confirmed via server-side verification
+      // against KKiaPay. The client cannot force a payment into `valide`.
+      if (!kkiapay_transaction_id || typeof kkiapay_transaction_id !== "string") {
+        throw new Error("kkiapay_transaction_id requis pour confirmer un paiement");
+      }
+
+      const verification = await verifyKkiapayTransaction(kkiapay_transaction_id);
+      if (!verification.ok) {
+        console.warn("Refusing confirm — KKiaPay verification failed:", verification.reason, "ref:", reference);
+        return new Response(
+          JSON.stringify({ success: false, error: "Transaction non vérifiée par KKiaPay" }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       const { data: paiementData } = await supabase
         .from("paiements")
-        .select("*, plantations(*)")
+        .select("*, plantations(*), souscripteurs(telephone, nom_complet)")
         .eq("reference", reference)
         .maybeSingle();
 
       if (!paiementData) throw new Error("Paiement introuvable");
+      if (paiementData.statut === "valide") {
+        return new Response(JSON.stringify({ success: true, alreadyValidated: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Amount actually charged is what KKiaPay returned, not what the client claims.
+      const kkiapayAmount = verification.amount;
+      const trustedMontantPaye = typeof kkiapayAmount === "number" ? kkiapayAmount : paiementData.montant;
 
       const { error: updateError } = await supabase.from("paiements").update({
         statut: "valide",
         date_paiement: new Date().toISOString(),
-        montant_paye: montant_paye || paiementData.montant,
-        kkiapay_transaction_id: kkiapay_transaction_id || paiementData.kkiapay_transaction_id || null,
+        montant_paye: trustedMontantPaye,
+        kkiapay_transaction_id,
         metadata: {
           ...(paiementData.metadata || {}),
           payment_provider: "kkiapay",
           kkiapay_transaction_id,
-          kkiapay_amount: kkiapay_amount ?? null,
-          client_debit_amount: client_debit_amount ?? montant_paye ?? paiementData.montant,
-          fee_absorption_rate: fee_absorption_rate ?? paiementData.metadata?.fee_absorption_rate ?? 0,
-          method: method || null,
-          fees: fees || 0,
+          kkiapay_amount: kkiapayAmount,
+          client_debit_amount: typeof client_debit_amount === "number" ? client_debit_amount : trustedMontantPaye,
+          fee_absorption_rate: typeof fee_absorption_rate === "number" ? fee_absorption_rate : (paiementData.metadata?.fee_absorption_rate ?? 0),
+          method: verification.method,
+          fees: verification.fees,
+          verified_at: new Date().toISOString(),
         },
       }).eq("reference", reference);
 
@@ -188,6 +264,15 @@ serve(async (req) => {
         }
       }
 
+      // Server-side confirmation SMS (replaces the removed `send_custom` action).
+      try {
+        const fmt = new Intl.NumberFormat("fr-FR").format(trustedMontantPaye);
+        await sendConfirmationSms(
+          paiementData.souscripteurs?.telephone,
+          `AgriCapital: Paiement de ${fmt} F CFA recu (Ref: ${reference}). Merci! Votre recu est disponible sur client.agricapital.ci`
+        );
+      } catch (e) { console.error("SMS post-confirm error:", e); }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -196,14 +281,32 @@ serve(async (req) => {
     if (action === "status") {
       const { reference, transaction_id } = body;
       if (!reference && !transaction_id) throw new Error("Reference requise");
+      // SECURITY: this endpoint is unauthenticated (called from the client after
+      // return from KKiaPay). Do NOT expose PII (nom_complet, telephone) or
+      // subscriber ID by reference — return only the minimum needed to render
+      // the payment result UI. Sensitive fields are stripped.
       let query = supabase
         .from("paiements")
-        .select("id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha), souscripteurs(nom_complet, telephone, id_unique)");
+        .select("id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha)");
       if (reference) query = query.eq("reference", reference);
       else query = query.or(`kkiapay_transaction_id.eq.${transaction_id},metadata->>kkiapay_transaction_id.eq.${transaction_id}`);
       const { data, error } = await query.maybeSingle();
       if (error) throw error;
-      return new Response(JSON.stringify({ success: true, paiement: data }), {
+
+      // Strip metadata fields that could leak internal details.
+      let safe = data;
+      if (data && data.metadata && typeof data.metadata === "object") {
+        const md: any = data.metadata;
+        safe = {
+          ...data,
+          metadata: {
+            client_debit_amount: md.client_debit_amount ?? null,
+            fee_absorption_rate: md.fee_absorption_rate ?? null,
+            method: md.method ?? null,
+          },
+        };
+      }
+      return new Response(JSON.stringify({ success: true, paiement: safe }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

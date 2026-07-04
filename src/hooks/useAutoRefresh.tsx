@@ -48,11 +48,14 @@ export function useAutoRefresh(
     // Poll périodique
     const timer = setInterval(refresh, intervalMs);
 
-    // Realtime : réagir immédiatement aux changements CRM
+    // Realtime : réagir immédiatement à tout changement CRM concernant ce client
     const channel = supabase
       .channel(`portal-sync-${Date.now()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "offres" }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh())
       .subscribe();
 
     // Refresh quand l'onglet redevient visible

@@ -805,6 +805,158 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_relances: {
+        Row: {
+          canal: string
+          commentaire: string | null
+          commercial_id: string | null
+          created_at: string
+          date_relance: string
+          id: string
+          lead_id: string
+          prochaine_relance: string | null
+          resultat: string
+        }
+        Insert: {
+          canal: string
+          commentaire?: string | null
+          commercial_id?: string | null
+          created_at?: string
+          date_relance?: string
+          id?: string
+          lead_id: string
+          prochaine_relance?: string | null
+          resultat: string
+        }
+        Update: {
+          canal?: string
+          commentaire?: string | null
+          commercial_id?: string | null
+          created_at?: string
+          date_relance?: string
+          id?: string
+          lead_id?: string
+          prochaine_relance?: string | null
+          resultat?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_relances_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          commentaire: string | null
+          converti_at: string | null
+          created_at: string
+          created_by: string | null
+          creneau_prefere: string | null
+          date_contact_souhaitee: string | null
+          delai_demarrage: string | null
+          dispose_terrain: boolean
+          email: string | null
+          est_diaspora: boolean
+          id: string
+          id_unique: string | null
+          mode_contact_prefere: string | null
+          nom: string
+          pays_diaspora: string | null
+          prenoms: string
+          prochaine_relance_at: string | null
+          region_residence: string
+          source: string
+          souscripteur_id: string | null
+          statut: string
+          superficie_a_valoriser_ha: number | null
+          superficie_disponible_ha: number | null
+          superficie_souhaitee_ha: number | null
+          telephone: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          commentaire?: string | null
+          converti_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          creneau_prefere?: string | null
+          date_contact_souhaitee?: string | null
+          delai_demarrage?: string | null
+          dispose_terrain?: boolean
+          email?: string | null
+          est_diaspora?: boolean
+          id?: string
+          id_unique?: string | null
+          mode_contact_prefere?: string | null
+          nom: string
+          pays_diaspora?: string | null
+          prenoms: string
+          prochaine_relance_at?: string | null
+          region_residence: string
+          source?: string
+          souscripteur_id?: string | null
+          statut?: string
+          superficie_a_valoriser_ha?: number | null
+          superficie_disponible_ha?: number | null
+          superficie_souhaitee_ha?: number | null
+          telephone: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          commentaire?: string | null
+          converti_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          creneau_prefere?: string | null
+          date_contact_souhaitee?: string | null
+          delai_demarrage?: string | null
+          dispose_terrain?: boolean
+          email?: string | null
+          est_diaspora?: boolean
+          id?: string
+          id_unique?: string | null
+          mode_contact_prefere?: string | null
+          nom?: string
+          pays_diaspora?: string | null
+          prenoms?: string
+          prochaine_relance_at?: string | null
+          region_residence?: string
+          source?: string
+          souscripteur_id?: string | null
+          statut?: string
+          superficie_a_valoriser_ha?: number | null
+          superficie_disponible_ha?: number | null
+          superficie_souhaitee_ha?: number | null
+          telephone?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "souscripteurs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_souscripteur_id_fkey"
+            columns: ["souscripteur_id"]
+            isOneToOne: false
+            referencedRelation: "v_souscripteur_synthese"
+            referencedColumns: ["souscripteur_id"]
+          },
+        ]
+      }
       lots_hectares: {
         Row: {
           centroid_lat: number | null
@@ -2438,6 +2590,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "souscripteurs_offre_id_fkey"
+            columns: ["offre_id"]
+            isOneToOne: false
+            referencedRelation: "v_prix_effectif_offres"
+            referencedColumns: ["offre_id"]
+          },
+          {
             foreignKeyName: "souscripteurs_parcelle_id_fkey"
             columns: ["parcelle_id"]
             isOneToOne: false
@@ -2771,6 +2930,36 @@ export type Database = {
       }
     }
     Views: {
+      v_prix_effectif_offres: {
+        Row: {
+          code: string | null
+          di_base: number | null
+          di_effectif: number | null
+          nom: string | null
+          offre_id: string | null
+          total_base: number | null
+          total_effectif: number | null
+        }
+        Insert: {
+          code?: string | null
+          di_base?: number | null
+          di_effectif?: never
+          nom?: string | null
+          offre_id?: string | null
+          total_base?: number | null
+          total_effectif?: never
+        }
+        Update: {
+          code?: string | null
+          di_base?: number | null
+          di_effectif?: never
+          nom?: string | null
+          offre_id?: string | null
+          total_base?: number | null
+          total_effectif?: never
+        }
+        Relationships: []
+      }
       v_souscripteur_synthese: {
         Row: {
           compte_actif: boolean | null
@@ -2803,6 +2992,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "offres"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "souscripteurs_offre_id_fkey"
+            columns: ["offre_id"]
+            isOneToOne: false
+            referencedRelation: "v_prix_effectif_offres"
+            referencedColumns: ["offre_id"]
           },
         ]
       }
@@ -2841,6 +3037,7 @@ export type Database = {
         Args: { _souscripteur_id: string }
         Returns: undefined
       }
+      recompute_pending_di: { Args: never; Returns: undefined }
       simuler_paiement_fractionne: {
         Args: { _montant: number; _souscripteur_id: string }
         Returns: {

@@ -1,26 +1,23 @@
 /**
  * PWA Cache-Busting
  * -----------------
- * Empêche l'app d'afficher une ancienne page quand le client a un cache HTML/JS
- * périmé (notamment dans le preview Lovable, ou après un déploiement Vercel).
+ * Détecte les nouveaux déploiements et propose immédiatement à l'utilisateur
+ * de charger la nouvelle version, via une bannière visible en bas d'écran.
  *
- * Stratégie :
- *  1. Un identifiant de build (`__APP_BUILD_ID__`) est injecté par Vite à chaque
- *     build. Il change à chaque déploiement.
- *  2. Au démarrage, on compare l'ID stocké en localStorage à l'ID courant.
- *     S'il diffère, on purge caches + service workers puis on recharge.
- *  3. On repolle `index.html` en `no-store` toutes les 2 min pour détecter un
- *     nouveau déploiement pendant que l'onglet est ouvert, et on recharge dès
- *     qu'un nouveau hash de script principal apparaît.
- *  4. On recharge aussi quand l'onglet redevient visible après > 5 min.
+ * - Un identifiant de build (`__APP_BUILD_ID__`) est injecté par Vite à chaque build.
+ * - Au démarrage, si le build stocké diffère, on purge caches + SW et on recharge.
+ * - Toutes les 20 s on repolle `index.html` (no-store) pour détecter un nouveau
+ *   bundle sans attendre la prochaine ouverture. Dès qu'un nouveau hash apparaît,
+ *   on affiche une bannière « Nouvelle version disponible — Recharger ».
+ * - Le rechargement effectif purge caches + service workers.
  */
 
 declare const __APP_BUILD_ID__: string;
 
 const STORAGE_KEY = 'agc_app_build_id';
 const LAST_CHECK_KEY = 'agc_app_last_check';
-const POLL_INTERVAL_MS = 30 * 1000; // 30s : détecte les nouveaux déploiements sans surcharger
-const VISIBILITY_STALE_MS = 60 * 1000;
+const POLL_INTERVAL_MS = 20 * 1000;
+const VISIBILITY_STALE_MS = 30 * 1000;
 
 const currentBuildId =
   typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : 'dev';
@@ -40,7 +37,8 @@ async function purgeAllCachesAndWorkers() {
   } catch { /* ignore */ }
 }
 
-function forceReload() {
+async function forceReload() {
+  await purgeAllCachesAndWorkers();
   const url = new URL(window.location.href);
   url.searchParams.set('_v', String(Date.now()));
   window.location.replace(url.toString());
@@ -54,7 +52,6 @@ async function fetchRemoteBuildFingerprint(): Promise<string | null> {
     });
     if (!res.ok) return null;
     const html = await res.text();
-    // Extrait le hash du bundle principal (/assets/index-XXXX.js)
     const match = html.match(/\/assets\/[^"']*\.js/);
     return match ? match[0] : null;
   } catch {
@@ -63,6 +60,44 @@ async function fetchRemoteBuildFingerprint(): Promise<string | null> {
 }
 
 let initialFingerprint: string | null = null;
+let bannerShown = false;
+
+function showUpdateBanner() {
+  if (bannerShown) return;
+  bannerShown = true;
+  if (typeof document === 'undefined') return;
+
+  const wrap = document.createElement('div');
+  wrap.setAttribute('role', 'alert');
+  wrap.setAttribute('aria-live', 'polite');
+  wrap.style.cssText = [
+    'position:fixed', 'left:50%', 'bottom:16px', 'transform:translateX(-50%)',
+    'z-index:2147483647', 'max-width:calc(100vw - 24px)',
+    'background:linear-gradient(135deg,#00643C,#003320)',
+    'color:#fff', 'padding:12px 16px', 'border-radius:14px',
+    'box-shadow:0 10px 30px -8px rgba(0,0,0,0.35)',
+    'display:flex', 'align-items:center', 'gap:12px',
+    'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    'font-size:14px', 'font-weight:500',
+    'border:1.5px solid #E89C31',
+  ].join(';');
+
+  const label = document.createElement('span');
+  label.textContent = 'Nouvelle version disponible';
+  wrap.appendChild(label);
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Recharger';
+  btn.style.cssText = [
+    'background:#E89C31', 'color:#1a1a1a', 'border:0',
+    'padding:8px 14px', 'border-radius:10px', 'font-weight:700',
+    'cursor:pointer', 'font-size:13px',
+  ].join(';');
+  btn.onclick = () => { void forceReload(); };
+  wrap.appendChild(btn);
+
+  document.body.appendChild(wrap);
+}
 
 async function checkForUpdate() {
   const remote = await fetchRemoteBuildFingerprint();
@@ -72,34 +107,28 @@ async function checkForUpdate() {
     return;
   }
   if (remote !== initialFingerprint) {
-    await purgeAllCachesAndWorkers();
-    forceReload();
+    showUpdateBanner();
   }
 }
 
 export async function initCacheBuster() {
-  // 1) Comparaison build ID entre sessions
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && stored !== currentBuildId) {
       localStorage.setItem(STORAGE_KEY, currentBuildId);
-      await purgeAllCachesAndWorkers();
-      forceReload();
+      await forceReload();
       return;
     }
     localStorage.setItem(STORAGE_KEY, currentBuildId);
   } catch { /* ignore */ }
 
-  // 2) Empreinte initiale
   initialFingerprint = await fetchRemoteBuildFingerprint();
 
-  // 3) Polling périodique
   setInterval(() => {
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
+    try { localStorage.setItem(LAST_CHECK_KEY, String(Date.now())); } catch { /* ignore */ }
     void checkForUpdate();
   }, POLL_INTERVAL_MS);
 
-  // 4) Onglet redevenu visible après une longue absence
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     const last = Number(localStorage.getItem(LAST_CHECK_KEY) || 0);

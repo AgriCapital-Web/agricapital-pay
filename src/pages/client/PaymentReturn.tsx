@@ -72,12 +72,12 @@ const PaymentReturn = ({ onBack }: PaymentReturnProps) => {
               }
             } catch {}
           }
-          if (urlStatus === 'success' || urlStatus === 'approved') {
-            await supabase.functions.invoke('create-payment', { body: { action: 'confirm', reference: db.reference, kkiapay_transaction_id: transactionId, montant_paye: db.metadata?.client_debit_amount ?? db.montant, client_debit_amount: db.metadata?.client_debit_amount ?? db.montant, fee_absorption_rate: db.metadata?.fee_absorption_rate ?? 0 } });
-            setPaiement({ ...db, statut: 'valide', montant_paye: db.metadata?.client_debit_amount ?? db.montant });
-            fetchReceipt(db.reference);
-            setStatus('success'); return;
-          }
+          // SECURITY: a payment is NEVER confirmed based on the URL `status`
+          // parameter alone — that value is fully attacker-controlled. Only the
+          // KKiaPay-verified branch above may transition a payment to `valide`.
+          // If we reach this point without a verified transactionId, we simply
+          // keep polling until the webhook or a verified verify call arrives.
+
           if (checkCount < 10) setTimeout(() => setCheckCount(c => c + 1), 2500);
           setStatus('pending');
         } else { setStatus('pending'); }

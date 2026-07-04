@@ -1,6 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Typographie signature AgriCapital : Sora pour les titres, Plus Jakarta Sans pour le corps. */
+html, body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'ss01', 'cv11';
+}
+h1, h2, h3, .font-display {
+  font-family: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Harmonisation des espacements mobiles : évite les blocs collés
+   sans casser les layouts denses en desktop. */
+@media (max-width: 640px) {
+  main, section { padding-left: 1rem; padding-right: 1rem; }
+  .stack-mobile > * + * { margin-top: 0.75rem; }
+  [data-slot="card"] { margin-bottom: 0.75rem; }
+}
 
 @layer base {
   :root {

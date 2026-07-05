@@ -78,11 +78,14 @@ const ClientDashboard = ({
   const { totalArrieres, joursRetard } = arriereData;
 
   const daProgress = useMemo(() => {
-    const tarifDA = currentRate?.schedule.depot_initial || souscripteur.offres?.montant_da_par_ha || 0;
+    // Priorité stricte au CRM (0 F autorisé) — pas de `||` qui masquerait un DI mis à 0.
+    const offre = souscripteur.offres || {};
+    const crmDI = offre.montant_depot_initial_par_ha ?? offre.montant_da_par_ha;
+    const tarifDA = currentRate?.schedule.depot_initial ?? (crmDI ?? 0);
     const totalDA = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifDA), 0);
     const totalDAVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
-    return { totalDA, totalDAVerse, pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 0 };
+    return { totalDA, totalDAVerse, pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 100 };
   }, [plantations, paiements, souscripteur, currentRate]);
 
   const prochaines = useMemo(() => {

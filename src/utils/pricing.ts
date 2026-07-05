@@ -140,6 +140,20 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Résout le Dépôt Initial en priorisant STRICTEMENT la valeur CRM
+ * (montant_depot_initial_par_ha puis montant_da_par_ha), même si elle vaut 0.
+ * Retourne null si aucune valeur n'est définie côté CRM.
+ */
+function resolveDIFromCrm(offre?: OfferPricingSource | null): number | null {
+  const di = offre?.montant_depot_initial_par_ha;
+  if (di !== null && di !== undefined && di !== '' && Number.isFinite(Number(di))) return Number(di);
+  const da = offre?.montant_da_par_ha;
+  if (da !== null && da !== undefined && da !== '' && Number.isFinite(Number(da))) return Number(da);
+  return null;
+}
+
+
 function getTranches(offre?: OfferPricingSource | null): Array<{ annee: number; mois: number; mensualite_par_ha: number }> {
   const raw = offre?.tranches_paiement;
   const parsed = Array.isArray(raw) ? raw : [];

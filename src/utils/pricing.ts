@@ -146,9 +146,9 @@ function toNumber(value: unknown, fallback = 0): number {
  * Retourne null si aucune valeur n'est définie côté CRM.
  */
 function resolveDIFromCrm(offre?: OfferPricingSource | null): number | null {
-  const di = offre?.montant_depot_initial_par_ha;
+  const di = offre?.montant_depot_initial_par_ha as unknown;
   if (di !== null && di !== undefined && di !== '' && Number.isFinite(Number(di))) return Number(di);
-  const da = offre?.montant_da_par_ha;
+  const da = offre?.montant_da_par_ha as unknown;
   if (da !== null && da !== undefined && da !== '' && Number.isFinite(Number(da))) return Number(da);
   return null;
 }

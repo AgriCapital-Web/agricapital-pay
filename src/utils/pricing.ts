@@ -249,7 +249,7 @@ export function getCurrentRateFromOffer(
   offre: OfferPricingSource | null | undefined,
   dateActivation: string | null | undefined,
 ): CurrentRate | null {
-  return getCurrentRateFromSchedule(getPricingScheduleFromOffer(offre), dateActivation, toNumber(offre?.contribution_mensuelle_par_ha), toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha)));
+  return getCurrentRateFromSchedule(getPricingScheduleFromOffer(offre), dateActivation, toNumber(offre?.contribution_mensuelle_par_ha), resolveDIFromCrm(offre) ?? 0);
 }
 
 function getCurrentRateFromSchedule(

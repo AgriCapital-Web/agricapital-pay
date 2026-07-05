@@ -26,7 +26,6 @@ export type Database = {
           justification: string | null
           motif_rejet: string | null
           nom_complet: string
-          password_souhaite: string | null
           photo_url: string | null
           poste_souhaite: string | null
           region_id: string | null
@@ -48,7 +47,6 @@ export type Database = {
           justification?: string | null
           motif_rejet?: string | null
           nom_complet: string
-          password_souhaite?: string | null
           photo_url?: string | null
           poste_souhaite?: string | null
           region_id?: string | null
@@ -70,7 +68,6 @@ export type Database = {
           justification?: string | null
           motif_rejet?: string | null
           nom_complet?: string
-          password_souhaite?: string | null
           photo_url?: string | null
           poste_souhaite?: string | null
           region_id?: string | null

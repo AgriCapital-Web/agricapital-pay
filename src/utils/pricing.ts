@@ -169,12 +169,13 @@ function getTranches(offre?: OfferPricingSource | null): Array<{ annee: number; 
 
 export function getPricingScheduleFromOffer(offre?: OfferPricingSource | null): PricingSchedule | null {
   const tranches = getTranches(offre);
+  const crmDI = resolveDIFromCrm(offre);
   if (tranches.length > 0) {
     const byYear = [tranches[0], tranches[1] || tranches[0], tranches[2] || tranches[1] || tranches[0]];
-    const totalParHa = tranches.reduce((sum, t) => sum + t.mensualite_par_ha * t.mois, 0)
-      + toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha));
+    const di = crmDI ?? 0;
+    const totalParHa = tranches.reduce((sum, t) => sum + t.mensualite_par_ha * t.mois, 0) + di;
     return {
-      depot_initial: toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha)),
+      depot_initial: di,
       an1_mensuel: byYear[0].mensualite_par_ha,
       an1_duree_mois: byYear[0].mois,
       an2_mensuel: byYear[1].mensualite_par_ha,
@@ -188,11 +189,14 @@ export function getPricingScheduleFromOffer(offre?: OfferPricingSource | null): 
   }
 
   const staticSchedule = PRICING[normalizeOfferCode(offre?.code)];
-  if (staticSchedule) return staticSchedule;
+  if (staticSchedule) {
+    // Le CRM reste maître : si un DI est défini côté CRM (même à 0), il override la grille figée.
+    return crmDI !== null ? { ...staticSchedule, depot_initial: crmDI } : staticSchedule;
+  }
 
   const fallbackMensuel = toNumber(offre?.contribution_mensuelle_par_ha);
   if (fallbackMensuel <= 0) return null;
-  const fallbackDA = toNumber(offre?.montant_depot_initial_par_ha, toNumber(offre?.montant_da_par_ha));
+  const fallbackDA = crmDI ?? 0;
   const duration = toNumber(offre?.duree_paiement_mois, 34);
   return {
     depot_initial: fallbackDA,
@@ -207,6 +211,7 @@ export function getPricingScheduleFromOffer(offre?: OfferPricingSource | null): 
     cash_price: fallbackDA + fallbackMensuel * duration,
   };
 }
+
 
 function getElapsedDays(dateActivation: string | null | undefined): number {
   if (!dateActivation) return 0;

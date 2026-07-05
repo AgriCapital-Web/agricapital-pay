@@ -1,72 +1,83 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export type RealtimeStatus = "connecting" | "live" | "offline" | "error" | "reconnecting";
+
 /**
- * Rafraîchissement automatique des données du portail client :
- * - Polling silencieux toutes les 15 secondes vers `subscriber-lookup`
- *   (edge function service-role qui recharge souscripteur + plantations + paiements + offres)
- * - Abonnement Realtime sur `offres`, `promotions` (publics) pour déclencher
- *   un refresh immédiat quand le CRM change un prix ou une promo.
- *
- * Résultat : dès qu'un utilisateur CRM modifie un prix/offre/promotion,
- * chaque portail client ouvert récupère la nouvelle valeur en < 15 s
- * (souvent instantanément grâce au canal realtime).
+ * Rafraîchissement automatique + statut de connexion Realtime.
+ * - Polling silencieux vers `subscriber-lookup` (service-role) toutes les `intervalMs` ms.
+ * - Abonnement Realtime sur toutes les tables CRM concernées.
+ * - Expose un `status` (connecting / live / offline / error / reconnecting) que l'UI peut afficher.
+ * - Gère la reconnexion automatique quand le navigateur repasse online / la page redevient visible.
  */
 export function useAutoRefresh(
   telephone: string | null | undefined,
   onData: (souscripteur: any, plantations: any[], paiements: any[]) => void,
   intervalMs: number = 15000,
 ) {
+  const [status, setStatus] = useState<RealtimeStatus>("connecting");
+  const [lastSync, setLastSync] = useState<Date | null>(null);
   const busy = useRef(false);
   const cbRef = useRef(onData);
   cbRef.current = onData;
 
   useEffect(() => {
     if (!telephone) return;
-
     let cancelled = false;
 
-    const refresh = async () => {
+    const refresh = async (silent = true) => {
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
-        const { data, error } = await supabase.functions.invoke("subscriber-lookup", {
-          body: { telephone },
-        });
+        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone } });
         if (!cancelled && !error && data?.success) {
           cbRef.current(data.souscripteur, data.plantations || [], data.paiements || []);
+          setLastSync(new Date());
+          if (!silent) setStatus("live");
           try {
             sessionStorage.setItem("agri_souscripteur", JSON.stringify(data.souscripteur));
             sessionStorage.setItem("agri_plantations", JSON.stringify(data.plantations || []));
             sessionStorage.setItem("agri_paiements", JSON.stringify(data.paiements || []));
           } catch { /* quota */ }
+        } else if (error) {
+          setStatus("error");
         }
-      } catch { /* silencieux */ }
-      finally { busy.current = false; }
+      } catch {
+        setStatus(navigator.onLine ? "error" : "offline");
+      } finally { busy.current = false; }
     };
 
-    // Poll périodique
-    const timer = setInterval(refresh, intervalMs);
+    const timer = setInterval(() => refresh(true), intervalMs);
 
-    // Realtime : réagir immédiatement à tout changement CRM concernant ce client
     const channel = supabase
       .channel(`portal-sync-${Date.now()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "offres" }, () => refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, () => refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh())
-      .subscribe();
+      .on("postgres_changes", { event: "*", schema: "public", table: "offres" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
+      .subscribe((s) => {
+        if (s === "SUBSCRIBED") setStatus("live");
+        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("reconnecting");
+        else if (s === "CLOSED") setStatus(navigator.onLine ? "reconnecting" : "offline");
+      });
 
-    // Refresh quand l'onglet redevient visible
-    const onVis = () => { if (document.visibilityState === "visible") refresh(); };
+    const onVis = () => { if (document.visibilityState === "visible") { setStatus("reconnecting"); refresh(false); } };
+    const onOnline = () => { setStatus("reconnecting"); refresh(false); };
+    const onOffline = () => setStatus("offline");
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
 
     return () => {
       cancelled = true;
       clearInterval(timer);
       supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
     };
   }, [telephone, intervalMs]);
+
+  return { status, lastSync };
 }

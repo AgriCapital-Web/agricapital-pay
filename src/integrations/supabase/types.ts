@@ -2939,7 +2939,7 @@ export type Database = {
         }
         Insert: {
           code?: string | null
-          di_base?: number | null
+          di_base?: never
           di_effectif?: never
           nom?: string | null
           offre_id?: string | null
@@ -2948,7 +2948,7 @@ export type Database = {
         }
         Update: {
           code?: string | null
-          di_base?: number | null
+          di_base?: never
           di_effectif?: never
           nom?: string | null
           offre_id?: string | null

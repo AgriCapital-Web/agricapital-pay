@@ -16,11 +16,14 @@ import {
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
+import SyncJournalDialog from "@/components/client/SyncJournalDialog";
 
 interface ClientDashboardProps {
   souscripteur: any;
   plantations: any[];
   paiements: any[];
+  syncStatus?: string;
+  lastSync?: Date | null;
   onPayment: (options?: { prefillAmount?: number; prefillType?: 'arriere' | 'avance' }) => void;
   onPortfolio: () => void;
   onHistory: () => void;
@@ -28,6 +31,7 @@ interface ClientDashboardProps {
   onPlantationHub: () => void;
   onLogout: () => void;
 }
+
 
 const ClientDashboard = ({ 
   souscripteur: initialSouscripteur, 

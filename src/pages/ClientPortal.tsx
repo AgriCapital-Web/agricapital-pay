@@ -149,6 +149,9 @@ const ClientPortal = () => {
           souscripteur={souscripteur}
           plantations={plantations}
           paiements={paiements}
+          syncStatus={status}
+          lastSync={lastSync}
+
           onPayment={(opts?: PaymentOptions) => {
             setPaymentOptions(opts || {});
             setView('payment');

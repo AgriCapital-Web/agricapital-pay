@@ -37,8 +37,10 @@ const ClientDashboard = ({
   souscripteur: initialSouscripteur, 
   plantations: initialPlantations, 
   paiements: initialPaiements, 
+  syncStatus, lastSync,
   onPayment, onPortfolio, onHistory, onStatistics, onPlantationHub, onLogout 
 }: ClientDashboardProps) => {
+
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, checkAndNotifyArrears } = usePushNotifications();
   const [souscripteur, setSouscripteur] = useState(initialSouscripteur);

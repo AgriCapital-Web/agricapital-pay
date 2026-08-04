@@ -97,7 +97,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     const offreCode = selectedSouscripteur?.offres?.code;
     const dateActivation = selectedPlantation?.date_activation;
     const cm = selectedSouscripteur?.offres?.contribution_mensuelle_par_ha || 0;
-    const da = selectedSouscripteur?.offres?.montant_da_par_ha || 0;
+    const da = selectedSouscripteur?.offres?.montant_da_par_ha ?? 0;
     return getCurrentRate(offreCode, dateActivation, cm, da);
   };
 
@@ -105,7 +105,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   useEffect(() => {
     if (typePaiement === "DA" && souscripteurId) {
       const rate = getRate();
-      const daParHa = rate?.schedule.depot_initial || selectedSouscripteur?.offres?.montant_da_par_ha || 90700;
+      const daParHa = selectedSouscripteur?.offres?.montant_da_par_ha ?? rate?.schedule.depot_initial ?? 0;
       const superficie = selectedPlantation?.superficie_ha || 1;
       let montantDA = daParHa * superficie;
 

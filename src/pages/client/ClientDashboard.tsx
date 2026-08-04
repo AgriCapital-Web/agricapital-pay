@@ -43,6 +43,12 @@ const ClientDashboard = ({
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    setSouscripteur(initialSouscripteur);
+    setPlantations(initialPlantations);
+    setPaiements(initialPaiements);
+  }, [initialSouscripteur, initialPlantations, initialPaiements]);
+
+  useEffect(() => {
     if (permission === 'granted') checkAndNotifyArrears(plantations, souscripteur);
   }, [permission, plantations, souscripteur, checkAndNotifyArrears]);
 
@@ -80,7 +86,7 @@ const ClientDashboard = ({
   const daProgress = useMemo(() => {
     // Priorité stricte au CRM (0 F autorisé) — pas de `||` qui masquerait un DI mis à 0.
     const offre = souscripteur.offres || {};
-    const crmDI = offre.montant_depot_initial_par_ha ?? offre.montant_da_par_ha;
+    const crmDI = offre.montant_da_par_ha ?? offre.montant_depot_initial_par_ha;
     const tarifDA = currentRate?.schedule.depot_initial ?? (crmDI ?? 0);
     const totalDA = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifDA), 0);
     const totalDAVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
@@ -143,7 +149,7 @@ const ClientDashboard = ({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-[1400px] pb-8 lg:pb-12 pt-3 lg:pt-6">
+      <main className="client-page-content flex-1 container mx-auto space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-5 max-w-lg lg:max-w-[1400px] pb-8 lg:pb-12 pt-4 lg:pt-6">
         
         {/* Profile Card */}
         <Card className="border-0 shadow-xl overflow-hidden rounded-2xl lg:col-span-5" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>

@@ -156,10 +156,10 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     const offre = souscripteur?.offres;
     if (offre) {
       const cm = offre.contribution_mensuelle_par_ha || 0;
-      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_depot_initial_par_ha || offre.montant_da_par_ha || 0 };
+      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_da_par_ha ?? offre.montant_depot_initial_par_ha ?? 0 };
     }
     // Defensive fallback (used only if no offre is loaded — should never happen for valid subscribers)
-    return { jour: 2000, semaine: 13846, mois: 60000, trimestre: 180000, semestre: 360000, annee: 720000, da_par_hectare: 90700 };
+    return { jour: 0, semaine: 0, mois: 0, trimestre: 0, semestre: 0, annee: 0, da_par_hectare: 0 };
   }, [plantationRate, souscripteur]);
 
   const fmt = (m: number) => formatCFA(m);
@@ -345,7 +345,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         </div>
       </div>
 
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 py-4 lg:py-8 space-y-4 max-w-lg lg:max-w-7xl">
+      <main className="client-page-content flex-1 container mx-auto py-4 lg:py-8 space-y-4 max-w-lg lg:max-w-7xl">
 
         {/* Bannière offre active */}
         {souscripteur?.offres && (

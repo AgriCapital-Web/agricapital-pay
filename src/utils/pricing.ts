@@ -142,14 +142,14 @@ function toNumber(value: unknown, fallback = 0): number {
 
 /**
  * Résout le Dépôt Initial en priorisant STRICTEMENT la valeur CRM
- * (montant_depot_initial_par_ha puis montant_da_par_ha), même si elle vaut 0.
+ * (montant_da_par_ha puis ancien alias), même si elle vaut 0.
  * Retourne null si aucune valeur n'est définie côté CRM.
  */
 function resolveDIFromCrm(offre?: OfferPricingSource | null): number | null {
-  const di = offre?.montant_depot_initial_par_ha as unknown;
-  if (di !== null && di !== undefined && di !== '' && Number.isFinite(Number(di))) return Number(di);
   const da = offre?.montant_da_par_ha as unknown;
   if (da !== null && da !== undefined && da !== '' && Number.isFinite(Number(da))) return Number(da);
+  const di = offre?.montant_depot_initial_par_ha as unknown;
+  if (di !== null && di !== undefined && di !== '' && Number.isFinite(Number(di))) return Number(di);
   return null;
 }
 

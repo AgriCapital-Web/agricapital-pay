@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type RealtimeStatus = "connecting" | "live" | "offline" | "error" | "reconnecting";
+export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "error" | "reconnecting";
 
 /**
  * Rafraîchissement automatique + statut de connexion Realtime.
@@ -13,9 +13,9 @@ export type RealtimeStatus = "connecting" | "live" | "offline" | "error" | "reco
 export function useAutoRefresh(
   telephone: string | null | undefined,
   onData: (souscripteur: any, plantations: any[], paiements: any[]) => void,
-  intervalMs: number = 15000,
+  intervalMs: number = 5000,
 ) {
-  const [status, setStatus] = useState<RealtimeStatus>("connecting");
+  const [status, setStatus] = useState<RealtimeStatus>("loading");
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const busy = useRef(false);
   const cbRef = useRef(onData);
@@ -33,7 +33,7 @@ export function useAutoRefresh(
         if (!cancelled && !error && data?.success) {
           cbRef.current(data.souscripteur, data.plantations || [], data.paiements || []);
           setLastSync(new Date());
-          if (!silent) setStatus("live");
+          setStatus("live");
           try {
             sessionStorage.setItem("agri_souscripteur", JSON.stringify(data.souscripteur));
             sessionStorage.setItem("agri_plantations", JSON.stringify(data.plantations || []));
@@ -47,6 +47,7 @@ export function useAutoRefresh(
       } finally { busy.current = false; }
     };
 
+    refresh(false);
     const timer = setInterval(() => refresh(true), intervalMs);
 
     const channel = supabase

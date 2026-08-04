@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { appendJournal, buildCrmSnapshot, diffAndLog, type CrmSnapshot } from "@/utils/syncJournal";
+
 
 export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "error" | "reconnecting";
 
@@ -20,32 +22,59 @@ export function useAutoRefresh(
   const busy = useRef(false);
   const cbRef = useRef(onData);
   cbRef.current = onData;
+  const snapRef = useRef<CrmSnapshot | null>(null);
+  const errLoggedRef = useRef(false);
 
   useEffect(() => {
     if (!telephone) return;
     let cancelled = false;
+    snapRef.current = null;
 
-    const refresh = async (silent = true) => {
+    const refresh = async (silent = true, trigger = "polling") => {
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
         const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone } });
         if (!cancelled && !error && data?.success) {
-          cbRef.current(data.souscripteur, data.plantations || [], data.paiements || []);
+          const plants = data.plantations || [];
+          const pays = data.paiements || [];
+          cbRef.current(data.souscripteur, plants, pays);
           setLastSync(new Date());
           setStatus("live");
-          try {
-            sessionStorage.setItem("agri_souscripteur", JSON.stringify(data.souscripteur));
-            sessionStorage.setItem("agri_plantations", JSON.stringify(data.plantations || []));
-            sessionStorage.setItem("agri_paiements", JSON.stringify(data.paiements || []));
-          } catch { /* quota */ }
+
+          // === Journal de synchronisation par compte ===
+          const account = data.souscripteur?.id_unique || telephone;
+          const snapshot = buildCrmSnapshot(data.souscripteur, plants, pays);
+          const changes = diffAndLog(account, snapRef.current, snapshot);
+          snapRef.current = snapshot;
+          if (!silent || changes > 0) {
+            appendJournal(account, {
+              kind: "sync",
+              label: changes > 0 ? `Synchronisation — ${changes} changement(s) CRM` : "Synchronisation CRM",
+              details: `Déclencheur : ${trigger} · source prix : ${snapshot.price_source}`,
+            });
+          }
+          errLoggedRef.current = false;
         } else if (error) {
           setStatus("error");
+          if (!errLoggedRef.current) {
+            errLoggedRef.current = true;
+            appendJournal(telephone, { kind: "sync_error", label: "Échec de synchronisation", details: error.message || "Erreur inconnue" });
+          }
         }
-      } catch {
+      } catch (e: any) {
         setStatus(navigator.onLine ? "error" : "offline");
+        if (!errLoggedRef.current) {
+          errLoggedRef.current = true;
+          appendJournal(telephone, {
+            kind: navigator.onLine ? "sync_error" : "connection",
+            label: navigator.onLine ? "Erreur réseau pendant la synchronisation" : "Connexion perdue",
+            details: e?.message,
+          });
+        }
       } finally { busy.current = false; }
     };
+
 
     refresh(false);
     const timer = setInterval(() => refresh(true), intervalMs);

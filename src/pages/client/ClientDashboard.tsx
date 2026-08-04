@@ -16,11 +16,14 @@ import {
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
+import SyncJournalDialog from "@/components/client/SyncJournalDialog";
 
 interface ClientDashboardProps {
   souscripteur: any;
   plantations: any[];
   paiements: any[];
+  syncStatus?: string;
+  lastSync?: Date | null;
   onPayment: (options?: { prefillAmount?: number; prefillType?: 'arriere' | 'avance' }) => void;
   onPortfolio: () => void;
   onHistory: () => void;
@@ -29,12 +32,15 @@ interface ClientDashboardProps {
   onLogout: () => void;
 }
 
+
 const ClientDashboard = ({ 
   souscripteur: initialSouscripteur, 
   plantations: initialPlantations, 
   paiements: initialPaiements, 
+  syncStatus, lastSync,
   onPayment, onPortfolio, onHistory, onStatistics, onPlantationHub, onLogout 
 }: ClientDashboardProps) => {
+
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, checkAndNotifyArrears } = usePushNotifications();
   const [souscripteur, setSouscripteur] = useState(initialSouscripteur);
@@ -141,6 +147,12 @@ const ClientDashboard = ({
               </Button>
             )}
             {permission === 'granted' && <div className="text-white/60 h-9 w-9 flex items-center justify-center"><Bell className="h-4 w-4" /></div>}
+            <SyncJournalDialog
+              account={souscripteur?.id_unique || souscripteur?.telephone}
+              status={syncStatus}
+              lastSync={lastSync}
+            />
+
             <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="text-white hover:bg-white/15 h-9 w-9">
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>

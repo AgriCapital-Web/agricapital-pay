@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       account_requests: {
         Row: {
+          auth_user_id: string | null
           created_at: string | null
           cv_url: string | null
           departement: string | null
@@ -35,8 +36,10 @@ export type Database = {
           traite_le: string | null
           traite_par: string | null
           updated_at: string | null
+          username: string | null
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string | null
           cv_url?: string | null
           departement?: string | null
@@ -56,8 +59,10 @@ export type Database = {
           traite_le?: string | null
           traite_par?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string | null
           cv_url?: string | null
           departement?: string | null
@@ -77,6 +82,7 @@ export type Database = {
           traite_le?: string | null
           traite_par?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Relationships: [
           {
@@ -1863,7 +1869,7 @@ export type Database = {
           montant_fixe_reduction: number | null
           nom: string
           offre_ids: Json | null
-          pourcentage_reduction: number
+          pourcentage_reduction: number | null
           type_promotion: string
           updated_at: string | null
         }
@@ -1880,7 +1886,7 @@ export type Database = {
           montant_fixe_reduction?: number | null
           nom: string
           offre_ids?: Json | null
-          pourcentage_reduction?: number
+          pourcentage_reduction?: number | null
           type_promotion?: string
           updated_at?: string | null
         }
@@ -1897,7 +1903,7 @@ export type Database = {
           montant_fixe_reduction?: number | null
           nom?: string
           offre_ids?: Json | null
-          pourcentage_reduction?: number
+          pourcentage_reduction?: number | null
           type_promotion?: string
           updated_at?: string | null
         }
@@ -3019,6 +3025,7 @@ export type Database = {
       generate_souscripteur_id: { Args: never; Returns: string }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_demo: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       mark_overdue_payments: { Args: never; Returns: undefined }
       notify_hierarchy: {
@@ -3035,6 +3042,7 @@ export type Database = {
         Returns: undefined
       }
       recompute_pending_di: { Args: never; Returns: undefined }
+      resolve_username_email: { Args: { _username: string }; Returns: string }
       simuler_paiement_fractionne: {
         Args: { _montant: number; _souscripteur_id: string }
         Returns: {
@@ -3045,6 +3053,7 @@ export type Database = {
           taux_journalier: number
         }[]
       }
+      username_available: { Args: { _username: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

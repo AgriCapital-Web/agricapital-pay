@@ -147,6 +147,12 @@ const ClientDashboard = ({
               </Button>
             )}
             {permission === 'granted' && <div className="text-white/60 h-9 w-9 flex items-center justify-center"><Bell className="h-4 w-4" /></div>}
+            <SyncJournalDialog
+              account={souscripteur?.id_unique || souscripteur?.telephone}
+              status={syncStatus}
+              lastSync={lastSync}
+            />
+
             <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="text-white hover:bg-white/15 h-9 w-9">
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>

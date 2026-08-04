@@ -92,7 +92,7 @@ const ClientPortal = () => {
   // Auto-refresh continu : Realtime sur offres/promotions + polling 15s.
   // Garantit que tout changement CRM (prix, offre, promo, plantation, paiement)
   // est répercuté sur le portail sans action manuelle du client.
-  const { status } = useAutoRefresh(
+  const { status, lastSync } = useAutoRefresh(
     souscripteur?.telephone,
     (s, plts, pays) => {
       setSouscripteur(s);
@@ -100,6 +100,7 @@ const ClientPortal = () => {
       setPaiements(pays);
     },
   );
+
 
   const handleLogin = (sous: any, plants: any[], paies: any[]) => {
     setSouscripteur(sous);

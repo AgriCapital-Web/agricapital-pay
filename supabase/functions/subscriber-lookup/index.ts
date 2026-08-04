@@ -167,6 +167,22 @@ serve(async (req) => {
       );
     }
 
+    // Re-read effective prices on every lookup. The current CRM DA field is the
+    // source of truth and zero is a valid promotional price.
+    if (souscripteur.offre_id && souscripteur.offres) {
+      const { data: effectivePrice } = await supabase
+        .from('v_prix_effectif_offres')
+        .select('di_base, di_effectif, total_effectif')
+        .eq('offre_id', souscripteur.offre_id)
+        .maybeSingle();
+      if (effectivePrice) {
+        const effectiveDi = Number(effectivePrice.di_effectif ?? effectivePrice.di_base ?? 0);
+        souscripteur.offres.montant_da_par_ha = effectiveDi;
+        souscripteur.offres.montant_depot_initial_par_ha = effectiveDi;
+        souscripteur.offres.montant_total_par_ha = Number(effectivePrice.total_effectif ?? souscripteur.offres.montant_total_par_ha ?? 0);
+      }
+    }
+
     // Log successful lookup for audit
     await supabase.from('historique_activites').insert({
       table_name: 'souscripteurs',

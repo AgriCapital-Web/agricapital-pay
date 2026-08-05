@@ -15,7 +15,7 @@ export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "er
 export function useAutoRefresh(
   telephone: string | null | undefined,
   onData: (souscripteur: any, plantations: any[], paiements: any[]) => void,
-  intervalMs: number = 5000,
+  intervalMs: number = 3000,
 ) {
   const [status, setStatus] = useState<RealtimeStatus>("loading");
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -86,6 +86,7 @@ export function useAutoRefresh(
       .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "tickets_techniques" }, () => refresh(false))
       .subscribe((s) => {
         if (s === "SUBSCRIBED") setStatus("live");
         else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("reconnecting");

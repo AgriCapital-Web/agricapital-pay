@@ -15,7 +15,7 @@ export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "er
 export function useAutoRefresh(
   telephone: string | null | undefined,
   onData: (souscripteur: any, plantations: any[], paiements: any[]) => void,
-  intervalMs: number = 5000,
+  intervalMs: number = 3000,
 ) {
   const [status, setStatus] = useState<RealtimeStatus>("loading");
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -34,7 +34,7 @@ export function useAutoRefresh(
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
-        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone } });
+        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone, silent: true } });
         if (!cancelled && !error && data?.success) {
           const plants = data.plantations || [];
           const pays = data.paiements || [];

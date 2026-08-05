@@ -20,7 +20,8 @@ export const ProgressionTab = ({ plantation, souscripteur }: { plantation: any; 
   const isPlus = (souscripteur?.offres?.code || "").endsWith("+");
 
   const etapes = ETAPES_BASE.map((e) => {
-    const found = etapesFromDb.find((x: any) => x.type === e.key || x.key === e.key);
+    const matches = etapesFromDb.filter((x: any) => x.type === e.key || x.key === e.key);
+    const found = matches.find((x: any) => x.statut === "termine") || matches.find((x: any) => x.statut === "en_cours") || matches[0];
     return {
       ...e,
       statut: found?.statut || "pending",

@@ -5,7 +5,7 @@
  * de charger la nouvelle version, via une bannière visible en bas d'écran.
  *
  * - Un identifiant de build (`__APP_BUILD_ID__`) est injecté par Vite à chaque build.
- * - Au démarrage, si le build stocké diffère, on purge caches + SW et on recharge.
+ * - Au démarrage, le service worker réseau-d'abord prend immédiatement le contrôle.
  * - Toutes les 20 s on repolle `index.html` (no-store) pour détecter un nouveau
  *   bundle sans attendre la prochaine ouverture. Dès qu'un nouveau hash apparaît,
  *   on affiche une bannière « Nouvelle version disponible — Recharger ».
@@ -22,13 +22,7 @@ const VISIBILITY_STALE_MS = 30 * 1000;
 const currentBuildId =
   typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : 'dev';
 
-async function purgeAllCachesAndWorkers() {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.allSettled(regs.map((r) => r.unregister()));
-    }
-  } catch { /* ignore */ }
+async function purgeAllCaches() {
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
@@ -38,7 +32,7 @@ async function purgeAllCachesAndWorkers() {
 }
 
 async function forceReload() {
-  await purgeAllCachesAndWorkers();
+  await purgeAllCaches();
   const url = new URL(window.location.href);
   url.searchParams.set('_v', String(Date.now()));
   window.location.replace(url.toString());
@@ -112,6 +106,23 @@ async function checkForUpdate() {
 }
 
 export async function initCacheBuster() {
+  if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    try {
+      const registration = await navigator.serviceWorker.register(`/sw.js?v=${currentBuildId}`, { updateViaCache: 'none' });
+      registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        worker?.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+            showUpdateBanner();
+          }
+        });
+      });
+      await registration.update();
+    } catch { /* polling remains available as fallback */ }
+  }
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && stored !== currentBuildId) {

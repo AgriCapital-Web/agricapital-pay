@@ -35,10 +35,33 @@ const userFormSchema = z.object({
     .regex(/^\d{10}$/, "Le WhatsApp doit contenir exactement 10 chiffres")
     .optional()
     .or(z.literal("")),
+  departement: z.string().optional(),
+  equipe_id: z.string().uuid().optional().or(z.literal("")),
+  relation_rh: z.enum(["Employé", "Prestataire"]).optional(),
+  taux_commission: z.coerce.number().min(0).nullable().optional(),
+  district_id: z.string().uuid().optional().or(z.literal("")),
+  region_id: z.string().uuid().optional().or(z.literal("")),
 });
 
+type UtilisateurFormValues = z.infer<typeof userFormSchema>;
+
+interface UserRoleRecord {
+  role: string;
+}
+
+interface UtilisateurRecord extends Partial<UtilisateurFormValues> {
+  id: string;
+  photo_url?: string | null;
+  user_roles?: UserRoleRecord[];
+}
+
+interface SelectOption {
+  id: string;
+  nom: string;
+}
+
 interface UtilisateurFormProps {
-  utilisateur?: any;
+  utilisateur?: UtilisateurRecord | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -54,19 +77,46 @@ const ROLES = [
   { value: "user", label: "Utilisateur" }
 ];
 
+const isRelationRh = (value: string): value is "Employé" | "Prestataire" =>
+  value === "Employé" || value === "Prestataire";
+
 const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormProps) => {
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+  const defaultValues: Partial<UtilisateurFormValues> = utilisateur
+    ? {
+        username: utilisateur.username ?? "",
+        email: utilisateur.email ?? "",
+        nom_complet: utilisateur.nom_complet ?? "",
+        telephone: utilisateur.telephone ?? "",
+        whatsapp: utilisateur.whatsapp ?? "",
+        departement: utilisateur.departement ?? "",
+        equipe_id: utilisateur.equipe_id ?? "",
+        relation_rh: utilisateur.relation_rh,
+        taux_commission: utilisateur.taux_commission ?? null,
+        district_id: utilisateur.district_id ?? "",
+        region_id: utilisateur.region_id ?? "",
+      }
+    : {
+        username: "",
+        email: "",
+        password: "",
+        nom_complet: "",
+        telephone: "",
+        whatsapp: "",
+        relation_rh: "Employé",
+      };
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<UtilisateurFormValues>({
     resolver: zodResolver(userFormSchema),
-    defaultValues: utilisateur || {},
+    defaultValues,
   });
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
-    utilisateur?.user_roles?.map((r: any) => r.role) || []
+    utilisateur?.user_roles?.map((r) => r.role) || []
   );
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [regions, setRegions] = useState<any[]>([]);
-  const [equipes, setEquipes] = useState<any[]>([]);
+  const [districts, setDistricts] = useState<SelectOption[]>([]);
+  const [regions, setRegions] = useState<SelectOption[]>([]);
+  const [equipes, setEquipes] = useState<SelectOption[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string>(utilisateur?.photo_url || "");
   const relationRH = watch("relation_rh");
 
@@ -117,7 +167,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     }
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: UtilisateurFormValues) => {
     setLoading(true);
     try {
       let photoUrl = utilisateur?.photo_url;
@@ -202,8 +252,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         });
       }
       onSuccess();
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Erreur", description: error instanceof Error ? error.message : "Une erreur est survenue" });
     } finally {
       setLoading(false);
     }
@@ -298,7 +348,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <Label>Relation RH *</Label>
             <Select
               defaultValue={utilisateur?.relation_rh}
-              onValueChange={(value) => setValue("relation_rh", value)}
+              onValueChange={(value) => {
+                if (isRelationRh(value)) setValue("relation_rh", value);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner" />

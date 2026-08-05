@@ -77,6 +77,9 @@ const ROLES = [
   { value: "user", label: "Utilisateur" }
 ];
 
+const isRelationRh = (value: string): value is "Employé" | "Prestataire" =>
+  value === "Employé" || value === "Prestataire";
+
 const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormProps) => {
   const defaultValues: Partial<UtilisateurFormValues> = utilisateur
     ? {
@@ -345,7 +348,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <Label>Relation RH *</Label>
             <Select
               defaultValue={utilisateur?.relation_rh}
-              onValueChange={(value) => setValue("relation_rh", value)}
+              onValueChange={(value) => {
+                if (isRelationRh(value)) setValue("relation_rh", value);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner" />

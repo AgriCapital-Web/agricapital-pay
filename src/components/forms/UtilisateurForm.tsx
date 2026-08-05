@@ -15,6 +15,19 @@ interface UtilisateurFormProps {
   onCancel: () => void;
 }
 
+interface UtilisateurFormValues {
+  nom_complet: string;
+  email: string;
+  telephone?: string;
+  password?: string;
+  equipe_id?: string;
+}
+
+interface EquipeOption {
+  id: string;
+  nom: string;
+}
+
 const ROLES = [
   { value: "super_admin", label: "Super Admin" },
   { value: "directeur_tc", label: "Directeur T&C" },
@@ -27,15 +40,20 @@ const ROLES = [
 ];
 
 const UtilisateurForm = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormProps) => {
-  const { register, handleSubmit, setValue } = useForm({
-    defaultValues: utilisateur || {},
+  const { register, handleSubmit, setValue } = useForm<UtilisateurFormValues>({
+    defaultValues: {
+      nom_complet: utilisateur?.nom_complet ?? "",
+      email: utilisateur?.email ?? "",
+      telephone: utilisateur?.telephone ?? "",
+      equipe_id: utilisateur?.equipe_id ?? "",
+    },
   });
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     utilisateur?.user_roles?.map((r: any) => r.role) || []
   );
-  const [equipes, setEquipes] = useState<any[]>([]);
+  const [equipes, setEquipes] = useState<EquipeOption[]>([]);
 
   useEffect(() => {
     fetchEquipes();
@@ -46,7 +64,7 @@ const UtilisateurForm = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormPr
     if (data) setEquipes(data);
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: UtilisateurFormValues) => {
     setLoading(true);
     try {
       if (utilisateur) {
@@ -58,7 +76,6 @@ const UtilisateurForm = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormPr
             email: data.email,
             telephone: data.telephone,
             equipe_id: data.equipe_id || null,
-            role: selectedRoles[0] || 'user',
           })
           .eq("id", utilisateur.id);
 
@@ -99,8 +116,8 @@ const UtilisateurForm = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormPr
         });
       }
       onSuccess();
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Erreur", description: error instanceof Error ? error.message : "Une erreur est survenue" });
     } finally {
       setLoading(false);
     }

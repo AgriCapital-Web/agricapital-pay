@@ -233,6 +233,18 @@ serve(async (req) => {
       paiements = paiementsData || [];
     }
 
+    // Technical follow-up is re-read on every synchronization so the portal
+    // reflects CRM interventions/tickets without retaining a stale copy.
+    let technicalTickets: any[] = [];
+    if (plantationIds.length > 0) {
+      const { data: ticketRows } = await supabase
+        .from('tickets_techniques')
+        .select('id, titre, description, plantation_id, priorite, statut, date_resolution, created_at, updated_at')
+        .in('plantation_id', plantationIds)
+        .order('updated_at', { ascending: false });
+      technicalTickets = ticketRows || [];
+    }
+
     // Calculate totals
     const totalDAVerse = paiements
       .filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
@@ -249,6 +261,12 @@ serve(async (req) => {
 
     let totalArrieres = 0;
     const plantationsEnriched = (plantations || []).map((p: any) => {
+      const tickets = technicalTickets.filter((ticket: any) => ticket.plantation_id === p.id);
+      const technicalData = {
+        tickets_techniques: tickets,
+        derniere_intervention: tickets[0]?.updated_at || p.derniere_visite || null,
+        prochaine_intervention: p.prochaine_visite || null,
+      };
       if (p.date_activation && (p.superficie_activee || 0) > 0) {
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
         const attendu = getProgressiveAmount(souscripteur.offres, 0, jours, p.superficie_activee || 0);
@@ -259,9 +277,9 @@ serve(async (req) => {
         const arriere = Math.max(0, attendu - paye);
         totalArrieres += arriere;
         const tarifMoyenJour = jours > 0 ? attendu / jours : 0;
-        return { ...p, _arriere: arriere, _jours_retard: arriere > 0 && tarifMoyenJour > 0 ? Math.floor(arriere / tarifMoyenJour) : 0 };
+        return { ...p, ...technicalData, _arriere: arriere, _jours_retard: arriere > 0 && tarifMoyenJour > 0 ? Math.floor(arriere / tarifMoyenJour) : 0 };
       }
-      return { ...p, _arriere: 0, _jours_retard: 0 };
+      return { ...p, ...technicalData, _arriere: 0, _jours_retard: 0 };
     });
 
     souscripteur.total_arrieres = totalArrieres;

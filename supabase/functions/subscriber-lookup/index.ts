@@ -18,6 +18,35 @@ function normalizeOfferCode(code: string | null | undefined): string {
   return (code || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]+/g, '').replace(/_PLUS/g, '+').replace(/PLUS/g, '+');
 }
 
+function normalizeTechnicalLabel(value: string | null | undefined): string {
+  return (value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function technicalStepFromTicket(ticket: any) {
+  const label = normalizeTechnicalLabel(`${ticket?.titre || ''} ${ticket?.description || ''}`);
+  const aliases: Array<[string, string[]]> = [
+    ['defrichage', ['defrich']],
+    ['piquetage', ['piquet']],
+    ['trouaison', ['trouaison', 'trou']],
+    ['planting', ['planting', 'mise en terre', 'plantation']],
+    ['remplacement', ['remplacement', 'manquant']],
+    ['entretien', ['entretien', 'desherbage']],
+    ['fertilisation', ['fertilis', 'engrais']],
+    ['mise_production', ['mise en production', 'production']],
+    ['remise', ['remise au client', 'remise']],
+  ];
+  const match = aliases.find(([, words]) => words.some((word) => label.includes(word)));
+  if (!match) return null;
+  const status = normalizeTechnicalLabel(ticket?.statut);
+  return {
+    key: match[0],
+    type: match[0],
+    statut: ['resolu', 'termine', 'ferme', 'cloture'].includes(status) ? 'termine' : ['en cours', 'en_cours', 'assigne'].includes(status) ? 'en_cours' : 'pending',
+    date_realisation: ticket?.date_resolution || ticket?.updated_at || null,
+    commentaire: ticket?.description || null,
+  };
+}
+
 function getProgressiveAmount(offre: any, startDayOffset: number, daysCount: number, hectares: number): number {
   const tranches = Array.isArray(offre?.tranches_paiement) ? offre.tranches_paiement : [];
   const schedule = tranches
@@ -101,22 +130,12 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // === SECURITY: Rate limiting ===
+    // Failed lookups are rate-limited below. Successful background CRM syncs
+    // must never count as login attempts or lock an active client session.
     const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('x-real-ip') || 'unknown';
     const rateLimitKey = `${clientIP}:${cleanPhone}`;
     
-    const rateCheck = await checkRateLimit(supabase, rateLimitKey);
-    if (!rateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Trop de tentatives. Réessayez dans ${Math.ceil((rateCheck.retryAfter || 1800) / 60)} minutes.` 
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
-      );
-    }
-
     // Try multiple formats for matching
     const phoneVariants = [
       cleanPhone,
@@ -151,6 +170,13 @@ serve(async (req) => {
 
 
     if (!souscripteur) {
+      const rateCheck = await checkRateLimit(supabase, rateLimitKey);
+      if (!rateCheck.allowed) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Trop de tentatives. Réessayez dans ${Math.ceil((rateCheck.retryAfter || 1800) / 60)} minutes.` }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
+        );
+      }
       // Log failed attempt for audit
       await supabase.from('historique_activites').insert({
         table_name: 'souscripteurs',
@@ -186,15 +212,16 @@ serve(async (req) => {
     }
 
 
-    // Log successful lookup for audit
-    await supabase.from('historique_activites').insert({
-      table_name: 'souscripteurs',
-      record_id: souscripteur.id,
-      action: 'PORTAIL_LOGIN',
-      details: `Connexion au portail souscripteur: ${souscripteur.nom_complet || souscripteur.id_unique}`,
-      ip_address: clientIP,
-      user_agent: req.headers.get('user-agent') || 'unknown',
-    });
+    if (body.silent !== true) {
+      await supabase.from('historique_activites').insert({
+        table_name: 'souscripteurs',
+        record_id: souscripteur.id,
+        action: 'PORTAIL_LOGIN',
+        details: `Connexion au portail souscripteur: ${souscripteur.nom_complet || souscripteur.id_unique}`,
+        ip_address: clientIP,
+        user_agent: req.headers.get('user-agent') || 'unknown',
+      });
+    }
 
     console.log("Found subscriber:", souscripteur.id, souscripteur.nom_complet);
 
@@ -262,8 +289,10 @@ serve(async (req) => {
     let totalArrieres = 0;
     const plantationsEnriched = (plantations || []).map((p: any) => {
       const tickets = technicalTickets.filter((ticket: any) => ticket.plantation_id === p.id);
+      const etapes = tickets.map(technicalStepFromTicket).filter(Boolean);
       const technicalData = {
         tickets_techniques: tickets,
+        etapes,
         derniere_intervention: tickets[0]?.updated_at || p.derniere_visite || null,
         prochaine_intervention: p.prochaine_visite || null,
       };

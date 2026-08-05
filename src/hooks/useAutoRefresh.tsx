@@ -34,7 +34,7 @@ export function useAutoRefresh(
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
-        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone } });
+        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone, silent: true } });
         if (!cancelled && !error && data?.success) {
           const plants = data.plantations || [];
           const pays = data.paiements || [];
@@ -86,7 +86,6 @@ export function useAutoRefresh(
       .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "tickets_techniques" }, () => refresh(false))
       .subscribe((s) => {
         if (s === "SUBSCRIBED") setStatus("live");
         else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("reconnecting");

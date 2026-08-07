@@ -247,9 +247,37 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     onClose(() => setLoading(false));
   }, [currentPaiementRef, montantTotal, kkiapayPricing, souscripteur.telephone, onBack, toast, onSuccess, onFailed, onClose]);
 
+  // DI offert (0 F via promotion CRM) : aucun passage par KKiaPay,
+  // on valide et on active directement la plantation côté serveur.
+  const isDiGratuit = typePaiement === 'da' && !!plantation && montantTotal <= 0;
+
+  const handleActivationGratuite = async () => {
+    if (!plantation) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'activate_free',
+          souscripteur_id: souscripteur.id,
+          plantation_id: plantation.id,
+          reference: `DI0-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Activation impossible");
+      toast({ title: "✅ Dépôt Initial offert", description: "Votre plantation est activée automatiquement (DI à 0 F)." });
+      setTimeout(() => onBack(), 1500);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Erreur", description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isDiGratuit) return handleActivationGratuite();
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
     setLoading(true);
+
     try {
       const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       setCurrentPaiementRef(reference);

@@ -717,9 +717,10 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 )}
               </div>
 
-              <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0} className="w-full h-12 rounded-xl font-bold btn-brand">
-                <CreditCard className="h-5 w-5 mr-2" />Confirmer et payer
+              <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0 && !isDiGratuit} className="w-full h-12 rounded-xl font-bold btn-brand">
+                <CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? "Activer ma plantation (0 F)" : "Confirmer et payer"}
               </Button>
+
             </CardContent>
           </Card>
         )}

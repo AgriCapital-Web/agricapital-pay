@@ -180,17 +180,15 @@ serve(async (req) => {
         );
       }
 
-      // Check max attempts
-      if (otpRecord.attempts >= 5) {
-        await supabase.from('otp_codes')
-          .update({ expires_at: new Date().toISOString() })
-          .eq('id', otpRecord.id);
-
+      // Trop de tentatives : on N'INVALIDE PAS le code, on demande simplement
+      // de patienter puis de redemander un code — la connexion reste possible.
+      if (otpRecord.attempts >= 10) {
         return new Response(
-          JSON.stringify({ success: false, error: "Trop de tentatives. Demandez un nouveau code." }),
+          JSON.stringify({ success: false, error: "Trop de tentatives sur ce code. Demandez un nouveau code d'accès." }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
         );
       }
+
 
       // Increment attempts
       await supabase.from('otp_codes')

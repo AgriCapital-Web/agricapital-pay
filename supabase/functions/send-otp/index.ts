@@ -40,7 +40,9 @@ serve(async (req) => {
 
     // ===== SEND OTP =====
     if (action === 'send') {
-      // Rate limit: max 3 OTP per phone per 10 minutes
+      // Anti-abus SOUPLE : on ne bloque JAMAIS la connexion d'un client.
+      // Si trop de demandes récentes, on RENVOIE le dernier code encore valide
+      // au lieu d'en générer un nouveau (aucune erreur, aucun blocage).
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { count } = await supabase
         .from('otp_codes')
@@ -48,27 +50,47 @@ serve(async (req) => {
         .eq('telephone', cleanPhone)
         .gt('created_at', tenMinAgo);
 
-      if ((count || 0) >= 3) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Trop de codes envoyés. Patientez 10 minutes." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
-        );
+      let otpCode: string | null = null;
+      let reused = false;
+
+      if ((count || 0) >= 5) {
+        const { data: lastValid } = await supabase
+          .from('otp_codes')
+          .select('id, code')
+          .eq('telephone', cleanPhone)
+          .eq('verified', false)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastValid) {
+          otpCode = lastValid.code;
+          reused = true;
+          // On prolonge la validité et on remet les tentatives à zéro
+          await supabase.from('otp_codes')
+            .update({ expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(), attempts: 0 })
+            .eq('id', lastValid.id);
+        }
       }
 
-      // Invalidate previous codes
-      await supabase.from('otp_codes')
-        .update({ expires_at: new Date().toISOString() })
-        .eq('telephone', cleanPhone)
-        .eq('verified', false);
+      if (!otpCode) {
+        // Invalidate previous codes
+        await supabase.from('otp_codes')
+          .update({ expires_at: new Date().toISOString() })
+          .eq('telephone', cleanPhone)
+          .eq('verified', false);
 
-      const otpCode = generateOTP();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        otpCode = generateOTP();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-      await supabase.from('otp_codes').insert({
-        telephone: cleanPhone,
-        code: otpCode,
-        expires_at: expiresAt,
-      });
+        await supabase.from('otp_codes').insert({
+          telephone: cleanPhone,
+          code: otpCode,
+          expires_at: expiresAt,
+        });
+      }
+
 
       // Send via Infobip
       const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");

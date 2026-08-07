@@ -197,7 +197,7 @@ serve(async (req) => {
 
       if (otpRecord.code !== code) {
         return new Response(
-          JSON.stringify({ success: false, error: `Code incorrect. ${4 - otpRecord.attempts} tentative(s) restante(s).` }),
+          JSON.stringify({ success: false, error: `Code incorrect. ${Math.max(0, 9 - otpRecord.attempts)} tentative(s) restante(s).` }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
       }

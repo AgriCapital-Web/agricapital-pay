@@ -145,9 +145,10 @@ export async function initCacheBuster() {
       // Le SW signale son activation : on prévient l'utilisateur si une
       // nouvelle version a pris le contrôle après le chargement initial.
       navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
-        if ((event.data as any)?.type === 'SW_ACTIVATED' && navigator.serviceWorker.controller) {
+        if ((event.data as any)?.type === 'SW_ACTIVATED' && hadController) {
           showUpdateBanner();
         }
+
       });
       await registration.update();
       setInterval(() => { void registration.update(); }, 60 * 1000);

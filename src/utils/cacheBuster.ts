@@ -76,22 +76,43 @@ function showUpdateBanner() {
     'border:1.5px solid #E89C31',
   ].join(';');
 
+  const texts = document.createElement('div');
+  texts.style.cssText = 'display:flex;flex-direction:column;gap:2px';
   const label = document.createElement('span');
   label.textContent = 'Nouvelle version disponible';
-  wrap.appendChild(label);
+  label.style.cssText = 'font-weight:700';
+  const sub = document.createElement('span');
+  sub.textContent = 'Rechargez pour afficher la dernière version du portail.';
+  sub.style.cssText = 'font-size:12px;opacity:.85;font-weight:400';
+  texts.appendChild(label);
+  texts.appendChild(sub);
+  wrap.appendChild(texts);
 
   const btn = document.createElement('button');
   btn.textContent = 'Recharger';
+  btn.setAttribute('aria-label', 'Recharger le portail pour appliquer la nouvelle version');
   btn.style.cssText = [
     'background:#E89C31', 'color:#1a1a1a', 'border:0',
     'padding:8px 14px', 'border-radius:10px', 'font-weight:700',
-    'cursor:pointer', 'font-size:13px',
+    'cursor:pointer', 'font-size:13px', 'white-space:nowrap',
   ].join(';');
   btn.onclick = () => { void forceReload(); };
   wrap.appendChild(btn);
 
+  const later = document.createElement('button');
+  later.textContent = 'Plus tard';
+  later.setAttribute('aria-label', 'Fermer la notification de mise à jour');
+  later.style.cssText = [
+    'background:transparent', 'color:#fff', 'border:1px solid rgba(255,255,255,.35)',
+    'padding:8px 10px', 'border-radius:10px', 'font-weight:600',
+    'cursor:pointer', 'font-size:12px', 'white-space:nowrap',
+  ].join(';');
+  later.onclick = () => { wrap.remove(); bannerShown = false; };
+  wrap.appendChild(later);
+
   document.body.appendChild(wrap);
 }
+
 
 async function checkForUpdate() {
   const remote = await fetchRemoteBuildFingerprint();

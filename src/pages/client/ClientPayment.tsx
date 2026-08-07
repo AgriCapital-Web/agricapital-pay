@@ -247,9 +247,37 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     onClose(() => setLoading(false));
   }, [currentPaiementRef, montantTotal, kkiapayPricing, souscripteur.telephone, onBack, toast, onSuccess, onFailed, onClose]);
 
+  // DI offert (0 F via promotion CRM) : aucun passage par KKiaPay,
+  // on valide et on active directement la plantation côté serveur.
+  const isDiGratuit = typePaiement === 'da' && !!plantation && montantTotal <= 0;
+
+  const handleActivationGratuite = async () => {
+    if (!plantation) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'activate_free',
+          souscripteur_id: souscripteur.id,
+          plantation_id: plantation.id,
+          reference: `DI0-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Activation impossible");
+      toast({ title: "✅ Dépôt Initial offert", description: "Votre plantation est activée automatiquement (DI à 0 F)." });
+      setTimeout(() => onBack(), 1500);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Erreur", description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isDiGratuit) return handleActivationGratuite();
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
     setLoading(true);
+
     try {
       const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       setCurrentPaiementRef(reference);
@@ -689,9 +717,10 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 )}
               </div>
 
-              <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0} className="w-full h-12 rounded-xl font-bold btn-brand">
-                <CreditCard className="h-5 w-5 mr-2" />Confirmer et payer
+              <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0 && !isDiGratuit} className="w-full h-12 rounded-xl font-bold btn-brand">
+                <CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? "Activer ma plantation (0 F)" : "Confirmer et payer"}
               </Button>
+
             </CardContent>
           </Card>
         )}
@@ -724,9 +753,14 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               </div>
 
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
-                {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Ouverture...</> : <><CreditCard className="h-5 w-5 mr-2" />Procéder au paiement</>}
+                {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />{isDiGratuit ? 'Activation...' : 'Ouverture...'}</> : <><CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? 'Activer ma plantation (DI offert)' : 'Procéder au paiement'}</>}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
+              {isDiGratuit ? (
+                <p className="text-[10px] text-center text-muted-foreground">Dépôt Initial à 0 F (promotion CRM) — activation immédiate, aucun paiement requis.</p>
+              ) : (
+                <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
+              )}
+
             </CardContent>
           </Card>
         )}

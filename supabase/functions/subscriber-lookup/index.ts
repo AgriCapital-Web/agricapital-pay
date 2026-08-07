@@ -71,7 +71,7 @@ function getProgressiveAmount(offre: any, startDayOffset: number, daysCount: num
 }
 
 // === SECURITY: Rate limiting ===
-async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 5, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
+async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 15, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
   const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
   
   // Check if blocked
@@ -193,8 +193,15 @@ serve(async (req) => {
       );
     }
 
+    // Connexion réussie : on purge tout blocage résiduel pour ce numéro afin
+    // qu'un client légitime ne reste jamais verrouillé.
+    try {
+      await supabase.from('rate_limits').delete().eq('identifier', rateLimitKey).eq('action', 'login');
+    } catch (_e) { /* ignore */ }
+
     // Re-read effective prices on every lookup. The current CRM DA field is the
     // source of truth and zero is a valid promotional price.
+
     if (souscripteur.offre_id && souscripteur.offres) {
       souscripteur.offres._price_source = 'offres (champs CRM)';
       const { data: effectivePrice } = await supabase

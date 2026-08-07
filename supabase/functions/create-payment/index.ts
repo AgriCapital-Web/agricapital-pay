@@ -69,7 +69,152 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // === DI à 0 F : activation automatique sans passer par KKiaPay ===
+    // Le montant est recalculé côté serveur depuis la vue v_prix_effectif_offres
+    // (prix CRM + promotions). L'activation n'est possible que si le DI effectif est 0.
+    if (action === "activate_free") {
+      const { souscripteur_id, plantation_id, reference } = body;
+      if (!souscripteur_id || !plantation_id) throw new Error("souscripteur_id et plantation_id requis");
+
+      const { data: souscripteur } = await supabase
+        .from("souscripteurs")
+        .select("*, offres(*)")
+        .eq("id", souscripteur_id)
+        .maybeSingle();
+      if (!souscripteur) throw new Error("Souscripteur introuvable");
+
+      const { data: plantation } = await supabase
+        .from("plantations")
+        .select("*")
+        .eq("id", plantation_id)
+        .eq("souscripteur_id", souscripteur_id)
+        .maybeSingle();
+      if (!plantation) throw new Error("Plantation introuvable");
+
+      const { data: prix } = await supabase
+        .from("v_prix_effectif_offres")
+        .select("di_effectif")
+        .eq("offre_id", souscripteur.offre_id)
+        .maybeSingle();
+
+      const diParHa = Number(prix?.di_effectif ?? souscripteur.offres?.montant_depot_initial_par_ha ?? 0);
+      const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
+      const diTotal = diParHa * hectares;
+
+      if (diTotal > 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Le Dépôt Initial de cette plantation n'est pas à 0 F.", montant: diTotal }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const ref = reference || `DI0-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+
+      const { data: existing } = await supabase
+        .from("paiements")
+        .select("id, statut")
+        .eq("souscripteur_id", souscripteur_id)
+        .eq("plantation_id", plantation_id)
+        .eq("est_depot_initial", true)
+        .maybeSingle();
+
+      const payload = {
+        souscripteur_id,
+        plantation_id,
+        type_paiement: "DA",
+        montant: 0,
+        montant_theorique: 0,
+        montant_paye: 0,
+        statut: "valide",
+        mode_paiement: "Promotion",
+        reference: ref,
+        est_depot_initial: true,
+        date_paiement: nowIso,
+        metadata: { payment_provider: "promotion", di_offert: true, di_par_ha: diParHa, hectares },
+      };
+
+      if (existing) {
+        if (existing.statut !== "valide") {
+          const { error } = await supabase.from("paiements").update(payload).eq("id", existing.id);
+          if (error) throw error;
+        }
+      } else {
+        const { error } = await supabase.from("paiements").insert(payload);
+        if (error) throw error;
+      }
+
+      await supabase.from("plantations").update({
+        superficie_activee: plantation.superficie_ha,
+        date_activation: nowIso,
+        statut: "active",
+        statut_global: "actif",
+      }).eq("id", plantation_id);
+
+      const debut = new Date();
+      const dureeMois = Number(souscripteur.offres?.duree_paiement_mois || 34);
+      const fin = new Date(debut); fin.setMonth(fin.getMonth() + dureeMois);
+      const prochaine = new Date(debut); prochaine.setMonth(prochaine.getMonth() + 1);
+
+      await supabase.from("souscripteurs").update({
+        compte_actif: true,
+        da_paye_at: nowIso,
+        contrat_debut_at: debut.toISOString().slice(0, 10),
+        contrat_fin_at: fin.toISOString().slice(0, 10),
+        phase_actuelle: "annee_1",
+        prochaine_echeance: prochaine.toISOString().slice(0, 10),
+      }).eq("id", souscripteur_id);
+
+      // Génération de l'échéancier mensuel si absent
+      const { count } = await supabase
+        .from("paiements")
+        .select("id", { count: "exact", head: true })
+        .eq("souscripteur_id", souscripteur_id)
+        .eq("type_paiement", "REDEVANCE");
+
+      const tranches = Array.isArray(souscripteur.offres?.tranches_paiement) ? souscripteur.offres.tranches_paiement : [];
+      if ((count || 0) === 0 && tranches.length > 0) {
+        const echeances: any[] = [];
+        let numero = 0;
+        for (const tranche of tranches) {
+          const mois = Number(tranche?.mois || 0);
+          const anneeOffre = Number(tranche?.annee || 1);
+          const mensualite = Number(tranche?.mensualite_par_ha || 0) * Number(souscripteur.total_hectares || 0);
+          for (let i = 0; i < mois; i++) {
+            numero += 1;
+            const due = new Date(debut); due.setMonth(due.getMonth() + numero);
+            echeances.push({
+              souscripteur_id,
+              type_paiement: "REDEVANCE",
+              statut: "en_attente",
+              montant: mensualite,
+              montant_theorique: mensualite,
+              numero_echeance: numero,
+              date_echeance: due.toISOString().slice(0, 10),
+              annee: due.getFullYear(),
+              phase: `annee_${anneeOffre}`,
+              est_depot_initial: false,
+              metadata: { generated_by: "create-payment:activate_free", offer_tranche: tranche },
+            });
+          }
+        }
+        if (echeances.length > 0) await supabase.from("paiements").insert(echeances);
+      }
+
+      try {
+        await sendConfirmationSms(
+          souscripteur.telephone,
+          `AgriCapital: Votre Depot Initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`
+        );
+      } catch (_e) { /* ignore */ }
+
+      return new Response(JSON.stringify({ success: true, activated: true, reference: ref }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "insert") {
+
       const { souscripteur_id, plantation_id, type_paiement, montant, reference, mode_paiement, metadata } = body;
       if (!souscripteur_id || !type_paiement || !montant || !reference) {
         throw new Error("Champs requis manquants");

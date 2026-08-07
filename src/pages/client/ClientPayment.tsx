@@ -753,9 +753,14 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               </div>
 
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
-                {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Ouverture...</> : <><CreditCard className="h-5 w-5 mr-2" />Procéder au paiement</>}
+                {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />{isDiGratuit ? 'Activation...' : 'Ouverture...'}</> : <><CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? 'Activer ma plantation (DI offert)' : 'Procéder au paiement'}</>}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
+              {isDiGratuit ? (
+                <p className="text-[10px] text-center text-muted-foreground">Dépôt Initial à 0 F (promotion CRM) — activation immédiate, aucun paiement requis.</p>
+              ) : (
+                <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
+              )}
+
             </CardContent>
           </Card>
         )}

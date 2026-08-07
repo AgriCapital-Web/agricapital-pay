@@ -193,8 +193,15 @@ serve(async (req) => {
       );
     }
 
+    // Connexion réussie : on purge tout blocage résiduel pour ce numéro afin
+    // qu'un client légitime ne reste jamais verrouillé.
+    try {
+      await supabase.from('rate_limits').delete().eq('identifier', rateLimitKey).eq('action', 'login');
+    } catch (_e) { /* ignore */ }
+
     // Re-read effective prices on every lookup. The current CRM DA field is the
     // source of truth and zero is a valid promotional price.
+
     if (souscripteur.offre_id && souscripteur.offres) {
       souscripteur.offres._price_source = 'offres (champs CRM)';
       const { data: effectivePrice } = await supabase

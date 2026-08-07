@@ -128,8 +128,10 @@ async function checkForUpdate() {
 
 export async function initCacheBuster() {
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    const hadController = !!navigator.serviceWorker.controller;
     try {
       const registration = await navigator.serviceWorker.register(`/sw.js?v=${currentBuildId}`, { updateViaCache: 'none' });
+
       registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
       registration.addEventListener('updatefound', () => {
         const worker = registration.installing;

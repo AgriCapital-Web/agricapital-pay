@@ -71,7 +71,7 @@ function getProgressiveAmount(offre: any, startDayOffset: number, daysCount: num
 }
 
 // === SECURITY: Rate limiting ===
-async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 5, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
+async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 15, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
   const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
   
   // Check if blocked

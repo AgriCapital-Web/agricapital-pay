@@ -17,6 +17,10 @@ import {
   getFullTariffGridFromOffer,
 } from "@/utils/pricing";
 import { assertOfferPricingFresh } from "@/utils/pricingGuard";
+import { appendJournal } from "@/utils/syncJournal";
+import { trackEvent } from "@/utils/errorTracker";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 
 interface ClientPaymentProps {

@@ -10,7 +10,7 @@ import PaymentReturn from "./client/PaymentReturn";
 import ClientPlantationHub from "./client/ClientPlantationHub";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import { AlertCircle, CloudOff, Loader2 } from "lucide-react";
+import SyncStatusBanner from "@/components/client/SyncStatusBanner";
 
 type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return' | 'plantation-hub';
 
@@ -132,15 +132,8 @@ const ClientPortal = () => {
     <>
       <InstallPrompt />
 
-      {souscripteur && status !== 'live' && (
-        <div className="fixed left-3 right-3 top-3 z-[100] mx-auto flex max-w-md items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-card-foreground shadow-lg" role="status" aria-live="polite">
-          {status === 'offline' ? <CloudOff className="h-4 w-4 text-destructive" /> : status === 'error' ? <AlertCircle className="h-4 w-4 text-destructive" /> : <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-          <div>
-            <p className="text-xs font-semibold">{status === 'offline' ? 'Connexion interrompue' : status === 'error' ? 'Actualisation impossible' : status === 'reconnecting' ? 'Reconnexion en cours…' : 'Chargement des données CRM…'}</p>
-            <p className="text-[10px] text-muted-foreground">Resynchronisation automatique dès que possible.</p>
-          </div>
-        </div>
-      )}
+      {souscripteur && <SyncStatusBanner status={status} lastSync={lastSync} />}
+
       
       {view === 'home' && <ClientHome onLogin={handleLogin} />}
       

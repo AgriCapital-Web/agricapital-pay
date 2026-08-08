@@ -17,6 +17,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
 import SyncJournalDialog from "@/components/client/SyncJournalDialog";
+import AccessCodePanel from "@/components/client/AccessCodePanel";
 
 interface ClientDashboardProps {
   souscripteur: any;
@@ -147,6 +148,11 @@ const ClientDashboard = ({
               </Button>
             )}
             {permission === 'granted' && <div className="text-white/60 h-9 w-9 flex items-center justify-center"><Bell className="h-4 w-4" /></div>}
+            <AccessCodePanel
+              telephone={souscripteur?.telephone}
+              email={souscripteur?.email}
+              account={souscripteur?.id_unique || souscripteur?.telephone}
+            />
             <SyncJournalDialog
               account={souscripteur?.id_unique || souscripteur?.telephone}
               status={syncStatus}

@@ -17,6 +17,10 @@ import {
   getFullTariffGridFromOffer,
 } from "@/utils/pricing";
 import { assertOfferPricingFresh } from "@/utils/pricingGuard";
+import { appendJournal } from "@/utils/syncJournal";
+import { trackEvent } from "@/utils/errorTracker";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 
 interface ClientPaymentProps {
@@ -254,19 +258,39 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const handleActivationGratuite = async () => {
     if (!plantation) return;
     setLoading(true);
+    const reference = `DI0-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
+    const account = souscripteur?.id_unique || souscripteur?.telephone;
     try {
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'activate_free',
           souscripteur_id: souscripteur.id,
           plantation_id: plantation.id,
-          reference: `DI0-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+          reference,
         },
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Activation impossible");
-      toast({ title: "✅ Dépôt Initial offert", description: "Votre plantation est activée automatiquement (DI à 0 F)." });
-      setTimeout(() => onBack(), 1500);
+      const horodatage = new Date();
+      appendJournal(account, {
+        kind: "crm_change",
+        label: "Plantation activée automatiquement (DI 0 F)",
+        details: `Plantation ${plantation.nom_plantation || plantation.id_unique} · Référence CRM ${data?.reference || reference} · ${format(horodatage, "dd/MM/yyyy HH:mm:ss", { locale: fr })}`,
+        after: "Activée",
+      });
+      trackEvent({
+        level: "info",
+        scope: "payment",
+        message: "Activation gratuite (Dépôt Initial 0 F)",
+        account,
+        context: { plantation_id: plantation.id, reference: data?.reference || reference, at: horodatage.toISOString() },
+      });
+      toast({
+        title: "✅ Plantation activée — Dépôt Initial offert",
+        description: `Référence CRM ${data?.reference || reference} · ${format(horodatage, "dd/MM/yyyy 'à' HH:mm", { locale: fr })}. L'opération est tracée dans votre journal de synchronisation.`,
+      });
+      setTimeout(() => onBack(), 1800);
     } catch (e: any) {
+      trackEvent({ level: "error", scope: "payment", message: "Échec de l'activation gratuite (DI 0 F)", account, context: { error: e?.message, reference } });
       toast({ variant: "destructive", title: "Erreur", description: e.message });
     } finally {
       setLoading(false);

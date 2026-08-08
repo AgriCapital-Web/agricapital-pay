@@ -38,6 +38,55 @@ serve(async (req) => {
     // to AgriCapital. Payment-confirmation SMS is now sent server-side from
     // within `create-payment` after KKiaPay verification.
 
+    // ===== STATUS (panneau sécurité du portail) =====
+    // Ne renvoie JAMAIS le code : uniquement des métadonnées de diagnostic
+    // (horodatage, expiration, tentatives, numéro et e-mail masqués).
+    if (action === 'status') {
+      const tenMinAgo0 = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const [{ data: last }, { count: recent }, { data: sous }] = await Promise.all([
+        supabase.from('otp_codes')
+          .select('created_at, expires_at, verified, attempts')
+          .eq('telephone', cleanPhone)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from('otp_codes')
+          .select('*', { count: 'exact', head: true })
+          .eq('telephone', cleanPhone)
+          .gt('created_at', tenMinAgo0),
+        supabase.from('souscripteurs')
+          .select('email')
+          .eq('telephone', cleanPhone)
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const maskEmail = (e?: string | null) => {
+        if (!e || !e.includes('@')) return null;
+        const [u, d] = e.split('@');
+        return `${u.slice(0, 2)}${'*'.repeat(Math.max(1, u.length - 2))}@${d}`;
+      };
+      const expiresAt = last?.expires_at ? new Date(last.expires_at).getTime() : 0;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: {
+            telephone_masque: `${cleanPhone.slice(0, 4)}****${cleanPhone.slice(-2)}`,
+            email_masque: maskEmail(sous?.email),
+            created_at: last?.created_at ?? null,
+            expires_at: last?.expires_at ?? null,
+            verified: !!last?.verified,
+            attempts: last?.attempts ?? 0,
+            expired: expiresAt ? expiresAt < Date.now() : true,
+            seconds_restantes: expiresAt ? Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)) : 0,
+            demandes_10min: recent || 0,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ===== SEND OTP =====
     if (action === 'send') {
       // Anti-abus SOUPLE : on ne bloque JAMAIS la connexion d'un client.
@@ -223,7 +272,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: false, error: "Action invalide. Utilisez 'send' ou 'verify'." }),
+      JSON.stringify({ success: false, error: "Action invalide. Utilisez 'send', 'verify' ou 'status'." }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
     );
 

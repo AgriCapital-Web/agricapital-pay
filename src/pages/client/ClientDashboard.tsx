@@ -17,6 +17,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
 import SyncJournalDialog from "@/components/client/SyncJournalDialog";
+import AccessCodePanel from "@/components/client/AccessCodePanel";
 
 interface ClientDashboardProps {
   souscripteur: any;
@@ -97,7 +98,16 @@ const ClientDashboard = ({
     const totalDA = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifDA), 0);
     const totalDAVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
-    return { totalDA, totalDAVerse, pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 100 };
+    const diOffert = tarifDA === 0;
+    const plantationNonActivee = plantations.some((p: any) => !p.date_activation || !(p.superficie_activee > 0));
+    return {
+      tarifDA,
+      diOffert,
+      activationGratuiteDisponible: diOffert && plantationNonActivee,
+      totalDA,
+      totalDAVerse,
+      pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 100,
+    };
   }, [plantations, paiements, souscripteur, currentRate]);
 
   const prochaines = useMemo(() => {
@@ -147,6 +157,11 @@ const ClientDashboard = ({
               </Button>
             )}
             {permission === 'granted' && <div className="text-white/60 h-9 w-9 flex items-center justify-center"><Bell className="h-4 w-4" /></div>}
+            <AccessCodePanel
+              telephone={souscripteur?.telephone}
+              email={souscripteur?.email}
+              account={souscripteur?.id_unique || souscripteur?.telephone}
+            />
             <SyncJournalDialog
               account={souscripteur?.id_unique || souscripteur?.telephone}
               status={syncStatus}
@@ -272,6 +287,29 @@ const ClientDashboard = ({
           </Card>
         )}
 
+        {/* Dépôt Initial offert (0 F via promotion CRM) */}
+        {daProgress.diOffert && (
+          <Card className="card-brand-subtle rounded-2xl shadow-md border-gold/40 lg:col-span-4">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-8 w-8 rounded-xl bg-gold/15 flex items-center justify-center"><CheckCircle className="h-4 w-4 text-gold-dark" /></div>
+                <span className="text-sm font-semibold">Dépôt Initial</span>
+                <Badge variant="outline" className="ml-auto border-gold/40 bg-gold/10 text-gold-dark text-[10px]">Offert · 0 F</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Votre Dépôt Initial est à <span className="font-bold text-primary">0 F</span> grâce à la promotion en cours côté AgriCapital. Aucun paiement n'est requis pour démarrer.
+              </p>
+              {daProgress.activationGratuiteDisponible ? (
+                <Button onClick={() => onPayment()} className="w-full h-11 rounded-xl btn-brand text-sm font-bold gap-2">
+                  <Zap className="h-4 w-4" /> Activer ma plantation (0 F)
+                </Button>
+              ) : (
+                <p className="text-xs font-semibold text-primary flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" /> Plantation déjà activée</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Dépôt Initial Progress */}
         {daProgress.totalDA > 0 && (
           <Card className="card-brand-subtle rounded-2xl shadow-md lg:col-span-4">
@@ -291,6 +329,7 @@ const ClientDashboard = ({
             </CardContent>
           </Card>
         )}
+
 
         {/* Prochaines échéances */}
         {prochaines.length > 0 && (
@@ -324,8 +363,8 @@ const ClientDashboard = ({
 
         {/* CTA Paiement */}
         <Button onClick={() => onPayment()} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-6">
-          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><CreditCard className="h-5 w-5" /></div>
-          <span className="flex-1 text-left">Effectuer un paiement</span>
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">{daProgress.activationGratuiteDisponible ? <Zap className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}</div>
+          <span className="flex-1 text-left">{daProgress.activationGratuiteDisponible ? "Activer ma plantation (DI offert)" : "Effectuer un paiement"}</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
 

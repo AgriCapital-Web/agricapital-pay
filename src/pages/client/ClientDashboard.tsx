@@ -287,6 +287,29 @@ const ClientDashboard = ({
           </Card>
         )}
 
+        {/* Dépôt Initial offert (0 F via promotion CRM) */}
+        {daProgress.diOffert && (
+          <Card className="card-brand-subtle rounded-2xl shadow-md border-gold/40 lg:col-span-4">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-8 w-8 rounded-xl bg-gold/15 flex items-center justify-center"><CheckCircle className="h-4 w-4 text-gold-dark" /></div>
+                <span className="text-sm font-semibold">Dépôt Initial</span>
+                <Badge variant="outline" className="ml-auto border-gold/40 bg-gold/10 text-gold-dark text-[10px]">Offert · 0 F</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Votre Dépôt Initial est à <span className="font-bold text-primary">0 F</span> grâce à la promotion en cours côté AgriCapital. Aucun paiement n'est requis pour démarrer.
+              </p>
+              {daProgress.activationGratuiteDisponible ? (
+                <Button onClick={() => onPayment()} className="w-full h-11 rounded-xl btn-brand text-sm font-bold gap-2">
+                  <Zap className="h-4 w-4" /> Activer ma plantation (0 F)
+                </Button>
+              ) : (
+                <p className="text-xs font-semibold text-primary flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" /> Plantation déjà activée</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Dépôt Initial Progress */}
         {daProgress.totalDA > 0 && (
           <Card className="card-brand-subtle rounded-2xl shadow-md lg:col-span-4">
@@ -306,6 +329,7 @@ const ClientDashboard = ({
             </CardContent>
           </Card>
         )}
+
 
         {/* Prochaines échéances */}
         {prochaines.length > 0 && (

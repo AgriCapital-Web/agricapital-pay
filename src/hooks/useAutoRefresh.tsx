@@ -61,16 +61,25 @@ export function useAutoRefresh(
           if (!errLoggedRef.current) {
             errLoggedRef.current = true;
             appendJournal(telephone, { kind: "sync_error", label: "Échec de synchronisation", details: error.message || "Erreur inconnue" });
+            trackEvent({ level: "error", scope: "sync", message: "Échec de synchronisation CRM", account: telephone, context: { trigger, error: error.message } });
           }
         }
       } catch (e: any) {
-        setStatus(navigator.onLine ? "error" : "offline");
+        const offline = !navigator.onLine;
+        setStatus(offline ? "offline" : "error");
         if (!errLoggedRef.current) {
           errLoggedRef.current = true;
           appendJournal(telephone, {
-            kind: navigator.onLine ? "sync_error" : "connection",
-            label: navigator.onLine ? "Erreur réseau pendant la synchronisation" : "Connexion perdue",
+            kind: offline ? "connection" : "sync_error",
+            label: offline ? "Connexion perdue" : "Erreur réseau pendant la synchronisation",
             details: e?.message,
+          });
+          trackEvent({
+            level: offline ? "warning" : "error",
+            scope: "realtime",
+            message: offline ? "Connexion perdue (offline)" : "Erreur réseau pendant la synchronisation CRM",
+            account: telephone,
+            context: { trigger, error: e?.message },
           });
         }
       } finally { busy.current = false; }

@@ -98,13 +98,18 @@ export function useAutoRefresh(
       .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
       .subscribe((s) => {
         if (s === "SUBSCRIBED") setStatus("live");
-        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("reconnecting");
-        else if (s === "CLOSED") setStatus(navigator.onLine ? "reconnecting" : "offline");
+        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
+          setStatus("reconnecting");
+          trackEvent({ level: "warning", scope: "realtime", message: `Canal temps réel ${s} — reconnexion`, account: telephone });
+        } else if (s === "CLOSED") {
+          setStatus(navigator.onLine ? "reconnecting" : "offline");
+          trackEvent({ level: "warning", scope: "realtime", message: "Canal temps réel fermé", account: telephone, context: { online: navigator.onLine } });
+        }
       });
 
     const onVis = () => { if (document.visibilityState === "visible") { setStatus("reconnecting"); refresh(false); } };
-    const onOnline = () => { setStatus("reconnecting"); refresh(false); };
-    const onOffline = () => setStatus("offline");
+    const onOnline = () => { setStatus("reconnecting"); trackEvent({ level: "info", scope: "realtime", message: "Retour en ligne — resynchronisation", account: telephone }); refresh(false); };
+    const onOffline = () => { setStatus("offline"); trackEvent({ level: "warning", scope: "realtime", message: "Navigateur hors ligne", account: telephone }); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);

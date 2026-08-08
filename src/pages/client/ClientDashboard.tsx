@@ -98,7 +98,16 @@ const ClientDashboard = ({
     const totalDA = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifDA), 0);
     const totalDAVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
-    return { totalDA, totalDAVerse, pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 100 };
+    const diOffert = tarifDA === 0;
+    const plantationNonActivee = plantations.some((p: any) => !p.date_activation || !(p.superficie_activee > 0));
+    return {
+      tarifDA,
+      diOffert,
+      activationGratuiteDisponible: diOffert && plantationNonActivee,
+      totalDA,
+      totalDAVerse,
+      pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 100,
+    };
   }, [plantations, paiements, souscripteur, currentRate]);
 
   const prochaines = useMemo(() => {

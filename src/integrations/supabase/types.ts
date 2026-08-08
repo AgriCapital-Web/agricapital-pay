@@ -213,6 +213,42 @@ export type Database = {
           },
         ]
       }
+      configurations_systeme: {
+        Row: {
+          categorie: string
+          cle: string
+          created_at: string
+          description: string | null
+          id: string
+          modifiable: boolean
+          type_valeur: string
+          updated_at: string
+          valeur: string
+        }
+        Insert: {
+          categorie?: string
+          cle: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          modifiable?: boolean
+          type_valeur?: string
+          updated_at?: string
+          valeur?: string
+        }
+        Update: {
+          categorie?: string
+          cle?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          modifiable?: boolean
+          type_valeur?: string
+          updated_at?: string
+          valeur?: string
+        }
+        Relationships: []
+      }
       conventions_foncieres: {
         Row: {
           caution_par_ha: number | null

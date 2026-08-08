@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { appendJournal, buildCrmSnapshot, diffAndLog, type CrmSnapshot } from "@/utils/syncJournal";
+import { trackEvent } from "@/utils/errorTracker";
 
 
 export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "error" | "reconnecting";

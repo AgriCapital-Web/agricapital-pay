@@ -363,8 +363,8 @@ const ClientDashboard = ({
 
         {/* CTA Paiement */}
         <Button onClick={() => onPayment()} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-6">
-          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><CreditCard className="h-5 w-5" /></div>
-          <span className="flex-1 text-left">Effectuer un paiement</span>
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">{daProgress.activationGratuiteDisponible ? <Zap className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}</div>
+          <span className="flex-1 text-left">{daProgress.activationGratuiteDisponible ? "Activer ma plantation (DI offert)" : "Effectuer un paiement"}</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
 

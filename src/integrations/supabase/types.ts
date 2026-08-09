@@ -3097,6 +3097,16 @@ export type Database = {
         Returns: string
       }
       current_profile_id: { Args: never; Returns: string }
+      finalize_portal_payment: {
+        Args: {
+          _metadata?: Json
+          _paiement_id: string
+          _provider_amount?: number
+          _transaction_id?: string
+          _validated_at?: string
+        }
+        Returns: Json
+      }
       generate_parcelle_id: { Args: never; Returns: string }
       generate_plantation_id: { Args: never; Returns: string }
       generate_proprietaire_id: { Args: never; Returns: string }

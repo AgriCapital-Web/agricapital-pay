@@ -166,6 +166,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     return { jour: 0, semaine: 0, mois: 0, trimestre: 0, semestre: 0, annee: 0, da_par_hectare: 0 };
   }, [plantationRate, souscripteur]);
 
+  const freeActivationPlantation = useMemo(() => {
+    if (typePaiement !== 'da') return null;
+    const candidate = [...plantations]
+      .filter((p: any) => Number(p.superficie_ha || 0) > Number(p.superficie_activee || 0))
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
+    if (!candidate) return null;
+    const hectares = Math.max(0, Number(candidate.superficie_ha || 0) - Number(candidate.superficie_activee || 0));
+    return applyPromotion(hectares * Number(TARIFS.da_par_hectare || 0), 'depot_initial').amount <= 0
+      ? candidate
+      : null;
+  }, [typePaiement, plantations, TARIFS.da_par_hectare, activePromotion]);
+
   const fmt = (m: number) => formatCFA(m);
 
   const calculerArrieres = (plant: any) => {
@@ -225,7 +237,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const paymentContext = paymentContextRef.current;
       if (paymentContext?.reference) {
         try {
-          await supabase.functions.invoke('create-payment', {
+          const { data: confirmation, error: confirmationError } = await supabase.functions.invoke('create-payment', {
             body: {
               action: 'confirm',
               reference: paymentContext.reference,
@@ -238,7 +250,15 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               fee_absorption_rate: paymentContext.pricing.feeRate,
             }
           });
-        } catch (e) { console.error('confirm error', e); }
+          if (confirmationError || !confirmation?.success) {
+            throw new Error(confirmation?.error || confirmationError?.message || "Confirmation du paiement impossible");
+          }
+        } catch (e: any) {
+          trackEvent({ level: "error", scope: "payment", message: "Confirmation serveur du paiement échouée", account: souscripteur?.id_unique || souscripteur?.telephone, context: { error: e?.message } });
+          toast({ variant: "destructive", title: "Paiement en cours de confirmation", description: "La transaction a été reçue. La synchronisation sécurisée se poursuit automatiquement." });
+          setLoading(false);
+          return;
+        }
         // Confirmation SMS is now sent server-side inside `create-payment`
         // after KKiaPay verification. The previous unauthenticated
         // `send-otp/send_custom` client call has been removed.
@@ -255,8 +275,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   // on valide et on active directement la plantation côté serveur.
   const isDiGratuit = typePaiement === 'da' && !!plantation && montantTotal <= 0;
 
-  const handleActivationGratuite = async () => {
-    if (!plantation) return;
+  const handleActivationGratuite = async (targetPlantation = plantation) => {
+    if (!targetPlantation) return;
     setLoading(true);
     const reference = `DI0-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
     const account = souscripteur?.id_unique || souscripteur?.telephone;
@@ -265,7 +285,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         body: {
           action: 'activate_free',
           souscripteur_id: souscripteur.id,
-          plantation_id: plantation.id,
+          plantation_id: targetPlantation.id,
           reference,
         },
       });
@@ -274,7 +294,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       appendJournal(account, {
         kind: "crm_change",
         label: "Plantation activée automatiquement (DI 0 F)",
-        details: `Plantation ${plantation.nom_plantation || plantation.id_unique} · Référence CRM ${data?.reference || reference} · ${format(horodatage, "dd/MM/yyyy HH:mm:ss", { locale: fr })}`,
+        details: `Plantation ${targetPlantation.nom_plantation || targetPlantation.id_unique} · Référence CRM ${data?.reference || reference} · ${format(horodatage, "dd/MM/yyyy HH:mm:ss", { locale: fr })}`,
         after: "Activée",
       });
       trackEvent({
@@ -282,7 +302,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         scope: "payment",
         message: "Activation gratuite (Dépôt Initial 0 F)",
         account,
-        context: { plantation_id: plantation.id, reference: data?.reference || reference, at: horodatage.toISOString() },
+        context: { plantation_id: targetPlantation.id, reference: data?.reference || reference, at: horodatage.toISOString() },
       });
       toast({
         title: "✅ Plantation activée — Dépôt Initial offert",
@@ -487,8 +507,14 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </Card>
               )}
 
-              <Button onClick={() => setStep('plantation')} className="w-full h-12 rounded-xl font-bold btn-brand-green">
-                Continuer <ArrowLeft className="h-4 w-4 rotate-180 ml-1" />
+               <Button
+                 onClick={() => freeActivationPlantation ? handleActivationGratuite(freeActivationPlantation) : setStep('plantation')}
+                 disabled={loading}
+                 className="w-full h-12 rounded-xl font-bold btn-brand-green"
+               >
+                 {loading && freeActivationPlantation ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                 {freeActivationPlantation ? "Activer ma plantation" : "Continuer"}
+                 {!freeActivationPlantation && <ArrowLeft className="h-4 w-4 rotate-180 ml-1" />}
               </Button>
             </CardContent>
           </Card>
@@ -698,7 +724,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 </div>
               </div>
 
-              <div className="rounded-2xl p-4 card-brand-subtle bg-card space-y-3">
+              {!isDiGratuit && <div className="rounded-2xl p-4 card-brand-subtle bg-card space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold">Mode de paiement</p>
@@ -739,9 +765,9 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                     Les frais de transaction sont pris en charge par AgriCapital, afin que le montant payé par le client reste strictement celui annoncé.
                   </p>
                 )}
-              </div>
+              </div>}
 
-              <Button onClick={() => setStep('confirm')} disabled={montantTotal <= 0 && !isDiGratuit} className="w-full h-12 rounded-xl font-bold btn-brand">
+              <Button onClick={() => isDiGratuit ? handleActivationGratuite() : setStep('confirm')} disabled={loading || (montantTotal <= 0 && !isDiGratuit)} className="w-full h-12 rounded-xl font-bold btn-brand">
                 <CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? "Activer ma plantation (0 F)" : "Confirmer et payer"}
               </Button>
 

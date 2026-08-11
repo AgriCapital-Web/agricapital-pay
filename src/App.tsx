@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ClientPortal from "./pages/ClientPortal";
 import NotFound from "./pages/NotFound";
-import { PricingGuardAlert } from "@/components/common/PricingGuardAlert";
 
 const queryClient = new QueryClient();
 
@@ -14,7 +13,6 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <PricingGuardAlert />
       <BrowserRouter>
         <Routes>
           <Route path="*" element={<ClientPortal />} />

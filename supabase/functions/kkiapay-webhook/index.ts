@@ -128,26 +128,26 @@ serve(async (req) => {
       fee_absorption_rate: paiement.metadata?.fee_absorption_rate || 0,
     };
 
-    // Activate plantation for DA
-    if (paiement.type_paiement === "DA" && paiement.plantation_id) {
-      const { data: plant } = await supabase.from("plantations").select("superficie_ha, superficie_activee, montant_da").eq("id", paiement.plantation_id).single();
-      if (plant) {
-        await supabase.from("plantations").update({
-          superficie_activee: plant.superficie_ha,
-          date_activation: new Date().toISOString(),
-          statut_global: "actif",
-          montant_da: (plant.montant_da || 0) + (amount || 0),
-          updated_at: new Date().toISOString(),
-        }).eq("id", paiement.plantation_id);
-      }
-    }
   } else if (newStatut === "rembourse") {
     updateData.refunded_at = new Date().toISOString();
   } else if (newStatut === "annule") {
     updateData.cancelled_at = new Date().toISOString();
   }
 
-  const { error: updErr } = await supabase.from("paiements").update(updateData).eq("id", paiement.id);
+  let updErr: any = null;
+  if (newStatut === "valide") {
+    const rpc = await supabase.rpc("finalize_portal_payment", {
+      _paiement_id: paiement.id,
+      _transaction_id: transactionId,
+      _provider_amount: paiement.metadata?.client_debit_amount || paiement.montant,
+      _metadata: updateData.metadata,
+      _validated_at: new Date().toISOString(),
+    });
+    updErr = rpc.error;
+  } else {
+    const result = await supabase.from("paiements").update(updateData).eq("id", paiement.id);
+    updErr = result.error;
+  }
   if (updErr) console.error("Update error:", updErr);
 
   return new Response(JSON.stringify({

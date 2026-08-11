@@ -17,6 +17,19 @@ function sanitizePhone(input: string): string {
   return cleaned;
 }
 
+function maskPhone(phone: string): string {
+  return `${phone.slice(0, 3)}***${phone.slice(-2)}`;
+}
+
+function maskEmail(email?: string | null): string | null {
+  if (!email || !email.includes('@')) return null;
+  const [local, domain] = email.split('@');
+  const domainParts = domain.split('.');
+  const domainName = domainParts[0] || '';
+  const suffix = domainParts.slice(1).join('.');
+  return `${local.slice(0, 1)}***@${domainName.slice(0, 1)}***${suffix ? `.${suffix}` : ''}`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -61,18 +74,13 @@ serve(async (req) => {
           .maybeSingle(),
       ]);
 
-      const maskEmail = (e?: string | null) => {
-        if (!e || !e.includes('@')) return null;
-        const [u, d] = e.split('@');
-        return `${u.slice(0, 2)}${'*'.repeat(Math.max(1, u.length - 2))}@${d}`;
-      };
       const expiresAt = last?.expires_at ? new Date(last.expires_at).getTime() : 0;
 
       return new Response(
         JSON.stringify({
           success: true,
           status: {
-            telephone_masque: `${cleanPhone.slice(0, 4)}****${cleanPhone.slice(-2)}`,
+             telephone_masque: maskPhone(cleanPhone),
             email_masque: maskEmail(sous?.email),
             created_at: last?.created_at ?? null,
             expires_at: last?.expires_at ?? null,
@@ -89,9 +97,7 @@ serve(async (req) => {
 
     // ===== SEND OTP =====
     if (action === 'send') {
-      // Anti-abus SOUPLE : on ne bloque JAMAIS la connexion d'un client.
-      // Si trop de demandes récentes, on RENVOIE le dernier code encore valide
-      // au lieu d'en générer un nouveau (aucune erreur, aucun blocage).
+       // Limite les réémissions sans bloquer la vérification d'un code déjà reçu.
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { count } = await supabase
         .from('otp_codes')
@@ -102,7 +108,14 @@ serve(async (req) => {
       let otpCode: string | null = null;
       let reused = false;
 
-      if ((count || 0) >= 5) {
+       const { data: latestRequest } = await supabase.from('otp_codes')
+         .select('created_at').eq('telephone', cleanPhone)
+         .order('created_at', { ascending: false }).limit(1).maybeSingle();
+       const secondsSinceLast = latestRequest?.created_at
+         ? Math.floor((Date.now() - new Date(latestRequest.created_at).getTime()) / 1000)
+         : Number.MAX_SAFE_INTEGER;
+
+       if (secondsSinceLast < 60 || (count || 0) >= 5) {
         const { data: lastValid } = await supabase
           .from('otp_codes')
           .select('id, code')
@@ -113,14 +126,16 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
-        if (lastValid) {
-          otpCode = lastValid.code;
-          reused = true;
-          // On prolonge la validité et on remet les tentatives à zéro
-          await supabase.from('otp_codes')
-            .update({ expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(), attempts: 0 })
-            .eq('id', lastValid.id);
-        }
+         await supabase.from('historique_activites').insert({
+           table_name: 'otp_codes', record_id: maskPhone(cleanPhone), action: 'OTP_RESEND_LIMITED',
+           details: `Réémission limitée pour ${maskPhone(cleanPhone)}`,
+           ip_address: clientIP, user_agent: req.headers.get('user-agent') || 'unknown',
+           nouvelles_valeurs: { reason: secondsSinceLast < 60 ? 'cooldown' : 'window_limit', demandes_10min: count || 0 },
+         });
+         return new Response(JSON.stringify({ success: false, error: secondsSinceLast < 60
+           ? `Veuillez patienter ${60 - secondsSinceLast} seconde(s) avant un nouvel envoi.`
+           : 'Limite de réémission atteinte. Utilisez le dernier code reçu ou réessayez plus tard.' }),
+           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       if (!otpCode) {
@@ -174,12 +189,12 @@ serve(async (req) => {
           console.error("SMS error:", e);
         }
       } else {
-        console.log(`[DEV] OTP for ${cleanPhone}: ${otpCode}`);
+         console.warn(`Service SMS indisponible pour ${maskPhone(cleanPhone)}`);
       }
 
       await supabase.from('historique_activites').insert({
         table_name: 'otp_codes',
-        record_id: cleanPhone,
+         record_id: maskPhone(cleanPhone),
         action: 'OTP_SENT',
         details: `Code OTP envoyé au ${cleanPhone.slice(0, 4)}****`,
         ip_address: clientIP,
@@ -188,15 +203,10 @@ serve(async (req) => {
 
       // DEV MODE : si Infobip n'est pas configuré on renvoie le code au client
       // pour affichage. En prod, ne jamais activer DEV_OTP_VISIBLE.
-      const DEV_OTP_VISIBLE = Deno.env.get("DEV_OTP_VISIBLE");
-      const exposeCode = !smsSent || DEV_OTP_VISIBLE === "true";
-
       return new Response(
         JSON.stringify({
           success: true,
-          message: smsSent ? "Code envoyé par SMS" : "Code généré (mode développement)",
-          devMode: exposeCode,
-          devCode: exposeCode ? otpCode : undefined,
+           message: smsSent ? "Code envoyé par SMS" : "Service SMS temporairement indisponible",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -258,7 +268,7 @@ serve(async (req) => {
 
       await supabase.from('historique_activites').insert({
         table_name: 'otp_codes',
-        record_id: cleanPhone,
+         record_id: maskPhone(cleanPhone),
         action: 'OTP_VERIFIED',
         details: `Code OTP vérifié pour ${cleanPhone.slice(0, 4)}****`,
         ip_address: clientIP,

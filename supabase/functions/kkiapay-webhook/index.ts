@@ -147,7 +147,20 @@ serve(async (req) => {
     updateData.cancelled_at = new Date().toISOString();
   }
 
-  const { error: updErr } = await supabase.from("paiements").update(updateData).eq("id", paiement.id);
+  let updErr: any = null;
+  if (newStatut === "valide") {
+    const rpc = await supabase.rpc("finalize_portal_payment", {
+      _paiement_id: paiement.id,
+      _transaction_id: transactionId,
+      _provider_amount: paiement.metadata?.client_debit_amount || paiement.montant,
+      _metadata: updateData.metadata,
+      _validated_at: new Date().toISOString(),
+    });
+    updErr = rpc.error;
+  } else {
+    const result = await supabase.from("paiements").update(updateData).eq("id", paiement.id);
+    updErr = result.error;
+  }
   if (updErr) console.error("Update error:", updErr);
 
   return new Response(JSON.stringify({

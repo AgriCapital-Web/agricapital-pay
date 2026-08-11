@@ -114,13 +114,6 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
   const plantation = useMemo(() => plantations.find(p => p.id === selectedPlantation), [selectedPlantation, plantations]);
 
-  const freeActivationPlantation = useMemo(() => {
-    if (typePaiement !== 'da' || Number(TARIFS?.da_par_hectare ?? 0) > 0) return null;
-    return [...plantations]
-      .filter((p: any) => Number(p.superficie_ha || 0) > Number(p.superficie_activee || 0))
-      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
-  }, [typePaiement, plantations, TARIFS?.da_par_hectare]);
-
   const activePromotion = souscripteur?.promotion_active || souscripteur?.promotions || null;
 
   const isPromotionApplicable = (target: 'depot_initial' | 'redevance') => {
@@ -172,6 +165,13 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     // Defensive fallback (used only if no offre is loaded — should never happen for valid subscribers)
     return { jour: 0, semaine: 0, mois: 0, trimestre: 0, semestre: 0, annee: 0, da_par_hectare: 0 };
   }, [plantationRate, souscripteur]);
+
+  const freeActivationPlantation = useMemo(() => {
+    if (typePaiement !== 'da' || Number(TARIFS.da_par_hectare) > 0) return null;
+    return [...plantations]
+      .filter((p: any) => Number(p.superficie_ha || 0) > Number(p.superficie_activee || 0))
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
+  }, [typePaiement, plantations, TARIFS.da_par_hectare]);
 
   const fmt = (m: number) => formatCFA(m);
 

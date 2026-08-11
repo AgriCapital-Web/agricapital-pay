@@ -170,28 +170,17 @@ serve(async (req) => {
 
 
     if (!souscripteur) {
-      const rateCheck = await checkRateLimit(supabase, rateLimitKey);
-      if (!rateCheck.allowed) {
-        return new Response(
-          JSON.stringify({ success: false, error: `Trop de tentatives. Réessayez dans ${Math.ceil((rateCheck.retryAfter || 1800) / 60)} minutes.` }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
-        );
-      }
-      // Log failed attempt for audit
-      await supabase.from('historique_activites').insert({
-        table_name: 'souscripteurs',
-        record_id: 'lookup_failed',
-        action: 'LOOKUP_FAILED',
-        details: `Tentative de connexion échouée pour le numéro: ${cleanPhone.slice(0, 4)}****`,
-        ip_address: clientIP,
-        user_agent: req.headers.get('user-agent') || 'unknown',
-      });
-
+      // === MODE DÉMONSTRATION ===
+      // Numéro inconnu du CRM (quel que soit l'indicatif pays) : on renvoie un
+      // compte de démonstration complet, sans aucune écriture en base.
+      const demo = buildDemoAccount(cleanPhone);
+      console.log("Demo account served for", cleanPhone.slice(0, 4) + "****");
       return new Response(
-        JSON.stringify({ success: false, error: "Aucun compte trouvé avec ce numéro" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
+        JSON.stringify({ success: true, demo: true, ...demo }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
+
 
     // Connexion réussie : on purge tout blocage résiduel pour ce numéro afin
     // qu'un client légitime ne reste jamais verrouillé.

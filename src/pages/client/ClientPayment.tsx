@@ -317,8 +317,26 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     }
   };
 
+  // Compte de démonstration : parcours de paiement complet joué de bout en bout
+  // (aucun débit réel, aucune écriture CRM).
+  const isDemoAccount = !!souscripteur?._demo;
+
+  const handleDemoPayment = async () => {
+    if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
+    setLoading(true);
+    const reference = `DEMO-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
+    await new Promise((r) => setTimeout(r, 1400));
+    toast({
+      title: "✅ Paiement réussi (démonstration)",
+      description: `Transaction ${reference} validée · ${typePaiement === 'da' ? "Dépôt Initial" : "Paiement mensuel"}. Aucun débit réel n'a été effectué.`,
+    });
+    setLoading(false);
+    setTimeout(() => onBack(), 1800);
+  };
+
   const handleSubmit = async () => {
     if (isDiGratuit) return handleActivationGratuite();
+    if (isDemoAccount) return handleDemoPayment();
     if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
     setLoading(true);
 

@@ -97,6 +97,31 @@ serve(async (req) => {
 
     // ===== SEND OTP =====
     if (action === 'send') {
+      // === MODE DÉMONSTRATION ===
+      // Numéro absent du CRM : le code est affiché à l'écran (SMS international
+      // non garanti) et n'est jamais bloqué, pour que tout visiteur puisse tester.
+      const { data: knownSubscriber } = await supabase
+        .from('souscripteurs').select('id').eq('telephone', cleanPhone).limit(1).maybeSingle();
+      const isDemoPhone = !knownSubscriber;
+      if (isDemoPhone) {
+        const demoCode = generateOTP();
+        await supabase.from('otp_codes')
+          .update({ expires_at: new Date().toISOString() })
+          .eq('telephone', cleanPhone).eq('verified', false);
+        await supabase.from('otp_codes').insert({
+          telephone: cleanPhone,
+          code: demoCode,
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        });
+        return new Response(JSON.stringify({
+          success: true,
+          demo: true,
+          devMode: true,
+          devCode: demoCode,
+          message: "Mode découverte : votre code d'accès s'affiche à l'écran.",
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
        // Limite les réémissions sans bloquer la vérification d'un code déjà reçu.
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { count } = await supabase

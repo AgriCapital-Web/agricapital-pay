@@ -91,13 +91,10 @@ serve(async (req) => {
         .maybeSingle();
       if (!plantation) throw new Error("Plantation introuvable");
 
-      const { data: prix } = await supabase
-        .from("v_prix_effectif_offres")
-        .select("di_effectif")
-        .eq("offre_id", souscripteur.offre_id)
-        .maybeSingle();
-
-      const diParHa = Number(prix?.di_effectif ?? souscripteur.offres?.montant_depot_initial_par_ha ?? 0);
+      const { data: effectiveDi, error: priceError } = await supabase
+        .rpc("get_subscriber_effective_di", { _souscripteur_id: souscripteur_id });
+      if (priceError) throw priceError;
+      const diParHa = Number(effectiveDi ?? souscripteur.offres?.montant_depot_initial_par_ha ?? 0);
       const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
       const diTotal = diParHa * hectares;
 

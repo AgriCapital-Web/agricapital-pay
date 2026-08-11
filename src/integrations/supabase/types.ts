@@ -3111,6 +3111,10 @@ export type Database = {
       generate_plantation_id: { Args: never; Returns: string }
       generate_proprietaire_id: { Args: never; Returns: string }
       generate_souscripteur_id: { Args: never; Returns: string }
+      get_subscriber_effective_di: {
+        Args: { _souscripteur_id: string }
+        Returns: number
+      }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_demo: { Args: { _user_id: string }; Returns: boolean }

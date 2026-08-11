@@ -34,13 +34,15 @@ serve(async (req) => {
   // === 1. Signature verification ===
   let signatureValid = false;
   const sigHeader = req.headers.get("x-kkiapay-signature") || req.headers.get("x-kkiapay-secret");
-  if (webhookSecret && sigHeader) {
-    if (sigHeader === webhookSecret) {
-      signatureValid = true; // Shared secret mode
-    } else {
-      const expected = await hmacSha256Hex(webhookSecret, rawBody);
-      signatureValid = safeEqual(expected, sigHeader.replace(/^sha256=/, ""));
-    }
+  if (!webhookSecret) {
+    console.error("KKIAPAY_SECRET is not configured");
+    return new Response(JSON.stringify({ error: "webhook unavailable" }), {
+      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (sigHeader) {
+    const expected = await hmacSha256Hex(webhookSecret, rawBody);
+    signatureValid = safeEqual(expected, sigHeader.replace(/^sha256=/, ""));
   }
 
   let body: any;
@@ -88,7 +90,7 @@ serve(async (req) => {
   if (evtErr) console.error("Event insert error:", evtErr);
 
   // === 5. If signature invalid AND secret configured -> reject side-effects but ack ===
-  if (webhookSecret && !signatureValid) {
+  if (!signatureValid) {
     console.warn("⚠️ Invalid signature — payment update skipped");
     return new Response(JSON.stringify({ acknowledged: true, signature: "invalid" }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

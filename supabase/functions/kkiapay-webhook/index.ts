@@ -128,19 +128,6 @@ serve(async (req) => {
       fee_absorption_rate: paiement.metadata?.fee_absorption_rate || 0,
     };
 
-    // Activate plantation for DA
-    if (paiement.type_paiement === "DA" && paiement.plantation_id) {
-      const { data: plant } = await supabase.from("plantations").select("superficie_ha, superficie_activee, montant_da").eq("id", paiement.plantation_id).single();
-      if (plant) {
-        await supabase.from("plantations").update({
-          superficie_activee: plant.superficie_ha,
-          date_activation: new Date().toISOString(),
-          statut_global: "actif",
-          montant_da: (plant.montant_da || 0) + (amount || 0),
-          updated_at: new Date().toISOString(),
-        }).eq("id", paiement.plantation_id);
-      }
-    }
   } else if (newStatut === "rembourse") {
     updateData.refunded_at = new Date().toISOString();
   } else if (newStatut === "annule") {

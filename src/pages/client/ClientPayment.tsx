@@ -167,11 +167,16 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   }, [plantationRate, souscripteur]);
 
   const freeActivationPlantation = useMemo(() => {
-    if (typePaiement !== 'da' || Number(TARIFS.da_par_hectare) > 0) return null;
-    return [...plantations]
+    if (typePaiement !== 'da') return null;
+    const candidate = [...plantations]
       .filter((p: any) => Number(p.superficie_ha || 0) > Number(p.superficie_activee || 0))
       .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
-  }, [typePaiement, plantations, TARIFS.da_par_hectare]);
+    if (!candidate) return null;
+    const hectares = Math.max(0, Number(candidate.superficie_ha || 0) - Number(candidate.superficie_activee || 0));
+    return applyPromotion(hectares * Number(TARIFS.da_par_hectare || 0), 'depot_initial').amount <= 0
+      ? candidate
+      : null;
+  }, [typePaiement, plantations, TARIFS.da_par_hectare, activePromotion]);
 
   const fmt = (m: number) => formatCFA(m);
 
@@ -232,7 +237,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const paymentContext = paymentContextRef.current;
       if (paymentContext?.reference) {
         try {
-          await supabase.functions.invoke('create-payment', {
+          const { data: confirmation, error: confirmationError } = await supabase.functions.invoke('create-payment', {
             body: {
               action: 'confirm',
               reference: paymentContext.reference,
@@ -245,7 +250,15 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               fee_absorption_rate: paymentContext.pricing.feeRate,
             }
           });
-        } catch (e) { console.error('confirm error', e); }
+          if (confirmationError || !confirmation?.success) {
+            throw new Error(confirmation?.error || confirmationError?.message || "Confirmation du paiement impossible");
+          }
+        } catch (e: any) {
+          trackEvent({ level: "error", scope: "payment", message: "Confirmation serveur du paiement échouée", account: souscripteur?.id_unique || souscripteur?.telephone, context: { error: e?.message } });
+          toast({ variant: "destructive", title: "Paiement en cours de confirmation", description: "La transaction a été reçue. La synchronisation sécurisée se poursuit automatiquement." });
+          setLoading(false);
+          return;
+        }
         // Confirmation SMS is now sent server-side inside `create-payment`
         // after KKiaPay verification. The previous unauthenticated
         // `send-otp/send_custom` client call has been removed.
@@ -496,7 +509,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
 
                <Button
                  onClick={() => freeActivationPlantation ? handleActivationGratuite(freeActivationPlantation) : setStep('plantation')}
-                 disabled={loading || (typePaiement === 'da' && Number(TARIFS.da_par_hectare) === 0 && !freeActivationPlantation)}
+                 disabled={loading}
                  className="w-full h-12 rounded-xl font-bold btn-brand-green"
                >
                  {loading && freeActivationPlantation ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}

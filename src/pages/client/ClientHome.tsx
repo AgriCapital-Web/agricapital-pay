@@ -52,7 +52,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
 
   const handleSendOTP = async () => {
     const cleanPhone = telephone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
+    if (cleanPhone.length < 8) {
       toast({ variant: "destructive", title: "Numéro incomplet", description: "Veuillez saisir vos 10 chiffres." });
       return;
     }
@@ -237,7 +237,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                           autoFocus
                           className="h-14 pl-[110px] pr-12 text-base font-medium tracking-wide bg-white border-[#E5E7E3] focus-visible:border-[#00643C] focus-visible:ring-2 focus-visible:ring-[#00643C]/15 rounded-xl"
                         />
-                        {telephone.length === 10 && (
+                        {telephone.replace(/\D/g, "").length >= 8 && (
                           <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#00643C]" />
                         )}
                       </div>
@@ -245,7 +245,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
 
                     <Button
                       onClick={handleSendOTP}
-                      disabled={loading || telephone.length < 10}
+                      disabled={loading || telephone.replace(/\D/g, "").length < 8}
                       className="w-full h-14 text-[15px] font-semibold gap-2 rounded-xl bg-[#00643C] hover:bg-[#004D2E] text-white shadow-lg shadow-[#00643C]/15 transition-all"
                     >
                       {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Envoi en cours…</> : <>Continuer <ArrowRight className="h-4 w-4" /></>}

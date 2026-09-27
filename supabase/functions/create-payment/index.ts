@@ -203,7 +203,7 @@ serve(async (req) => {
       try {
         await sendConfirmationSms(
           client.telephone,
-          `AgriCapital: Votre Depot Initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`
+          `AgriCapital: Votre Paiement Initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`
         );
       } catch (_e) { /* ignore */ }
 
@@ -306,7 +306,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!paiementData) throw new Error("Paiement introuvable");
-      if (!phoneMatches(paiementData.clients?.telephone, sessionPhone)) {
+      if (paiementData.client_id !== sessionClientId) {
         return unauthorized("Accès refusé à ce paiement");
       }
 
@@ -376,13 +376,13 @@ serve(async (req) => {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("kkiapay_transaction_id", transaction_id).maybeSingle());
+        ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("kkiapay_transaction_id", transaction_id).eq("client_id", sessionClientId).maybeSingle());
         if (!error && !row) {
-          ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("metadata->>kkiapay_transaction_id", transaction_id).maybeSingle());
+          ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("metadata->>kkiapay_transaction_id", transaction_id).eq("client_id", sessionClientId).maybeSingle());
         }
       }
       if (error) throw error;
-      if (row && !phoneMatches((row as any).clients?.telephone, sessionPhone)) {
+      if (row && (row as any).client_id !== sessionClientId) {
         return unauthorized("Accès refusé à ce paiement");
       }
       const data = row ? (({ clients, ...rest }: any) => rest)(row) : row;

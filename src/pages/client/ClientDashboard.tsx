@@ -93,7 +93,7 @@ const ClientDashboard = ({
   const daProgress = useMemo(() => {
     // Priorité stricte au CRM (0 F autorisé) — pas de `||` qui masquerait un DI mis à 0.
     const offre = souscripteur.offres || {};
-    const crmPaiementInitial = offre.montant_paiement_initial_par_ha ?? offre.montant_paiement_initial_par_ha;
+    const crmPaiementInitial = offre.montant_pi_par_ha ?? offre.montant_pi_par_ha;
     const tarifPaiementInitial = currentRate?.schedule.paiement_initial ?? (crmPaiementInitial ?? 0);
     const totalPaiementInitial = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifPaiementInitial), 0);
     const totalPaiementInitialVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')

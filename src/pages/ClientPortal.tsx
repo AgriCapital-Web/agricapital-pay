@@ -176,6 +176,7 @@ const ClientPortal = () => {
         <ClientPlantationHub
           souscripteur={souscripteur}
           plantations={plantations}
+          sessionToken={sessionToken}
           onBack={() => setView('dashboard')}
         />
       )}

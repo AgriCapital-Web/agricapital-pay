@@ -249,6 +249,7 @@ serve(async (req) => {
     }
 
     if (action === "confirm") {
+      const portalClientId = await resolvePortalClient(supabase, body.session_token);
       const { reference, kkiapay_transaction_id, client_debit_amount, fee_absorption_rate } = body;
       if (!reference) throw new Error("Reference requise");
 
@@ -274,6 +275,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!paiementData) throw new Error("Paiement introuvable");
+      if (paiementData.client_id !== portalClientId) throw new Error("Paiement non autorisé pour ce compte");
       // Amount actually charged is what KKiaPay returned, not what the client claims.
       const kkiapayAmount = verification.amount;
       const trustedMontantPaye = typeof kkiapayAmount === "number" ? kkiapayAmount : paiementData.montant;

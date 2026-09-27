@@ -4,7 +4,7 @@
  */
 
 export interface PricingSchedule {
-  depot_initial: number;
+  paiement_initial: number;
   an1_mensuel: number;
   an1_duree_mois: number;
   an2_mensuel: number;
@@ -21,8 +21,8 @@ export interface OfferPricingSource {
   famille_offre?: string | null;
   formule_code?: string | null;
   formule_nom?: string | null;
-  montant_da_par_ha?: number | null;
-  montant_depot_initial_par_ha?: number | null;
+  montant_paiement_initial_par_ha?: number | null;
+  montant_paiement_initial_par_ha?: number | null;
   contribution_mensuelle_par_ha?: number | null;
   montant_total_par_ha?: number | null;
   montant_cash_par_ha?: number | null;
@@ -65,7 +65,7 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const resolveInitial = (offre?: OfferPricingSource | null) => {
-  const v = offre?.montant_depot_initial_par_ha ?? offre?.montant_da_par_ha;
+  const v = offre?.montant_paiement_initial_par_ha ?? offre?.montant_paiement_initial_par_ha;
   return v === null || v === undefined ? 0 : toNumber(v);
 };
 
@@ -104,7 +104,7 @@ export function getPricingScheduleFromOffer(offre?: OfferPricingSource | null): 
     const duration = toNumber(offre.duree_paiement_mois);
     if (monthly <= 0 || duration <= 0) return null;
     return {
-      depot_initial: initial,
+      paiement_initial: initial,
       an1_mensuel: monthly,
       an1_duree_mois: Math.min(12, duration),
       an2_mensuel: monthly,
@@ -122,7 +122,7 @@ export function getPricingScheduleFromOffer(offre?: OfferPricingSource | null): 
   const computedTotal = initial + recurring.reduce((s, t) => s + t.mensualite_par_ha * t.mois, 0);
 
   return {
-    depot_initial: initial,
+    paiement_initial: initial,
     an1_mensuel: years[0].mensualite_par_ha,
     an1_duree_mois: years[0].mois,
     an2_mensuel: years[1].mensualite_par_ha,

@@ -21,8 +21,8 @@ export interface OfferPricingSource {
   famille_offre?: string | null;
   formule_code?: string | null;
   formule_nom?: string | null;
-  montant_paiement_initial_par_ha?: number | null;
-  montant_paiement_initial_par_ha?: number | null;
+  montant_pi_par_ha?: number | null;
+  montant_pi_par_ha?: number | null;
   contribution_mensuelle_par_ha?: number | null;
   montant_total_par_ha?: number | null;
   montant_cash_par_ha?: number | null;
@@ -65,7 +65,7 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const resolveInitial = (offre?: OfferPricingSource | null) => {
-  const v = offre?.montant_paiement_initial_par_ha ?? offre?.montant_paiement_initial_par_ha;
+  const v = offre?.montant_pi_par_ha ?? offre?.montant_pi_par_ha;
   return v === null || v === undefined ? 0 : toNumber(v);
 };
 

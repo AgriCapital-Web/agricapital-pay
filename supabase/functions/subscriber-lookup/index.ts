@@ -171,17 +171,8 @@ serve(async (req) => {
 
 
     if (!client) {
-      // === MODE DÉMONSTRATION ===
-      // Numéro inconnu du CRM (quel que soit l'indicatif pays) : on renvoie un
-      // compte de démonstration complet, sans aucune écriture en base.
-      const demo = buildDemoAccount(cleanPhone);
-      console.log("Demo account served for", cleanPhone.slice(0, 4) + "****");
-      return new Response(
-        JSON.stringify({ success: true, demo: true, ...demo }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      throw new Error("Compte client introuvable ou non activé. Contactez AgriCapital.");
     }
-
 
     // Connexion réussie : on purge tout blocage résiduel pour ce numéro afin
     // qu'un client légitime ne reste jamais verrouillé.

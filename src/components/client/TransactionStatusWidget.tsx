@@ -91,7 +91,7 @@ export const TransactionStatusWidget = ({ souscripteurId, limit = 5 }: Transacti
                     <Badge variant="outline" className={`text-[10px] ${meta.cls}`}>{meta.label}</Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {p.type_paiement === "DA" ? "Dépôt Initial" : "Mensualité"} • {p.reference}
+                    {p.type_paiement === "DA" ? "Paiement Initial" : "Mensualité"} • {p.reference}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {new Date(p.date_paiement || p.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}

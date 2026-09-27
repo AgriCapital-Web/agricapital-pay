@@ -15,6 +15,7 @@ import {
   formatCFA,
   getCurrentRateFromOffer,
   getFullTariffGridFromOffer,
+  getPricingScheduleFromOffer,
 } from "@/utils/pricing";
 import { assertOfferPricingFresh } from "@/utils/pricingGuard";
 import { appendJournal } from "@/utils/syncJournal";
@@ -146,25 +147,17 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
   const tariffGrid = useMemo(() => getFullTariffGridFromOffer(souscripteur?.offres), [souscripteur]);
 
   const TARIFS = useMemo(() => {
-    if (plantationRate) {
-      return {
-        jour: plantationRate.jour_par_ha,
-        semaine: plantationRate.semaine_par_ha,
-        mois: plantationRate.mensuel_par_ha,
-        trimestre: plantationRate.trimestre_par_ha,
-        semestre: plantationRate.semestre_par_ha,
-        annee: plantationRate.annuel_par_ha,
-        da_par_hectare: plantationRate.schedule.paiement_initial,
-      };
-    }
-    const offre = souscripteur?.offres;
-    if (offre) {
-      const cm = offre.contribution_mensuelle_par_ha || 0;
-      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_paiement_initial_par_ha ?? offre.montant_paiement_initial_par_ha ?? 0 };
-    }
-    // Defensive fallback (used only if no offre is loaded — should never happen for valid subscribers)
-    return { jour: 0, semaine: 0, mois: 0, trimestre: 0, semestre: 0, annee: 0, da_par_hectare: 0 };
-  }, [plantationRate, souscripteur]);
+    const schedule = getPricingScheduleFromOffer(souscripteur?.offres);
+    return {
+      jour: plantationRate?.jour_par_ha ?? 0,
+      semaine: plantationRate?.semaine_par_ha ?? 0,
+      mois: plantationRate?.mensuel_par_ha ?? 0,
+      trimestre: plantationRate?.trimestre_par_ha ?? 0,
+      semestre: plantationRate?.semestre_par_ha ?? 0,
+      annee: plantationRate?.annuel_par_ha ?? 0,
+      paiement_initial_par_hectare: schedule?.paiement_initial ?? 0,
+    };
+  }, [plantationRate, souscripteur?.offres]);
 
   const freeActivationPlantation = useMemo(() => {
     if (typePaiement !== 'da') return null;
@@ -173,10 +166,10 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
       .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
     if (!candidate) return null;
     const hectares = Math.max(0, Number(candidate.superficie_ha || 0) - Number(candidate.superficie_activee || 0));
-    return applyPromotion(hectares * Number(TARIFS.da_par_hectare || 0), 'paiement_initial').amount <= 0
+    return applyPromotion(hectares * Number(TARIFS.paiement_initial_par_hectare || 0), 'paiement_initial').amount <= 0
       ? candidate
       : null;
-  }, [typePaiement, plantations, TARIFS.da_par_hectare, activePromotion]);
+  }, [typePaiement, plantations, TARIFS.paiement_initial_par_hectare, activePromotion]);
 
   const fmt = (m: number) => formatCFA(m);
 
@@ -210,10 +203,10 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
   const depotInitialDetails = useMemo(() => {
     if (!plantation) return { montant: 0, brut: 0, economie: 0, promotionAppliquee: false };
     const hectares = Math.max(0, (plantation.superficie_ha || 0) - (plantation.superficie_activee || 0));
-    const brut = hectares * TARIFS.da_par_hectare;
+    const brut = hectares * TARIFS.paiement_initial_par_hectare;
     const promo = applyPromotion(brut, 'paiement_initial');
     return { montant: promo.amount, brut, economie: promo.savings, promotionAppliquee: promo.applied };
-  }, [plantation, TARIFS.da_par_hectare, activePromotion]);
+  }, [plantation, TARIFS.paiement_initial_par_hectare, activePromotion]);
 
   const calculerMontantRedevance = () => {
     if (!plantation) return 0;
@@ -466,7 +459,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
               <RadioGroup value={typePaiement} onValueChange={(v) => setTypePaiement(v as any)} className="space-y-3">
                 {[
                   { val: 'redevance', title: "Mensualité", desc: "Paiements mensuels progressifs", badge: plantationRate ? `${fmt(plantationRate.mensuel_par_ha)}/mois` : '', icon: "📅" },
-                  { val: 'da', title: "Paiement Initial", desc: "Activer vos hectares", badge: `${fmt(TARIFS.da_par_hectare)}/ha`, icon: "🔑" },
+                  { val: 'da', title: "Paiement Initial", desc: "Activer vos hectares", badge: `${fmt(TARIFS.paiement_initial_par_hectare)}/ha`, icon: "🔑" },
                 ].map(opt => (
                   <div key={opt.val} onClick={() => setTypePaiement(opt.val as any)}
                     className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${typePaiement === opt.val ? 'border-gold bg-gold/5 shadow-sm' : 'border-border hover:border-gold/30'}`}>
@@ -628,7 +621,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
 
               {typePaiement === 'da' ? (
                 <div className="space-y-2 text-sm">
-                  {[['Superficie totale', `${plantation.superficie_ha} ha`], ['Activée', `${plantation.superficie_activee || 0} ha`], ['À activer', `${plantation.superficie_ha - (plantation.superficie_activee || 0)} ha`], ['Paiement initial', `${fmt(TARIFS.da_par_hectare)}/ha`]].map(([l, v], i) => (
+                  {[['Superficie totale', `${plantation.superficie_ha} ha`], ['Activée', `${plantation.superficie_activee || 0} ha`], ['À activer', `${plantation.superficie_ha - (plantation.superficie_activee || 0)} ha`], ['Paiement initial', `${fmt(TARIFS.paiement_initial_par_hectare)}/ha`]].map(([l, v], i) => (
                     <div key={i} className="flex justify-between py-2 border-b last:border-0"><span className="text-muted-foreground">{l}</span><span className="font-bold">{v}</span></div>
                   ))}
                   {depotInitialDetails.promotionAppliquee && (

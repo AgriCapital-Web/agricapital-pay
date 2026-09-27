@@ -240,7 +240,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
           const { data: confirmation, error: confirmationError } = await supabase.functions.invoke('create-payment', {
             body: {
               action: 'confirm',
-              portal_token: sessionToken,
+              session_token: sessionToken,
               reference: paymentContext.reference,
               kkiapay_transaction_id: response.transactionId,
               montant_paye: paymentContext.montantTotal,
@@ -285,7 +285,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'activate_free',
-          portal_token: sessionToken,
+          session_token: sessionToken,
           client_id: souscripteur.id,
           plantation_id: targetPlantation.id,
           reference,
@@ -349,7 +349,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
       const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'insert',
-          portal_token: sessionToken,
+          session_token: sessionToken,
           client_id: souscripteur.id,
           plantation_id: plantation.id,
           type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',

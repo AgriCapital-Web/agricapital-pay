@@ -11,7 +11,7 @@ import {
 import { Helmet } from "react-helmet-async";
 
 interface ClientHomeProps {
-  onLogin: (souscripteur: any, plantations: any[], paiements: any[]) => void;
+  onLogin: (client: any, plantations: any[], paiements: any[], sessionToken: string) => void;
 }
 
 type Step = 'phone' | 'otp';
@@ -110,16 +110,19 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
         toast({ variant: "destructive", title: "Code incorrect", description: data?.error || "Vérification échouée" });
         setOtpDigits(['', '', '', '', '', '']); inputRefs.current[0]?.focus(); setLoading(false); return;
       }
-      const { data: subData, error: subError } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone } });
+      const sessionToken = data?.session_token;
+      if (!sessionToken) throw new Error("Session portail non délivrée");
+      const { data: subData, error: subError } = await supabase.functions.invoke("subscriber-lookup", { body: { session_token: sessionToken } });
       if (subError) throw new Error(subError.message);
       if (!subData?.success) {
         toast({ variant: "destructive", title: "Compte introuvable", description: "Aucun compte n'est associé à ce numéro." });
         setStep('phone'); setLoading(false); return;
       }
-      sessionStorage.setItem('agri_souscripteur', JSON.stringify(subData.souscripteur));
+      sessionStorage.setItem('agri_client', JSON.stringify(subData.client));
+      sessionStorage.setItem('agri_portal_session', sessionToken);
       sessionStorage.setItem('agri_plantations', JSON.stringify(subData.plantations));
       sessionStorage.setItem('agri_paiements', JSON.stringify(subData.paiements));
-      onLogin(subData.souscripteur, subData.plantations, subData.paiements);
+      onLogin(subData.client, subData.plantations, subData.paiements, sessionToken);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message || "Erreur de connexion" });
     } finally { setLoading(false); }

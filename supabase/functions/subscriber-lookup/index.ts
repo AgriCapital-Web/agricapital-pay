@@ -6,43 +6,40 @@ const normalizePhone = (v: unknown) => String(v ?? "").replace(/\D/g, "").replac
 const samePhone = (a: unknown, b: unknown) => { const x = normalizePhone(a), y = normalizePhone(b); return !!x && x === y; };
 
 async function verifyPortalSession(token: unknown): Promise<string | null> {
-  if (typeof token !== "string" || !token.includes(".")) return null;
-  const parts = token.split(".");
-  if (parts.length !== 2) return null;
-  const payload = parts[0], sig = parts[1];
-  const raw = Deno.env.get("PORTAL_SESSION_SECRET") || Deno.env.get("SUPABASE_SECRET_KEYS") || "";
-  let secret = raw;
-  try { if (raw.trim().startsWith("{")) secret = JSON.parse(raw).default || ""; } catch { return null; }
-  if (!secret) return null;
-  try {
-    const pad = payload.length % 4 ? "=".repeat(4 - payload.length % 4) : "";
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/") + pad);
-    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-    const sigPad = sig.length % 4 ? "=".repeat(4 - sig.length % 4) : "";
-    const signature = Uint8Array.from(atob(sig.replace(/-/g, "+").replace(/_/g, "/") + sigPad), c => c.charCodeAt(0));
-    if (!(await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(payload)))) return null;
-    const data = JSON.parse(decoded);
-    return data?.p && typeof data.exp === "number" && data.exp * 1000 > Date.now() ? String(data.p) : null;
-  } catch { return null; }
+  if (typeof token !== "string" || token.length < 40) return null;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const tokenHash = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data, error } = await supabase.from("client_portal_sessions")
+    .select("id, client_id, expires_at")
+    .eq("token_hash", tokenHash)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  if (error || !data) return null;
+  await supabase.from("client_portal_sessions").update({
+    last_seen_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+  }).eq("id", data.id);
+  return data.client_id;
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
-    const token = req.headers.get("x-portal-session") || body.portal_token;
-    const sessionPhone = await verifyPortalSession(token);
-    if (!sessionPhone) throw new Error("Session portail invalide ou expirée");
+    const token = req.headers.get("x-portal-session") || body.session_token;
+    const clientId = await verifyPortalSession(token);
+    if (!clientId) throw new Error("Session portail invalide ou expirée");
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: candidates, error: clientError } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
-    if (clientError) throw clientError;
-    const clientMatch = (candidates || []).find((x: any) => x.telephone ? samePhone(x.telephone, sessionPhone) : true);
-    let clientId = clientMatch?.id;
-    if (!clientId) {
-      const { data: clients } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
-      clientId = (clients || []).find((x: any) => samePhone(x.telephone, sessionPhone))?.id;
-    }
-    if (!clientId) throw new Error("Compte client introuvable");
+    const { data: clientMatch, error: clientMatchError } = await supabase.from("clients")
+      .select("id")
+      .eq("id", clientId)
+      .eq("compte_actif", true)
+      .eq("statut_global", "actif")
+      .maybeSingle();
+    if (clientMatchError) throw clientMatchError;
+    if (!clientMatch) throw new Error("Compte client introuvable ou non actif");
 
     const { data: client, error } = await supabase.from("clients").select("*, offres(*), regions(id,nom), departements(id,nom), districts(id,nom), sous_prefectures(id,nom)").eq("id", clientId).eq("compte_actif", true).eq("statut_global", "actif").maybeSingle();
     if (error) throw error;

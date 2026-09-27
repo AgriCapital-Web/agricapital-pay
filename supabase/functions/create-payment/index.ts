@@ -151,13 +151,13 @@ serve(async (req) => {
       const { data: effectiveDi, error: priceError } = await supabase
         .rpc("get_client_effective_di", { _client_id: client_id });
       if (priceError) throw priceError;
-      const diParHa = Number(effectiveDi ?? client.offres?.montant_depot_initial_par_ha ?? 0);
+      const diParHa = Number(effectiveDi ?? client.offres?.montant_paiement_initial_par_ha ?? 0);
       const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
       const diTotal = diParHa * hectares;
 
       if (diTotal > 0) {
         return new Response(
-          JSON.stringify({ success: false, error: "Le Dépôt Initial de cette plantation n'est pas à 0 F.", montant: diTotal }),
+          JSON.stringify({ success: false, error: "Le Paiement Initial de cette plantation n'est pas à 0 F.", montant: diTotal }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -170,7 +170,7 @@ serve(async (req) => {
         .select("id, statut")
         .eq("client_id", client_id)
         .eq("plantation_id", plantation_id)
-        .eq("est_depot_initial", true)
+        .eq("est_paiement_initial", true)
         .maybeSingle();
 
       const payload = {
@@ -183,7 +183,7 @@ serve(async (req) => {
         statut: "valide",
         mode_paiement: "Promotion",
         reference: ref,
-        est_depot_initial: true,
+        est_paiement_initial: true,
         date_paiement: nowIso,
         metadata: { payment_provider: "promotion", di_offert: true, di_par_ha: diParHa, hectares },
       };
@@ -234,13 +234,13 @@ serve(async (req) => {
           .select("id, reference, statut, metadata")
           .eq("client_id", client_id)
           .eq("plantation_id", plantation_id)
-          .eq("est_depot_initial", true)
+          .eq("est_paiement_initial", true)
           .maybeSingle();
 
         if (existingError) throw existingError;
         if (existingDepot) {
           if (existingDepot.statut === "valide") {
-            throw new Error("Le Dépôt Initial de cette plantation est déjà validé.");
+            throw new Error("Le Paiement Initial de cette plantation est déjà validé.");
           }
 
           const { data: updatedDepot, error: updateExistingError } = await supabase
@@ -276,7 +276,7 @@ serve(async (req) => {
         statut: "en_attente",
         mode_paiement: mode_paiement || "Mobile Money",
         reference,
-        est_depot_initial: isDepotInitial,
+        est_paiement_initial: isDepotInitial,
         phase: paymentPhase,
         metadata: metadata || {},
       }).select().single();

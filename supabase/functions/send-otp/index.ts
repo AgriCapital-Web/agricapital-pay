@@ -8,12 +8,22 @@ const normalize=(v:unknown)=>String(v??"").replace(/\D/g,"").replace(/^00/,"").r
 const samePhone=(a:unknown,b:unknown)=>normalize(a)!==""&&normalize(a)===normalize(b);
 const otp=()=>String((new DataView(crypto.getRandomValues(new Uint8Array(4)).buffer).getUint32(0)%900000)+100000);
 const hash=async(v:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,"0")).join("");
-const sign=async(phone:string)=>{
-  const secret=Deno.env.get("PORTAL_SESSION_SECRET")||JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}").default||"";
-  const payload=btoa(JSON.stringify({p:normalize(phone),exp:Math.floor(Date.now()/1000)+4*3600})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
-  const sig=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(payload))))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-  return `${payload}.${sig}`;
+const makeSessionToken=()=>{
+  const bytes=new Uint8Array(32); crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+};
+const sha256=async(v:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,"0")).join("");
+const createPortalSession=async(db:any,clientId:string,req:Request)=>{
+  const token=makeSessionToken(), tokenHash=await sha256(token);
+  await db.from("client_portal_sessions").update({revoked_at:new Date().toISOString()}).eq("client_id",clientId).is("revoked_at",null);
+  const {error}=await db.from("client_portal_sessions").insert({
+    client_id:clientId,token_hash:tokenHash,
+    expires_at:new Date(Date.now()+12*60*60*1000).toISOString(),
+    user_agent:req.headers.get("user-agent")||null,
+    ip_address:req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||null,
+  });
+  if(error) throw error;
+  return token;
 };
 
 Deno.serve(async(req)=>{
@@ -46,7 +56,8 @@ Deno.serve(async(req)=>{
       await db.from("otp_codes").update({attempts:(row.attempts||0)+1}).eq("id",row.id);
       if(row.code!==await hash(`${code}:${phone}`)) return json({success:false,error:"Code incorrect."},400);
       await db.from("otp_codes").update({verified:true,expires_at:new Date().toISOString()}).eq("id",row.id);
-      return json({success:true,message:"Code vérifié",portal_token:await sign(phone)});
+      const session_token=await createPortalSession(db,client.id,req);
+      return json({success:true,message:"Code vérifié",session_token});
     }
 
     const smsKey=Deno.env.get("INFOBIP_API_KEY"), smsBase=Deno.env.get("INFOBIP_BASE_URL");

@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import { buildDemoAccount } from "../_shared/demo-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +12,11 @@ function sanitizePhone(input: string): string {
   const cleaned = input.replace(/\D/g, '');
   if (cleaned.length < 8 || cleaned.length > 15) throw new Error("Numéro de téléphone invalide");
   return cleaned;
+}
+
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function normalizeOfferCode(code: string | null | undefined): string {
@@ -125,60 +129,47 @@ serve(async (req) => {
       throw new Error("Corps de requête invalide");
     }
     
-    const cleanPhone = sanitizePhone(body.telephone || '');
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const sessionToken = typeof body.session_token === "string" ? body.session_token : "";
+    if (!sessionToken) throw new Error("Session portail requise");
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const tokenHash = await sha256(sessionToken);
+    const { data: session, error: sessionError } = await supabase
+      .from("client_portal_sessions")
+      .select("id, client_id, expires_at")
+      .eq("token_hash", tokenHash)
+      .is("revoked_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+    if (sessionError) throw sessionError;
+    if (!session) throw new Error("Session expirée. Veuillez vous reconnecter.");
 
-    // Failed lookups are rate-limited below. Successful background CRM syncs
-    // must never count as login attempts or lock an active client session.
-    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                     req.headers.get('x-real-ip') || 'unknown';
-    const rateLimitKey = `${clientIP}:${cleanPhone}`;
-    
-    // Try multiple formats for matching
-    const phoneVariants = [
-      cleanPhone,
-      cleanPhone.startsWith('225') ? cleanPhone.slice(3) : cleanPhone,
-      cleanPhone.startsWith('0') ? cleanPhone.slice(1) : '0' + cleanPhone,
-    ];
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+    await supabase.from("client_portal_sessions").update({
+      last_seen_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+    }).eq("id", session.id);
 
-    console.log("Searching subscriber with phone variants:", phoneVariants);
-
-    let client = null;
-
-    for (const phone of phoneVariants) {
-      const { data, error } = await supabase
-        .from("clients")
-        .select(`
-          *,
-          offres (*),
-          regions (id, nom),
-          departements (id, nom),
-          districts (id, nom),
-          sous_prefectures (id, nom),
-          promotions:promotion_id (id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids)
-        `)
-        .eq("telephone", phone)
-        .maybeSingle();
-
-      if (data) {
-        client = data;
-        break;
-      }
-    }
-
+    const { data: client, error: clientError } = await supabase
+      .from("clients")
+      .select(`
+        *,
+        offres (*),
+        regions (id, nom),
+        departements (id, nom),
+        districts (id, nom),
+        sous_prefectures (id, nom),
+        promotions:promotion_id (id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids)
+      `)
+      .eq("id", session.client_id)
+      .eq("compte_actif", true)
+      .eq("statut_global", "actif")
+      .maybeSingle();
+    if (clientError) throw clientError;
 
     if (!client) {
       throw new Error("Compte client introuvable ou non activé. Contactez AgriCapital.");
     }
-
-    // Connexion réussie : on purge tout blocage résiduel pour ce numéro afin
-    // qu'un client légitime ne reste jamais verrouillé.
-    try {
-      await supabase.from('rate_limits').delete().eq('identifier', rateLimitKey).eq('action', 'login');
-    } catch (_e) { /* ignore */ }
 
     // Re-read effective prices on every lookup. The current CRM DA field is the
     // source of truth and zero is a valid promotional price.

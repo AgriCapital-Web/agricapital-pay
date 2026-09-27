@@ -2,8 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-portal-session" };
-const normalizePhone = (v: unknown) => String(v ?? "").replace(/\D/g, "").replace(/^00/, "").replace(/^225(?=\d{8,})/, "").replace(/^0+/, "");
-const samePhone = (a: unknown, b: unknown) => { const x = normalizePhone(a), y = normalizePhone(b); return !!x && x === y; };
 
 async function verifyPortalSession(token: unknown): Promise<string | null> {
   if (typeof token !== "string" || token.length < 40) return null;

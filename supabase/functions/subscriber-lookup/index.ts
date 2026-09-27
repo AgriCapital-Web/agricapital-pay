@@ -34,7 +34,7 @@ serve(async (req) => {
     const sessionPhone = await verifyPortalSession(token);
     if (!sessionPhone) throw new Error("Session portail invalide ou expirée");
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: candidates, error: clientError } = await supabase.from("clients").select("id").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
+    const { data: candidates, error: clientError } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
     if (clientError) throw clientError;
     const clientMatch = (candidates || []).find((x: any) => x.telephone ? samePhone(x.telephone, sessionPhone) : true);
     let clientId = clientMatch?.id;
@@ -61,7 +61,6 @@ serve(async (req) => {
     const totalRedevances = paiements.filter((p: any) => p.type_paiement === "REDEVANCE" && p.statut === "valide").reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
     const safe: any = { ...client, promotion_active: promotion, commercial: commercialRes.data ? { ...commercialRes.data, fonction: "Conseiller AgriCapital" } : null, total_initial_verse: totalInitial, total_redevances: totalRedevances, total_paye: totalInitial + totalRedevances };
     delete safe.user_id; delete safe.created_by; delete safe.updated_by; delete safe.numero_piece; delete safe.fichier_piece_url; delete safe.fichier_piece_recto_url; delete safe.fichier_piece_verso_url; delete safe.numero_compte;
-    if (body.action === "logout") { return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
     return new Response(JSON.stringify({ success: true, client: safe, souscripteur: safe, plantations, paiements }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ success: false, error: e?.message || "Erreur serveur" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -10,7 +10,6 @@ import PaymentReturn from "./client/PaymentReturn";
 import ClientPlantationHub from "./client/ClientPlantationHub";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import { supabase } from "@/integrations/supabase/client";
 import SyncStatusBanner from "@/components/client/SyncStatusBanner";
 
 type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return' | 'plantation-hub';
@@ -119,10 +118,6 @@ const ClientPortal = () => {
   };
 
   const handleLogout = async () => {
-    const token = sessionToken;
-    if (token) {
-      try { await supabase.functions.invoke("subscriber-lookup", { body: { action: "logout", portal_token: token } }); } catch (_) {}
-    }
     setSouscripteur(null);
     setPlantations([]);
     setPaiements([]);

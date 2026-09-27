@@ -1,10 +1,44 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
+const normalizePhone = (input: unknown) => {
+  let d = String(input ?? "").replace(/\D/g, "").replace(/^00/, "");
+  if (d.startsWith("225") && d.length > 8) d = d.slice(3);
+  return d.replace(/^0+/, "");
+};
+const phoneMatches = (a: unknown, b: unknown) => {
+  const na = normalizePhone(a), nb = normalizePhone(b);
+  return !!na && na === nb;
+};
+const verifyPortalSession = async (token: unknown): Promise<string | null> => {
+  if (typeof token !== "string" || !token.includes(".")) return null;
+  const [payload, sig] = token.split(".");
+  const rawSecret = Deno.env.get("PORTAL_SESSION_SECRET") || Deno.env.get("SUPABASE_SECRET_KEYS") || "";
+  const secret = rawSecret.trim().startsWith("{") ? (JSON.parse(rawSecret).default || "") : rawSecret;
+  if (!payload || !sig || !secret) return null;
+  try {
+    const pad = payload.length % 4 ? "=".repeat(4 - (payload.length % 4)) : "";
+    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/") + pad);
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const signature = Uint8Array.from(atob(sig.replace(/-/g, "+").replace(/_/g, "/") + (sig.length % 4 ? "=".repeat(4 - sig.length % 4) : "")), c => c.charCodeAt(0));
+    if (!(await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(payload)))) return null;
+    const data = JSON.parse(decoded);
+    return data?.p && typeof data.exp === "number" && data.exp * 1000 > Date.now() ? String(data.p) : null;
+  } catch { return null; }
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-portal-session",
 };
+
+function unauthorized(message = "Session portail requise") {
+  return new Response(JSON.stringify({ success: false, error: message }), {
+    status: 401,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 
 /**
  * Verify a KKiaPay transaction against KKiaPay's own API.
@@ -38,28 +72,12 @@ async function verifyKkiapayTransaction(transactionId: string): Promise<
   }
 }
 
-async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function resolvePortalClient(supabase: any, token: string): Promise<string> {
-  if (!token || typeof token !== "string") throw new Error("Session portail requise");
-  const hash = await sha256(token);
-  const { data: session, error } = await supabase.from("client_portal_sessions")
-    .select("id, client_id").eq("token_hash", hash).is("revoked_at", null)
-    .gt("expires_at", new Date().toISOString()).maybeSingle();
-  if (error) throw error;
-  if (!session) throw new Error("Session portail expirée");
-  return session.client_id;
-}
-
 async function sendConfirmationSms(phoneRaw: string | null | undefined, message: string) {
   if (!phoneRaw) return;
   const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
   const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
   if (!INFOBIP_API_KEY || !INFOBIP_BASE_URL) {
-    console.log("[DEV] confirmation SMS:", phoneRaw, message);
+    return;
     return;
   }
   let phone = String(phoneRaw).replace(/\D/g, "");
@@ -85,21 +103,42 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // SECURITY: this function runs with the service role (RLS bypassed) and the
+    // client portal has no Supabase JWT. Every action therefore requires a valid
+    // portal session token issued by `send-otp` after OTP verification, and the
+    // session phone must own the client/payment being acted on.
+    const sessionPhone = await verifyPortalSession(
+      req.headers.get("x-portal-session") || body.portal_token,
+    );
+    if (!sessionPhone) return unauthorized();
+
+    const assertOwnsClient = async (clientId: string) => {
+      const { data: owner } = await supabase
+        .from("clients")
+        .select("telephone")
+        .eq("id", clientId)
+        .maybeSingle();
+      if (!owner) throw new Error("Client introuvable");
+      return phoneMatches(owner.telephone, sessionPhone);
+    };
+
+
+
+
     // === DI à 0 F : activation automatique sans passer par KKiaPay ===
     // Le montant est recalculé côté serveur depuis la vue v_prix_effectif_offres
     // (prix CRM + promotions). L'activation n'est possible que si le DI effectif est 0.
     if (action === "activate_free") {
-      const portalClientId = await resolvePortalClient(supabase, body.session_token);
       const { client_id, plantation_id, reference } = body;
-      if (client_id !== portalClientId) throw new Error("Client non autorisé");
       if (!client_id || !plantation_id) throw new Error("client_id et plantation_id requis");
+      if (!(await assertOwnsClient(client_id))) return unauthorized("Accès refusé à ce client");
 
-      const { data: souscripteur } = await supabase
+      const { data: client } = await supabase
         .from("clients")
         .select("*, offres(*)")
         .eq("id", client_id)
         .maybeSingle();
-      if (!souscripteur) throw new Error("Souscripteur introuvable");
+      if (!client) throw new Error("Client introuvable");
 
       const { data: plantation } = await supabase
         .from("plantations")
@@ -110,9 +149,9 @@ serve(async (req) => {
       if (!plantation) throw new Error("Plantation introuvable");
 
       const { data: effectiveDi, error: priceError } = await supabase
-        .rpc("get_subscriber_effective_di", { _client_id: client_id });
+        .rpc("get_client_effective_di", { _client_id: client_id });
       if (priceError) throw priceError;
-      const diParHa = Number(effectiveDi ?? souscripteur.offres?.montant_depot_initial_par_ha ?? 0);
+      const diParHa = Number(effectiveDi ?? client.offres?.montant_depot_initial_par_ha ?? 0);
       const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
       const diTotal = diParHa * hectares;
 
@@ -131,7 +170,7 @@ serve(async (req) => {
         .select("id, statut")
         .eq("client_id", client_id)
         .eq("plantation_id", plantation_id)
-        .eq("est_paiement_initial", true)
+        .eq("est_depot_initial", true)
         .maybeSingle();
 
       const payload = {
@@ -144,7 +183,7 @@ serve(async (req) => {
         statut: "valide",
         mode_paiement: "Promotion",
         reference: ref,
-        est_paiement_initial: true,
+        est_depot_initial: true,
         date_paiement: nowIso,
         metadata: { payment_provider: "promotion", di_offert: true, di_par_ha: diParHa, hectares },
       };
@@ -169,7 +208,7 @@ serve(async (req) => {
 
       try {
         await sendConfirmationSms(
-          souscripteur.telephone,
+          client.telephone,
           `AgriCapital: Votre Depot Initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`
         );
       } catch (_e) { /* ignore */ }
@@ -181,12 +220,11 @@ serve(async (req) => {
 
     if (action === "insert") {
 
-      const portalClientId = await resolvePortalClient(supabase, body.session_token);
       const { client_id, plantation_id, type_paiement, montant, reference, mode_paiement, metadata } = body;
-      if (client_id !== portalClientId) throw new Error("Client non autorisé");
       if (!client_id || !type_paiement || !montant || !reference) {
         throw new Error("Champs requis manquants");
       }
+      if (!(await assertOwnsClient(client_id))) return unauthorized("Accès refusé à ce client");
       const isDepotInitial = type_paiement === "DA";
       const paymentPhase = isDepotInitial ? null : (metadata?.phase || (metadata?.annee_tarif ? `annee_${metadata.annee_tarif}` : null));
 
@@ -196,7 +234,7 @@ serve(async (req) => {
           .select("id, reference, statut, metadata")
           .eq("client_id", client_id)
           .eq("plantation_id", plantation_id)
-          .eq("est_paiement_initial", true)
+          .eq("est_depot_initial", true)
           .maybeSingle();
 
         if (existingError) throw existingError;
@@ -238,7 +276,7 @@ serve(async (req) => {
         statut: "en_attente",
         mode_paiement: mode_paiement || "Mobile Money",
         reference,
-        est_paiement_initial: isDepotInitial,
+        est_depot_initial: isDepotInitial,
         phase: paymentPhase,
         metadata: metadata || {},
       }).select().single();
@@ -249,7 +287,6 @@ serve(async (req) => {
     }
 
     if (action === "confirm") {
-      const portalClientId = await resolvePortalClient(supabase, body.session_token);
       const { reference, kkiapay_transaction_id, client_debit_amount, fee_absorption_rate } = body;
       if (!reference) throw new Error("Reference requise");
 
@@ -275,8 +312,10 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!paiementData) throw new Error("Paiement introuvable");
-      if (paiementData.client_id !== portalClientId) throw new Error("Paiement non autorisé pour ce compte");
-      // Amount actually charged is what KKiaPay returned, not what the client claims.
+      if (!phoneMatches(paiementData.clients?.telephone, sessionPhone)) {
+        return unauthorized("Accès refusé à ce paiement");
+      }
+
       const kkiapayAmount = verification.amount;
       const trustedMontantPaye = typeof kkiapayAmount === "number" ? kkiapayAmount : paiementData.montant;
 
@@ -302,78 +341,6 @@ serve(async (req) => {
 
       // Legacy repair remains intentionally absent: finalize_portal_payment is
       // the single atomic source of truth for payment and activation propagation.
-      if (false && paiementData.type_paiement === "DA" && paiementData.plantation_id) {
-        const p = paiementData.plantations;
-        if (p) {
-          await supabase.from("plantations").update({
-            superficie_activee: p.superficie_ha,
-            date_activation: new Date().toISOString(),
-            statut: "active",
-            statut_global: "actif",
-          }).eq("id", paiementData.plantation_id);
-        }
-
-        const { data: souscripteur } = await supabase
-          .from("clients")
-          .select("*, offres(*)")
-          .eq("id", paiementData.client_id)
-          .maybeSingle();
-
-        if (souscripteur) {
-          const debut = new Date();
-          const dureeMois = Number(souscripteur.offres?.duree_paiement_mois || 34);
-          const fin = new Date(debut);
-          fin.setMonth(fin.getMonth() + dureeMois);
-          const prochaine = new Date(debut);
-          prochaine.setMonth(prochaine.getMonth() + 1);
-
-          await supabase.from("clients").update({
-            compte_actif: true,
-            da_paye_at: new Date().toISOString(),
-            contrat_debut_at: debut.toISOString().slice(0, 10),
-            contrat_fin_at: fin.toISOString().slice(0, 10),
-            phase_actuelle: "annee_1",
-            prochaine_echeance: prochaine.toISOString().slice(0, 10),
-          }).eq("id", paiementData.client_id);
-
-          const { count } = await supabase
-            .from("paiements")
-            .select("id", { count: "exact", head: true })
-            .eq("client_id", paiementData.client_id)
-            .eq("type_paiement", "REDEVANCE");
-
-          const tranches = Array.isArray(souscripteur.offres?.tranches_paiement) ? souscripteur.offres.tranches_paiement : [];
-          if ((count || 0) === 0 && tranches.length > 0) {
-            const echeances: any[] = [];
-            let numero = 0;
-            for (const tranche of tranches) {
-              const mois = Number(tranche?.mois || 0);
-              const anneeOffre = Number(tranche?.annee || 1);
-              const mensualite = Number(tranche?.mensualite_par_ha || 0) * Number(souscripteur.total_hectares || 0);
-              for (let i = 0; i < mois; i++) {
-                numero += 1;
-                const due = new Date(debut);
-                due.setMonth(due.getMonth() + numero);
-                echeances.push({
-                  client_id: paiementData.client_id,
-                  type_paiement: "REDEVANCE",
-                  statut: "en_attente",
-                  montant: mensualite,
-                  montant_theorique: mensualite,
-                  numero_echeance: numero,
-                  date_echeance: due.toISOString().slice(0, 10),
-                  annee: due.getFullYear(),
-                  phase: `annee_${anneeOffre}`,
-                  est_paiement_initial: false,
-                  metadata: { generated_by: "create-payment", offer_tranche: tranche },
-                });
-              }
-            }
-            if (echeances.length > 0) await supabase.from("paiements").insert(echeances);
-          }
-        }
-      }
-
       // Server-side confirmation SMS (replaces the removed `send_custom` action).
       try {
         const fmt = new Intl.NumberFormat("fr-FR").format(trustedMontantPaye);
@@ -391,17 +358,41 @@ serve(async (req) => {
     if (action === "status") {
       const { reference, transaction_id } = body;
       if (!reference && !transaction_id) throw new Error("Reference requise");
-      // SECURITY: this endpoint is unauthenticated (called from the client after
-      // return from KKiaPay). Do NOT expose PII (nom_complet, telephone) or
-      // subscriber ID by reference — return only the minimum needed to render
-      // the payment result UI. Sensitive fields are stripped.
-      let query = supabase
-        .from("paiements")
-        .select("id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha)");
-      if (reference) query = query.eq("reference", reference);
-      else query = query.or(`kkiapay_transaction_id.eq.${transaction_id},metadata->>kkiapay_transaction_id.eq.${transaction_id}`);
-      const { data, error } = await query.maybeSingle();
+      // SECURITY: requires a valid portal session (checked above) AND the
+      // payment must belong to the client owning that session. Only the
+      // minimum fields needed to render the result UI are returned; PII
+      // (nom_complet, telephone, client_id) is never exposed.
+      const selectFields = "id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha), clients(telephone)";
+      let row: any = null;
+      let error: any = null;
+      if (reference) {
+        // reference is also validated to keep raw filter input out of queries
+        if (typeof reference !== "string" || !/^[A-Za-z0-9_-]{4,64}$/.test(reference)) {
+          return new Response(JSON.stringify({ success: false, error: "Référence invalide" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("reference", reference).maybeSingle());
+      } else {
+        // SECURITY: never interpolate client input into a raw PostgREST filter
+        // string. Strictly validate the transaction id format, then use
+        // parameterized .eq() filters only.
+        if (typeof transaction_id !== "string" || !/^[A-Za-z0-9_-]{4,64}$/.test(transaction_id)) {
+          return new Response(JSON.stringify({ success: false, error: "transaction_id invalide" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("kkiapay_transaction_id", transaction_id).maybeSingle());
+        if (!error && !row) {
+          ({ data: row, error } = await supabase.from("paiements").select(selectFields).eq("metadata->>kkiapay_transaction_id", transaction_id).maybeSingle());
+        }
+      }
       if (error) throw error;
+      if (row && !phoneMatches((row as any).clients?.telephone, sessionPhone)) {
+        return unauthorized("Accès refusé à ce paiement");
+      }
+      const data = row ? (({ clients, ...rest }: any) => rest)(row) : row;
+
 
       // Strip metadata fields that could leak internal details.
       let safe = data;

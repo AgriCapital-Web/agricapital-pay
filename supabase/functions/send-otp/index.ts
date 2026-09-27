@@ -21,6 +21,17 @@ function maskPhone(phone: string): string {
   return `${phone.slice(0, 3)}***${phone.slice(-2)}`;
 }
 
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function makeSessionToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+}
+
 function maskEmail(email?: string | null): string | null {
   if (!email || !email.includes('@')) return null;
   const [local, domain] = email.split('@');
@@ -67,7 +78,7 @@ serve(async (req) => {
           .select('*', { count: 'exact', head: true })
           .eq('telephone', cleanPhone)
           .gt('created_at', tenMinAgo0),
-        supabase.from('souscripteurs')
+        supabase.from('clients')
           .select('email')
           .eq('telephone', cleanPhone)
           .limit(1)
@@ -101,7 +112,7 @@ serve(async (req) => {
       // Numéro absent du CRM : le code est affiché à l'écran (SMS international
       // non garanti) et n'est jamais bloqué, pour que tout visiteur puisse tester.
       const { data: knownSubscriber } = await supabase
-        .from('souscripteurs').select('id').eq('telephone', cleanPhone).limit(1).maybeSingle();
+        .from('clients').select('id').eq('telephone', cleanPhone).limit(1).maybeSingle();
       const isDemoPhone = !knownSubscriber;
       if (isDemoPhone) {
         const demoCode = generateOTP();
@@ -286,10 +297,34 @@ serve(async (req) => {
         );
       }
 
-      // Mark as verified
+      // Mark as verified, then issue a short-lived portal session token.
       await supabase.from('otp_codes')
         .update({ verified: true })
         .eq('id', otpRecord.id);
+
+      const { data: client } = await supabase.from('clients')
+        .select('id, compte_actif, statut_global')
+        .eq('telephone', cleanPhone)
+        .eq('compte_actif', true)
+        .eq('statut_global', 'actif')
+        .maybeSingle();
+      if (!client) throw new Error("Compte client non actif");
+
+      const sessionToken = makeSessionToken();
+      const tokenHash = await sha256(sessionToken);
+      await supabase.from('client_portal_sessions')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('client_id', client.id)
+        .is('revoked_at', null);
+
+      const { error: sessionError } = await supabase.from('client_portal_sessions').insert({
+        client_id: client.id,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+        user_agent: req.headers.get('user-agent') || null,
+        ip_address: clientIP,
+      });
+      if (sessionError) throw sessionError;
 
       await supabase.from('historique_activites').insert({
         table_name: 'otp_codes',
@@ -301,7 +336,7 @@ serve(async (req) => {
       });
 
       return new Response(
-        JSON.stringify({ success: true, message: "Code vérifié" }),
+        JSON.stringify({ success: true, message: "Code vérifié", session_token: sessionToken }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

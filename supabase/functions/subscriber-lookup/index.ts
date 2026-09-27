@@ -130,6 +130,15 @@ serve(async (req) => {
     }
     
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    if (body.action === "logout" && typeof body.session_token === "string") {
+      const tokenHash = await sha256(body.session_token);
+      await supabase.from("client_portal_sessions")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("token_hash", tokenHash)
+        .is("revoked_at", null);
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const sessionToken = typeof body.session_token === "string" ? body.session_token : "";
     if (!sessionToken) throw new Error("Session portail requise");
 

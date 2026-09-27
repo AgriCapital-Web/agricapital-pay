@@ -145,7 +145,7 @@ serve(async (req) => {
       const { data: effectiveDi, error: priceError } = await supabase
         .rpc("get_client_effective_di", { _client_id: client_id });
       if (priceError) throw priceError;
-      const diParHa = Number(effectiveDi ?? client.offres?.montant_paiement_initial_par_ha ?? 0);
+      const diParHa = Number(effectiveDi ?? client.offres?.montant_pi_par_ha ?? 0);
       const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
       const diTotal = diParHa * hectares;
 

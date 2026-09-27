@@ -94,8 +94,8 @@ const ClientDashboard = ({
   const daProgress = useMemo(() => {
     // Priorité stricte au CRM (0 F autorisé) — pas de `||` qui masquerait un DI mis à 0.
     const offre = souscripteur.offres || {};
-    const crmPaiementInitial = offre.montant_paiement_initial_par_ha ?? offre.montant_depot_initial_par_ha;
-    const tarifPaiementInitial = currentRate?.schedule.depot_initial ?? (crmPaiementInitial ?? 0);
+    const crmPaiementInitial = offre.montant_paiement_initial_par_ha ?? offre.montant_paiement_initial_par_ha;
+    const tarifPaiementInitial = currentRate?.schedule.paiement_initial ?? (crmPaiementInitial ?? 0);
     const totalPaiementInitial = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifPaiementInitial), 0);
     const totalPaiementInitialVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
@@ -233,7 +233,7 @@ const ClientDashboard = ({
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="bg-muted/40 rounded-xl p-2 text-center">
                   <p className="text-[9px] text-muted-foreground uppercase">Paiement initial / ha</p>
-                  <p className="text-sm font-black text-gold-dark">{fmt(currentRate.schedule.depot_initial)}</p>
+                  <p className="text-sm font-black text-gold-dark">{fmt(currentRate.schedule.paiement_initial)}</p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-2 text-center">
                   <p className="text-[9px] text-muted-foreground uppercase">Mensuel actuel / ha</p>

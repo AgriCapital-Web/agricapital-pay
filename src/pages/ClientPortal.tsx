@@ -186,6 +186,7 @@ const ClientPortal = () => {
           souscripteur={souscripteur}
           plantations={plantations}
           paiements={paiements}
+          sessionToken={sessionToken}
           onBack={() => setView('dashboard')}
           prefillAmount={paymentOptions.prefillAmount}
           prefillType={paymentOptions.prefillType}

@@ -14,7 +14,7 @@ export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "er
  * - Gère la reconnexion automatique quand le navigateur repasse online / la page redevient visible.
  */
 export function useAutoRefresh(
-  telephone: string | null | undefined,
+  sessionToken: string | null | undefined,
   onData: (souscripteur: any, plantations: any[], paiements: any[]) => void,
   intervalMs: number = 3000,
 ) {
@@ -27,7 +27,7 @@ export function useAutoRefresh(
   const errLoggedRef = useRef(false);
 
   useEffect(() => {
-    if (!telephone) return;
+    if (!sessionToken) return;
     let cancelled = false;
     snapRef.current = null;
 
@@ -35,16 +35,16 @@ export function useAutoRefresh(
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
-        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone, silent: true } });
+        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { session_token: sessionToken, silent: true } });
         if (!cancelled && !error && data?.success) {
           const plants = data.plantations || [];
           const pays = data.paiements || [];
-          cbRef.current(data.souscripteur, plants, pays);
+          cbRef.current(data.client || data.souscripteur, plants, pays);
           setLastSync(new Date());
           setStatus("live");
 
           // === Journal de synchronisation par compte ===
-          const account = data.souscripteur?.id_unique || telephone;
+          const account = data.client?.id_unique || data.souscripteur?.id_unique || "client";
           const snapshot = buildCrmSnapshot(data.souscripteur, plants, pays);
           const changes = diffAndLog(account, snapRef.current, snapshot);
           snapRef.current = snapshot;
@@ -60,8 +60,8 @@ export function useAutoRefresh(
           setStatus("error");
           if (!errLoggedRef.current) {
             errLoggedRef.current = true;
-            appendJournal(telephone, { kind: "sync_error", label: "Échec de synchronisation", details: error.message || "Erreur inconnue" });
-            trackEvent({ level: "error", scope: "sync", message: "Échec de synchronisation CRM", account: telephone, context: { trigger, error: error.message } });
+            appendJournal(account, { kind: "sync_error", label: "Échec de synchronisation", details: error.message || "Erreur inconnue" });
+            trackEvent({ level: "error", scope: "sync", message: "Échec de synchronisation CRM", account, context: { trigger, error: error.message } });
           }
         }
       } catch (e: any) {
@@ -93,7 +93,7 @@ export function useAutoRefresh(
       .channel(`portal-sync-${Date.now()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "offres" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
       .subscribe((s) => {
@@ -122,7 +122,7 @@ export function useAutoRefresh(
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [telephone, intervalMs]);
+  }, [sessionToken, intervalMs]);
 
   return { status, lastSync };
 }

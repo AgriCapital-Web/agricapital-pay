@@ -121,7 +121,7 @@ const ClientPortal = () => {
   const handleLogout = async () => {
     const token = sessionToken;
     if (token) {
-      try { await supabase.functions.invoke("subscriber-lookup", { body: { action: "logout", session_token: token } }); } catch (_) {}
+      try { await supabase.functions.invoke("subscriber-lookup", { body: { action: "logout", portal_token: token } }); } catch (_) {}
     }
     setSouscripteur(null);
     setPlantations([]);

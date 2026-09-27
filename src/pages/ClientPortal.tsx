@@ -125,6 +125,7 @@ const ClientPortal = () => {
     sessionStorage.removeItem('agri_client');
     sessionStorage.removeItem('agri_plantations');
     sessionStorage.removeItem('agri_paiements');
+    sessionStorage.removeItem('agri_portal_session');
     setView('home');
   };
 

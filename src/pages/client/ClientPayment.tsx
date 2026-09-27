@@ -24,7 +24,7 @@ import { fr } from "date-fns/locale";
 import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader2, Phone, Trophy, Target, Zap, Plus, Leaf, Calendar } from "lucide-react";
 
 interface ClientPaymentProps {
-  souscripteur: any; plantations: any[]; paiements: any[]; onBack: () => void;
+  souscripteur: any; plantations: any[]; paiements: any[]; sessionToken?: string | null; onBack: () => void;
   prefillAmount?: number; prefillType?: 'arriere' | 'avance';
 }
 
@@ -65,7 +65,7 @@ const calculateKkiapayAbsorption = (amount: number, method: ClientPaymentMethod)
   };
 };
 
-const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAmount, prefillType }: ClientPaymentProps) => {
+const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onBack, prefillAmount, prefillType }: ClientPaymentProps) => {
   const { toast } = useToast();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
   const [step, setStep] = useState<'type' | 'plantation' | 'details' | 'confirm'>('type');
@@ -240,6 +240,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           const { data: confirmation, error: confirmationError } = await supabase.functions.invoke('create-payment', {
             body: {
               action: 'confirm',
+              session_token: sessionToken,
               reference: paymentContext.reference,
               kkiapay_transaction_id: response.transactionId,
               montant_paye: paymentContext.montantTotal,
@@ -284,7 +285,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'activate_free',
-          souscripteur_id: souscripteur.id,
+          session_token: sessionToken,
+          client_id: souscripteur.id,
           plantation_id: targetPlantation.id,
           reference,
         },
@@ -293,24 +295,24 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const horodatage = new Date();
       appendJournal(account, {
         kind: "crm_change",
-        label: "Plantation activée automatiquement (DI 0 F)",
+        label: "Plantation activée automatiquement (Paiement Initial 0 F)",
         details: `Plantation ${targetPlantation.nom_plantation || targetPlantation.id_unique} · Référence CRM ${data?.reference || reference} · ${format(horodatage, "dd/MM/yyyy HH:mm:ss", { locale: fr })}`,
         after: "Activée",
       });
       trackEvent({
         level: "info",
         scope: "payment",
-        message: "Activation gratuite (Dépôt Initial 0 F)",
+        message: "Activation gratuite (Paiement Initial 0 F)",
         account,
         context: { plantation_id: targetPlantation.id, reference: data?.reference || reference, at: horodatage.toISOString() },
       });
       toast({
-        title: "✅ Plantation activée — Dépôt Initial offert",
+        title: "✅ Plantation activée — Paiement Initial offert",
         description: `Référence CRM ${data?.reference || reference} · ${format(horodatage, "dd/MM/yyyy 'à' HH:mm", { locale: fr })}. L'opération est tracée dans votre journal de synchronisation.`,
       });
       setTimeout(() => onBack(), 1800);
     } catch (e: any) {
-      trackEvent({ level: "error", scope: "payment", message: "Échec de l'activation gratuite (DI 0 F)", account, context: { error: e?.message, reference } });
+      trackEvent({ level: "error", scope: "payment", message: "Échec de l'activation gratuite (Paiement Initial 0 F)", account, context: { error: e?.message, reference } });
       toast({ variant: "destructive", title: "Erreur", description: e.message });
     } finally {
       setLoading(false);
@@ -328,7 +330,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     await new Promise((r) => setTimeout(r, 1400));
     toast({
       title: "✅ Paiement réussi (démonstration)",
-      description: `Transaction ${reference} validée · ${typePaiement === 'da' ? "Dépôt Initial" : "Paiement mensuel"}. Aucun débit réel n'a été effectué.`,
+      description: `Transaction ${reference} validée · ${typePaiement === 'da' ? "Paiement Initial" : "Paiement mensuel"}. Aucun débit réel n'a été effectué.`,
     });
     setLoading(false);
     setTimeout(() => onBack(), 1800);
@@ -347,7 +349,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'insert',
-          souscripteur_id: souscripteur.id,
+          session_token: sessionToken,
+          client_id: souscripteur.id,
           plantation_id: plantation.id,
           type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
           montant: montantTotal,
@@ -463,7 +466,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               <RadioGroup value={typePaiement} onValueChange={(v) => setTypePaiement(v as any)} className="space-y-3">
                 {[
                   { val: 'redevance', title: "Mensualité", desc: "Paiements mensuels progressifs", badge: plantationRate ? `${fmt(plantationRate.mensuel_par_ha)}/mois` : '', icon: "📅" },
-                  { val: 'da', title: "Dépôt Initial", desc: "Activer vos hectares", badge: `${fmt(TARIFS.da_par_hectare)}/ha`, icon: "🔑" },
+                  { val: 'da', title: "Paiement Initial", desc: "Activer vos hectares", badge: `${fmt(TARIFS.da_par_hectare)}/ha`, icon: "🔑" },
                 ].map(opt => (
                   <div key={opt.val} onClick={() => setTypePaiement(opt.val as any)}
                     className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${typePaiement === opt.val ? 'border-gold bg-gold/5 shadow-sm' : 'border-border hover:border-gold/30'}`}>
@@ -598,7 +601,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon" onClick={() => setStep('plantation')} className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
-                <Calculator className="h-5 w-5 text-primary" /><h3 className="text-base font-bold">{typePaiement === 'da' ? "Dépôt Initial" : 'Détails du paiement'}</h3>
+                <Calculator className="h-5 w-5 text-primary" /><h3 className="text-base font-bold">{typePaiement === 'da' ? "Paiement Initial" : 'Détails du paiement'}</h3>
               </div>
 
               <div className="bg-muted/30 rounded-2xl p-3 flex items-center gap-3 card-brand-subtle">
@@ -803,7 +806,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
               </div>
 
               <div className="bg-primary/5 rounded-2xl p-4 space-y-2.5 text-sm card-brand-subtle">
-                {[['Client', souscripteur.nom_complet], ['Téléphone', souscripteur.telephone], ['Plantation', plantation.nom_plantation || plantation.id_unique], ['Type', typePaiement === 'da' ? "Dépôt Initial" : 'Mensualité'], ['Tarif', plantationRate ? `${plantationRate.label} — ${fmt(plantationRate.mensuel_par_ha)}/mois/ha` : '']].filter(([, v]) => v).map(([l, v], i) => (
+                {[['Client', souscripteur.nom_complet], ['Téléphone', souscripteur.telephone], ['Plantation', plantation.nom_plantation || plantation.id_unique], ['Type', typePaiement === 'da' ? "Paiement Initial" : 'Mensualité'], ['Tarif', plantationRate ? `${plantationRate.label} — ${fmt(plantationRate.mensuel_par_ha)}/mois/ha` : '']].filter(([, v]) => v).map(([l, v], i) => (
                   <div key={i} className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{v}</span></div>
                 ))}
                 {modeArriere === 'avance' && (
@@ -824,7 +827,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                 {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />{isDiGratuit ? 'Activation...' : 'Ouverture...'}</> : <><CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? 'Activer ma plantation (DI offert)' : 'Procéder au paiement'}</>}
               </Button>
               {isDiGratuit ? (
-                <p className="text-[10px] text-center text-muted-foreground">Dépôt Initial à 0 F (promotion CRM) — activation immédiate, aucun paiement requis.</p>
+                <p className="text-[10px] text-center text-muted-foreground">Paiement Initial à 0 F (promotion CRM) — activation immédiate, aucun paiement requis.</p>
               ) : (
                 <p className="text-[10px] text-center text-muted-foreground">Paiement sécurisé via KKiaPay — débit client exact : {fmt(kkiapayPricing.clientDebitAmount)}</p>
               )}

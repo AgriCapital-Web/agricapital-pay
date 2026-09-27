@@ -100,7 +100,6 @@ export function useAutoRefresh(
     return () => {
       cancelled = true;
       clearInterval(timer);
-      supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);

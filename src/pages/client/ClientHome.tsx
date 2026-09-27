@@ -139,7 +139,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     <>
       <Helmet>
         <title>Portail Client | AgriCapital — Paiement & suivi de plantations</title>
-        <meta name="description" content="Espace sécurisé pour gérer vos plantations, mensualités et dépôts AgriCapital." />
+        <meta name="description" content="Espace sécurisé pour gérer vos plantations, mensualités et paiements AgriCapital." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://pay.agricapital.ci" />
       </Helmet>

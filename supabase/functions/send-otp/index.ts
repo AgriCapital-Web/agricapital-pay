@@ -36,8 +36,8 @@ Deno.serve(async(req)=>{
     const {count}=await db.from("rate_limits").select("*",{count:"exact",head:true}).eq("identifier",`otp:${key}`).eq("action","portal_otp").gt("first_attempt_at",since);
     if((count||0)>=20) return json({success:false,error:"Trop de tentatives. Réessayez plus tard."},429);
     await db.from("rate_limits").insert({identifier:`otp:${key}`,action:"portal_otp"});
-    const {data:candidates}=await db.from("clients").select("id,telephone").ilike("telephone",`%${phone.slice(-8)}%`).limit(50);
-    const client=(candidates||[]).find((c:any)=>samePhone(c.telephone,phone));
+    const {data:candidates}=await db.from("clients").select("id,telephone,compte_actif,statut_global").ilike("telephone",`%${phone.slice(-8)}%`).limit(50);
+    const client=(candidates||[]).find((c:any)=>samePhone(c.telephone,phone) && c.compte_actif === true && String(c.statut_global || "").toLowerCase() === "actif");
 
     if(action==="status"){
       const {data:last}=await db.from("otp_codes").select("created_at,expires_at,verified,attempts").eq("telephone",phone).order("created_at",{ascending:false}).limit(1).maybeSingle();

@@ -13,7 +13,7 @@ export const MessagerieTab = ({ souscripteur, sessionToken }: { souscripteur: an
 
   const load = async () => {
     if (!sessionToken) return;
-    const { data } = await supabase.functions.invoke("portal-messages", { body: { action: "list", session_token: sessionToken } });
+    const { data } = await supabase.functions.invoke("portal-messages", { body: { action: "list", portal_token: sessionToken } });
     if (data?.success) setMessages(data.messages || []);
   };
 
@@ -27,14 +27,14 @@ export const MessagerieTab = ({ souscripteur, sessionToken }: { souscripteur: an
     if (!sessionToken || !contenu.trim()) return;
     setLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("portal-messages", { body: { action: "send", session_token: sessionToken, contenu: contenu.trim() } });
+      const { data } = await supabase.functions.invoke("portal-messages", { body: { action: "send", portal_token: sessionToken, contenu: contenu.trim() } });
       if (data?.success && data.message) { setMessages((prev) => [...prev, data.message]); setContenu(""); }
     } finally { setLoading(false); }
   };
 
   const markRead = async (id: string) => {
     if (!sessionToken) return;
-    await supabase.functions.invoke("portal-messages", { body: { action: "read", session_token: sessionToken, message_id: id } });
+    await supabase.functions.invoke("portal-messages", { body: { action: "read", portal_token: sessionToken, message_id: id } });
   };
 
   return (

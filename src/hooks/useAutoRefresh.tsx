@@ -45,7 +45,7 @@ export function useAutoRefresh(
 
           // === Journal de synchronisation par compte ===
           const account = data.client?.id_unique || data.souscripteur?.id_unique || "client";
-          const snapshot = buildCrmSnapshot(data.souscripteur, plants, pays);
+          const snapshot = buildCrmSnapshot(data.client || data.souscripteur, plants, pays);
           const changes = diffAndLog(account, snapRef.current, snapshot);
           snapRef.current = snapshot;
           if (!silent || changes > 0) {
@@ -60,8 +60,8 @@ export function useAutoRefresh(
           setStatus("error");
           if (!errLoggedRef.current) {
             errLoggedRef.current = true;
-            appendJournal(account, { kind: "sync_error", label: "Échec de synchronisation", details: error.message || "Erreur inconnue" });
-            trackEvent({ level: "error", scope: "sync", message: "Échec de synchronisation CRM", account, context: { trigger, error: error.message } });
+            appendJournal("portal", { kind: "sync_error", label: "Échec de synchronisation", details: error.message || "Erreur inconnue" });
+            trackEvent({ level: "error", scope: "sync", message: "Échec de synchronisation CRM", account: "portal", context: { trigger, error: error.message } });
           }
         }
       } catch (e: any) {
@@ -69,7 +69,7 @@ export function useAutoRefresh(
         setStatus(offline ? "offline" : "error");
         if (!errLoggedRef.current) {
           errLoggedRef.current = true;
-          appendJournal(telephone, {
+          appendJournal("portal", {
             kind: offline ? "connection" : "sync_error",
             label: offline ? "Connexion perdue" : "Erreur réseau pendant la synchronisation",
             details: e?.message,
@@ -78,7 +78,7 @@ export function useAutoRefresh(
             level: offline ? "warning" : "error",
             scope: "realtime",
             message: offline ? "Connexion perdue (offline)" : "Erreur réseau pendant la synchronisation CRM",
-            account: telephone,
+            account: "portal",
             context: { trigger, error: e?.message },
           });
         }
@@ -89,27 +89,10 @@ export function useAutoRefresh(
     refresh(false);
     const timer = setInterval(() => refresh(true), intervalMs);
 
-    const channel = supabase
-      .channel(`portal-sync-${Date.now()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "offres" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
-      .subscribe((s) => {
-        if (s === "SUBSCRIBED") setStatus("live");
-        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
-          setStatus("reconnecting");
-          trackEvent({ level: "warning", scope: "realtime", message: `Canal temps réel ${s} — reconnexion`, account: telephone });
-        } else if (s === "CLOSED") {
-          setStatus(navigator.onLine ? "reconnecting" : "offline");
-          trackEvent({ level: "warning", scope: "realtime", message: "Canal temps réel fermé", account: telephone, context: { online: navigator.onLine } });
-        }
-      });
-
+    // Le portail n'ouvre pas de canal Realtime direct : les lectures CRM restent derrière l'API de session.
     const onVis = () => { if (document.visibilityState === "visible") { setStatus("reconnecting"); refresh(false); } };
-    const onOnline = () => { setStatus("reconnecting"); trackEvent({ level: "info", scope: "realtime", message: "Retour en ligne — resynchronisation", account: telephone }); refresh(false); };
-    const onOffline = () => { setStatus("offline"); trackEvent({ level: "warning", scope: "realtime", message: "Navigateur hors ligne", account: telephone }); };
+    const onOnline = () => { setStatus("reconnecting"); trackEvent({ level: "info", scope: "realtime", message: "Retour en ligne — resynchronisation", account: "portal" }); refresh(false); };
+    const onOffline = () => { setStatus("offline"); trackEvent({ level: "warning", scope: "realtime", message: "Navigateur hors ligne", account: "portal" }); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);

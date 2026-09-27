@@ -26,7 +26,11 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const sessionPhone = await verifyPortalSession(body.portal_token || req.headers.get("x-portal-session"));\n    if (!sessionPhone) throw new Error("Session portail invalide ou expirée");\n    const { data: clients } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);\n    const clientId = (clients || []).find((x: any) => String(x.telephone || "").replace(/\\D/g, "").replace(/^225/, "").replace(/^0+/, "") === sessionPhone)?.id;\n    if (!clientId) throw new Error("Compte client introuvable");
+    const sessionPhone = await verifyPortalSession(body.portal_token || req.headers.get("x-portal-session"));
+    if (!sessionPhone) throw new Error("Session portail invalide ou expirée");
+    const { data: clients } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
+    const clientId = (clients || []).find((x: any) => String(x.telephone || "").replace(/\\D/g, "").replace(/^225/, "").replace(/^0+/, "") === sessionPhone)?.id;
+    if (!clientId) throw new Error("Compte client introuvable");
     const action = body.action || "list";
 
     if (action === "list") {

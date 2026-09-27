@@ -160,7 +160,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
     const offre = souscripteur?.offres;
     if (offre) {
       const cm = offre.contribution_mensuelle_par_ha || 0;
-      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_da_par_ha ?? offre.montant_paiement_initial_par_ha ?? 0 };
+      return { jour: Math.round(cm / 30), semaine: Math.round(cm / 4), mois: cm, trimestre: cm * 3, semestre: cm * 6, annee: cm * 12, da_par_hectare: offre.montant_paiement_initial_par_ha ?? offre.montant_paiement_initial_par_ha ?? 0 };
     }
     // Defensive fallback (used only if no offre is loaded — should never happen for valid subscribers)
     return { jour: 0, semaine: 0, mois: 0, trimestre: 0, semestre: 0, annee: 0, da_par_hectare: 0 };

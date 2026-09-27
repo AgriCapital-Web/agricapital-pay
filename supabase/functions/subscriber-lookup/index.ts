@@ -146,11 +146,11 @@ serve(async (req) => {
 
     console.log("Searching subscriber with phone variants:", phoneVariants);
 
-    let souscripteur = null;
+    let client = null;
 
     for (const phone of phoneVariants) {
       const { data, error } = await supabase
-        .from("souscripteurs")
+        .from("clients")
         .select(`
           *,
           offres (*),
@@ -164,13 +164,13 @@ serve(async (req) => {
         .maybeSingle();
 
       if (data) {
-        souscripteur = data;
+        client = data;
         break;
       }
     }
 
 
-    if (!souscripteur) {
+    if (!client) {
       // === MODE DÉMONSTRATION ===
       // Numéro inconnu du CRM (quel que soit l'indicatif pays) : on renvoie un
       // compte de démonstration complet, sans aucune écriture en base.
@@ -192,35 +192,35 @@ serve(async (req) => {
     // Re-read effective prices on every lookup. The current CRM DA field is the
     // source of truth and zero is a valid promotional price.
 
-    if (souscripteur.offre_id && souscripteur.offres) {
-      souscripteur.offres._price_source = 'offres (champs CRM)';
+    if (client.offre_id && client.offres) {
+      client.offres._price_source = 'offres (champs CRM)';
       const { data: effectivePrice } = await supabase
         .from('v_prix_effectif_offres')
         .select('di_base, di_effectif, total_effectif')
-        .eq('offre_id', souscripteur.offre_id)
+        .eq('offre_id', client.offre_id)
         .maybeSingle();
       if (effectivePrice) {
         const effectiveDi = Number(effectivePrice.di_effectif ?? effectivePrice.di_base ?? 0);
-        souscripteur.offres.montant_da_par_ha = effectiveDi;
-        souscripteur.offres.montant_depot_initial_par_ha = effectiveDi;
-        souscripteur.offres.montant_total_par_ha = Number(effectivePrice.total_effectif ?? souscripteur.offres.montant_total_par_ha ?? 0);
-        souscripteur.offres._price_source = `v_prix_effectif_offres (DI ${effectiveDi} F/ha)`;
+        client.offres.montant_da_par_ha = effectiveDi;
+        client.offres.montant_depot_initial_par_ha = effectiveDi;
+        client.offres.montant_total_par_ha = Number(effectivePrice.total_effectif ?? client.offres.montant_total_par_ha ?? 0);
+        client.offres._price_source = `v_prix_effectif_offres (DI ${effectiveDi} F/ha)`;
       }
     }
 
 
     if (body.silent !== true) {
       await supabase.from('historique_activites').insert({
-        table_name: 'souscripteurs',
-        record_id: souscripteur.id,
+        table_name: 'clients',
+        record_id: client.id,
         action: 'PORTAIL_LOGIN',
-        details: `Connexion au portail souscripteur: ${souscripteur.nom_complet || souscripteur.id_unique}`,
+        details: `Connexion au portail client: ${client.nom_complet || client.id_unique}`,
         ip_address: clientIP,
         user_agent: req.headers.get('user-agent') || 'unknown',
       });
     }
 
-    console.log("Found subscriber:", souscripteur.id, souscripteur.nom_complet);
+    console.log("Found subscriber:", client.id, client.nom_complet);
 
     // Fetch plantations
     const { data: plantations } = await supabase
@@ -232,7 +232,7 @@ serve(async (req) => {
         districts (id, nom),
         sous_prefectures (id, nom)
       `)
-      .eq("souscripteur_id", souscripteur.id)
+      .eq("client_id", client.id)
       .order("created_at", { ascending: false });
 
     // Fetch paiements
@@ -243,7 +243,7 @@ serve(async (req) => {
       const { data: paiementsData } = await supabase
         .from("paiements")
         .select("*")
-        .or(`souscripteur_id.eq.${souscripteur.id},plantation_id.in.(${plantationIds.join(',')})`)
+        .or(`client_id.eq.${client.id},plantation_id.in.(${plantationIds.join(',')})`)
         .order("created_at", { ascending: false });
       
       paiements = paiementsData || [];
@@ -251,7 +251,7 @@ serve(async (req) => {
       const { data: paiementsData } = await supabase
         .from("paiements")
         .select("*")
-        .eq("souscripteur_id", souscripteur.id)
+        .eq("client_id", client.id)
         .order("created_at", { ascending: false });
       
       paiements = paiementsData || [];
@@ -278,10 +278,10 @@ serve(async (req) => {
       .filter((p: any) => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
       .reduce((sum: number, p: any) => sum + (p.montant_paye || p.montant || 0), 0);
 
-    souscripteur.total_da_verse = totalDAVerse;
-    souscripteur.total_redevances = totalRedevances;
-    souscripteur.total_paiements = paiements.filter((p: any) => p.statut === 'valide').length;
-    souscripteur.total_paye = totalDAVerse + totalRedevances;
+    client.total_da_verse = totalDAVerse;
+    client.total_redevances = totalRedevances;
+    client.total_paiements = paiements.filter((p: any) => p.statut === 'valide').length;
+    client.total_paye = totalDAVerse + totalRedevances;
 
     let totalArrieres = 0;
     const plantationsEnriched = (plantations || []).map((p: any) => {
@@ -295,7 +295,7 @@ serve(async (req) => {
       };
       if (p.date_activation && (p.superficie_activee || 0) > 0) {
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
-        const attendu = getProgressiveAmount(souscripteur.offres, 0, jours, p.superficie_activee || 0);
+        const attendu = getProgressiveAmount(client.offres, 0, jours, p.superficie_activee || 0);
         const paye = paiements
           .filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')
           .reduce((sum: number, pay: any) => sum + (pay.montant_paye || pay.montant || 0), 0);
@@ -308,17 +308,17 @@ serve(async (req) => {
       return { ...p, ...technicalData, _arriere: 0, _jours_retard: 0 };
     });
 
-    souscripteur.total_arrieres = totalArrieres;
+    client.total_arrieres = totalArrieres;
 
     // === Fetch assigned commercial (créateur du dossier) ===
-    if (souscripteur.created_by) {
+    if (client.created_by) {
       const { data: commercial } = await supabase
         .from('profiles')
         .select('nom_complet, telephone, email, photo_url')
-        .eq('user_id', souscripteur.created_by)
+        .eq('user_id', client.created_by)
         .maybeSingle();
       if (commercial) {
-        souscripteur.commercial = {
+        client.commercial = {
           nom: commercial.nom_complet,
           telephone: commercial.telephone,
           email: commercial.email,
@@ -329,7 +329,7 @@ serve(async (req) => {
     }
 
     // === Fetch active and applicable promotion (client-specific first, then current CRM promotion) ===
-    if (!souscripteur.promotions) {
+    if (!client.promotions) {
       const nowIso = new Date().toISOString();
       const { data: promos } = await supabase
         .from('promotions')
@@ -339,27 +339,27 @@ serve(async (req) => {
         .gte('date_fin', nowIso)
         .order('created_at', { ascending: false })
         .limit(10);
-      const offerId = souscripteur.offre_id;
-      const offerCode = normalizeOfferCode(souscripteur.offres?.code);
+      const offerId = client.offre_id;
+      const offerCode = normalizeOfferCode(client.offres?.code);
       const activePromo = (promos || []).find((promo: any) => {
         if (promo.applique_toutes_offres) return true;
         const offerIds = Array.isArray(promo.offre_ids) ? promo.offre_ids : [];
         return offerIds.includes(offerId) || offerIds.map((v: any) => normalizeOfferCode(String(v))).includes(offerCode);
       });
-      if (activePromo) souscripteur.promotion_active = activePromo;
+      if (activePromo) client.promotion_active = activePromo;
     } else {
-      souscripteur.promotion_active = souscripteur.promotions;
+      client.promotion_active = client.promotions;
     }
 
     // === Sanitize sensitive fields before returning ===
-    delete souscripteur.fichier_piece_url;
-    delete souscripteur.fichier_piece_recto_url;
-    delete souscripteur.fichier_piece_verso_url;
-    delete souscripteur.numero_piece;
-    delete souscripteur.user_id;
-    delete souscripteur.created_by;
-    delete souscripteur.updated_by;
-    delete souscripteur.numero_compte;
+    delete client.fichier_piece_url;
+    delete client.fichier_piece_recto_url;
+    delete client.fichier_piece_verso_url;
+    delete client.numero_piece;
+    delete client.user_id;
+    delete client.created_by;
+    delete client.updated_by;
+    delete client.numero_compte;
 
     console.log(`Subscriber data: ${plantationsEnriched.length} plantations, ${paiements.length} paiements, DA=${totalDAVerse}, Arriérés=${totalArrieres}`);
 
@@ -367,7 +367,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        souscripteur,
+        client,
         plantations: plantationsEnriched,
         paiements
       }),

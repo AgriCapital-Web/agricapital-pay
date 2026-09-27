@@ -4,33 +4,31 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
 async function verifyPortalSession(token: unknown): Promise<string | null> {
-  if (typeof token !== "string" || !token.includes(".")) return null;
-  const [payload, sig] = token.split(".");
-  const raw = Deno.env.get("PORTAL_SESSION_SECRET") || Deno.env.get("SUPABASE_SECRET_KEYS") || "";
-  let secret = raw;
-  try { if (raw.trim().startsWith("{")) secret = JSON.parse(raw).default || ""; } catch { return null; }
-  if (!payload || !sig || !secret) return null;
-  try {
-    const pad = payload.length % 4 ? "=".repeat(4 - payload.length % 4) : "";
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/") + pad);
-    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-    const sigPad = sig.length % 4 ? "=".repeat(4 - sig.length % 4) : "";
-    const signature = Uint8Array.from(atob(sig.replace(/-/g, "+").replace(/_/g, "/") + sigPad), c => c.charCodeAt(0));
-    if (!(await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(payload)))) return null;
-    const data = JSON.parse(decoded);
-    return data?.p && typeof data.exp === "number" && data.exp * 1000 > Date.now() ? String(data.p) : null;
-  } catch { return null; }
+  if (typeof token !== "string" || token.length < 40) return null;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const tokenHash = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data, error } = await supabase.from("client_portal_sessions")
+    .select("id, client_id, expires_at")
+    .eq("token_hash", tokenHash)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  if (error || !data) return null;
+  await supabase.from("client_portal_sessions").update({
+    last_seen_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+  }).eq("id", data.id);
+  return data.client_id as string;
 }
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const sessionPhone = await verifyPortalSession(body.portal_token || req.headers.get("x-portal-session"));
-    if (!sessionPhone) throw new Error("Session portail invalide ou expirée");
-    const { data: clients } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
-    const clientId = (clients || []).find((x: any) => String(x.telephone || "").replace(/\\D/g, "").replace(/^225/, "").replace(/^0+/, "") === sessionPhone)?.id;
-    if (!clientId) throw new Error("Compte client introuvable");
+    const clientId = await verifyPortalSession(body.session_token || req.headers.get("x-portal-session"));
+    if (!clientId) throw new Error("Session portail invalide ou expirée");
     const action = body.action || "list";
 
     if (action === "list") {

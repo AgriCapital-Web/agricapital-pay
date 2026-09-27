@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
 import SyncJournalDialog from "@/components/client/SyncJournalDialog";
 import AccessCodePanel from "@/components/client/AccessCodePanel";
 
@@ -368,9 +367,6 @@ const ClientDashboard = ({
           <span className="flex-1 text-left">{daProgress.activationGratuiteDisponible ? "Activer ma plantation (Paiement initial offert)" : "Effectuer un paiement"}</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
-
-        {/* Suivi temps réel des transactions */}
-        <div className="lg:col-span-12"><TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} /></div>
 
         {/* Navigation + Summary unifiés (7 blocs sur desktop) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2 lg:gap-3 lg:col-span-12">

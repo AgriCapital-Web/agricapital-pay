@@ -22,7 +22,8 @@ export interface OfferPricingSource {
   formule_code?: string | null;
   formule_nom?: string | null;
   montant_pi_par_ha?: number | null;
-  montant_pi_par_ha?: number | null;
+  paiement_signature_par_ha?: number | null;
+  paiement_apres_trouaison_par_ha?: number | null;
   contribution_mensuelle_par_ha?: number | null;
   montant_total_par_ha?: number | null;
   montant_cash_par_ha?: number | null;
@@ -65,8 +66,13 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const resolveInitial = (offre?: OfferPricingSource | null) => {
-  const v = offre?.montant_pi_par_ha ?? offre?.montant_pi_par_ha;
-  return v === null || v === undefined ? 0 : toNumber(v);
+  const signature = toNumber(offre?.paiement_signature_par_ha);
+  if (signature > 0) return signature;
+  const trancheInitial = Array.isArray(offre?.tranches_paiement)
+    ? toNumber((offre.tranches_paiement as any[]).find((t: any) => t?.type === "paiement_initial")?.montant)
+    : 0;
+  if (trancheInitial > 0) return trancheInitial;
+  return toNumber(offre?.montant_pi_par_ha);
 };
 
 type Tranche = {

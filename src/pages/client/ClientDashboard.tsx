@@ -231,7 +231,7 @@ const ClientDashboard = ({
               </div>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="bg-muted/40 rounded-xl p-2 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase">Dépôt initial / ha</p>
+                  <p className="text-[9px] text-muted-foreground uppercase">Paiement initial / ha</p>
                   <p className="text-sm font-black text-gold-dark">{fmt(currentRate.schedule.depot_initial)}</p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-2 text-center">

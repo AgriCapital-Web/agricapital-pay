@@ -89,7 +89,9 @@ serve(async (req) => {
     // Le montant est recalculé côté serveur depuis la vue v_prix_effectif_offres
     // (prix CRM + promotions). L'activation n'est possible que si le DI effectif est 0.
     if (action === "activate_free") {
+      const portalClientId = await resolvePortalClient(supabase, body.session_token);
       const { client_id, plantation_id, reference } = body;
+      if (client_id !== portalClientId) throw new Error("Client non autorisé");
       if (!client_id || !plantation_id) throw new Error("client_id et plantation_id requis");
 
       const { data: souscripteur } = await supabase

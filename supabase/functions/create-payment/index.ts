@@ -10,22 +10,24 @@ const phoneMatches = (a: unknown, b: unknown) => {
   const na = normalizePhone(a), nb = normalizePhone(b);
   return !!na && na === nb;
 };
-const verifyPortalSession = async (token: unknown): Promise<string | null> => {
-  if (typeof token !== "string" || !token.includes(".")) return null;
-  const [payload, sig] = token.split(".");
-  const rawSecret = Deno.env.get("PORTAL_SESSION_SECRET") || Deno.env.get("SUPABASE_SECRET_KEYS") || "";
-  const secret = rawSecret.trim().startsWith("{") ? (JSON.parse(rawSecret).default || "") : rawSecret;
-  if (!payload || !sig || !secret) return null;
-  try {
-    const pad = payload.length % 4 ? "=".repeat(4 - (payload.length % 4)) : "";
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/") + pad);
-    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-    const signature = Uint8Array.from(atob(sig.replace(/-/g, "+").replace(/_/g, "/") + (sig.length % 4 ? "=".repeat(4 - sig.length % 4) : "")), c => c.charCodeAt(0));
-    if (!(await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(payload)))) return null;
-    const data = JSON.parse(decoded);
-    return data?.p && typeof data.exp === "number" && data.exp * 1000 > Date.now() ? String(data.p) : null;
-  } catch { return null; }
-};
+async function verifyPortalSession(token: unknown): Promise<string | null> {
+  if (typeof token !== "string" || token.length < 40) return null;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const tokenHash = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data, error } = await supabase.from("client_portal_sessions")
+    .select("id, client_id, expires_at")
+    .eq("token_hash", tokenHash)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  if (error || !data) return null;
+  await supabase.from("client_portal_sessions").update({
+    last_seen_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+  }).eq("id", data.id);
+  return data.client_id as string;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,20 +109,12 @@ serve(async (req) => {
     // client portal has no Supabase JWT. Every action therefore requires a valid
     // portal session token issued by `send-otp` after OTP verification, and the
     // session phone must own the client/payment being acted on.
-    const sessionPhone = await verifyPortalSession(
-      req.headers.get("x-portal-session") || body.portal_token,
+    const sessionClientId = await verifyPortalSession(
+      req.headers.get("x-portal-session") || body.session_token,
     );
-    if (!sessionPhone) return unauthorized();
+    if (!sessionClientId) return unauthorized();
 
-    const assertOwnsClient = async (clientId: string) => {
-      const { data: owner } = await supabase
-        .from("clients")
-        .select("telephone")
-        .eq("id", clientId)
-        .maybeSingle();
-      if (!owner) throw new Error("Client introuvable");
-      return phoneMatches(owner.telephone, sessionPhone);
-    };
+    const assertOwnsClient = async (clientId: string) => clientId === sessionClientId;
 
 
 

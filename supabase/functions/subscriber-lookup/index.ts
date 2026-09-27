@@ -49,7 +49,7 @@ serve(async (req) => {
     if (!client) throw new Error("Compte client non actif");
 
     const [pRes, payRes, promoRes, commercialRes] = await Promise.all([
-      supabase.from("plantations").select("id,id_unique,nom_plantation,superficie_ha,superficie_activee,date_activation,statut,statut_global,phase_actuelle,derniere_visite,prochaine_visite,district_id,region_id,departement_id,sous_prefecture_id,villages_id,created_at").eq("client_id", clientId).order("created_at", { ascending: false }),
+      supabase.from("plantations").select("id,id_unique,nom_plantation,superficie_ha,superficie_activee,date_activation,statut,statut_global,phase_actuelle,derniere_visite,prochaine_visite,district_id,region_id,departement_id,sous_prefecture_id,village,village_nom,chef_village_nom,chef_village_telephone,created_at").eq("client_id", clientId).order("created_at", { ascending: false }),
       supabase.from("paiements").select("id,reference,type_paiement,statut,montant,montant_theorique,montant_paye,mode_paiement,date_paiement,date_echeance,numero_echeance,annee,phase,est_paiement_initial,est_depot_initial,created_at,metadata").eq("client_id", clientId).order("created_at", { ascending: false }).limit(200),
       supabase.from("promotions").select("id,nom,code,pourcentage_reduction,montant_fixe_reduction,date_debut,date_fin,cible,active,applique_toutes_offres,offre_ids").eq("active", true).lte("date_debut", new Date().toISOString()).gte("date_fin", new Date().toISOString()).order("created_at", { ascending: false }).limit(20),
       client.created_by ? supabase.from("profiles").select("nom_complet,telephone,email,photo_url").eq("user_id", client.created_by).maybeSingle() : Promise.resolve({ data: null }),

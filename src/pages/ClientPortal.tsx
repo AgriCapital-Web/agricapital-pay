@@ -154,6 +154,7 @@ const ClientPortal = () => {
           paiements={paiements}
           syncStatus={status}
           lastSync={lastSync}
+          sessionToken={sessionToken}
 
           onPayment={(opts?: PaymentOptions) => {
             setPaymentOptions(opts || {});

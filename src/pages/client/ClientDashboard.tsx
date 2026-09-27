@@ -287,17 +287,17 @@ const ClientDashboard = ({
           </Card>
         )}
 
-        {/* Dépôt Initial offert (0 F via promotion CRM) */}
+        {/* Paiement Initial offert (0 F via promotion CRM) */}
         {daProgress.diOffert && (
           <Card className="card-brand-subtle rounded-2xl shadow-md border-gold/40 lg:col-span-4">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="h-8 w-8 rounded-xl bg-gold/15 flex items-center justify-center"><CheckCircle className="h-4 w-4 text-gold-dark" /></div>
-                <span className="text-sm font-semibold">Dépôt Initial</span>
+                <span className="text-sm font-semibold">Paiement Initial</span>
                 <Badge variant="outline" className="ml-auto border-gold/40 bg-gold/10 text-gold-dark text-[10px]">Offert · 0 F</Badge>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Votre Dépôt Initial est à <span className="font-bold text-primary">0 F</span> grâce à la promotion en cours côté AgriCapital. Aucun paiement n'est requis pour démarrer.
+                Votre Paiement Initial est à <span className="font-bold text-primary">0 F</span> grâce à la promotion en cours côté AgriCapital. Aucun paiement n'est requis pour démarrer.
               </p>
               {daProgress.activationGratuiteDisponible ? (
                 <Button onClick={() => onPayment()} className="w-full h-11 rounded-xl btn-brand text-sm font-bold gap-2">
@@ -310,14 +310,14 @@ const ClientDashboard = ({
           </Card>
         )}
 
-        {/* Dépôt Initial Progress */}
+        {/* Paiement Initial Progress */}
         {daProgress.totalDA > 0 && (
           <Card className="card-brand-subtle rounded-2xl shadow-md lg:col-span-4">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center"><Target className="h-4 w-4 text-primary" /></div>
-                  <span className="text-sm font-semibold">Dépôt Initial</span>
+                  <span className="text-sm font-semibold">Paiement Initial</span>
                 </div>
                 <span className="text-lg font-bold text-primary">{daProgress.pct}%</span>
               </div>
@@ -364,7 +364,7 @@ const ClientDashboard = ({
         {/* CTA Paiement */}
         <Button onClick={() => onPayment()} className="w-full h-14 lg:h-16 text-base font-bold gap-3 shadow-xl rounded-2xl btn-brand lg:col-span-6">
           <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">{daProgress.activationGratuiteDisponible ? <Zap className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}</div>
-          <span className="flex-1 text-left">{daProgress.activationGratuiteDisponible ? "Activer ma plantation (DI offert)" : "Effectuer un paiement"}</span>
+          <span className="flex-1 text-left">{daProgress.activationGratuiteDisponible ? "Activer ma plantation (Paiement initial offert)" : "Effectuer un paiement"}</span>
           <ArrowRight className="h-5 w-5" />
         </Button>
 
@@ -392,7 +392,7 @@ const ClientDashboard = ({
             </Card>
           ))}
           {[
-            { icon: CheckCircle, label: "DI versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
+            { icon: CheckCircle, label: "Paiement initial versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
             { icon: CreditCard, label: "Mensualités", value: fmt(totalRedevances), color: "text-gold-dark" },
             { icon: TrendingUp, label: "Validés", value: String(paiements.filter((p: any) => p.statut === 'valide').length), color: "text-primary" },
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-gold-dark" }

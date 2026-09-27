@@ -1,374 +1,69 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-portal-session" };
+const normalizePhone = (v: unknown) => String(v ?? "").replace(/\D/g, "").replace(/^00/, "").replace(/^225(?=\d{8,})/, "").replace(/^0+/, "");
+const samePhone = (a: unknown, b: unknown) => { const x = normalizePhone(a), y = normalizePhone(b); return !!x && x === y; };
 
-// === SECURITY: Input validation ===
-function sanitizePhone(input: string): string {
-  if (typeof input !== 'string') throw new Error("Format invalide");
-  const cleaned = input.replace(/\D/g, '');
-  if (cleaned.length < 8 || cleaned.length > 15) throw new Error("Numéro de téléphone invalide");
-  return cleaned;
-}
-
-async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function normalizeOfferCode(code: string | null | undefined): string {
-  return (code || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]+/g, '').replace(/_PLUS/g, '+').replace(/PLUS/g, '+');
-}
-
-function normalizeTechnicalLabel(value: string | null | undefined): string {
-  return (value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-function technicalStepFromTicket(ticket: any) {
-  const label = normalizeTechnicalLabel(`${ticket?.titre || ''} ${ticket?.description || ''}`);
-  const aliases: Array<[string, string[]]> = [
-    ['defrichage', ['defrich']],
-    ['piquetage', ['piquet']],
-    ['trouaison', ['trouaison', 'trou']],
-    ['planting', ['planting', 'mise en terre', 'plantation']],
-    ['remplacement', ['remplacement', 'manquant']],
-    ['entretien', ['entretien', 'desherbage']],
-    ['fertilisation', ['fertilis', 'engrais']],
-    ['mise_production', ['mise en production', 'production']],
-    ['remise', ['remise au client', 'remise']],
-  ];
-  const match = aliases.find(([, words]) => words.some((word) => label.includes(word)));
-  if (!match) return null;
-  const status = normalizeTechnicalLabel(ticket?.statut);
-  return {
-    key: match[0],
-    type: match[0],
-    statut: ['resolu', 'termine', 'ferme', 'cloture'].includes(status) ? 'termine' : ['en cours', 'en_cours', 'assigne'].includes(status) ? 'en_cours' : 'pending',
-    date_realisation: ticket?.date_resolution || ticket?.updated_at || null,
-    commentaire: ticket?.description || null,
-  };
-}
-
-function getProgressiveAmount(offre: any, startDayOffset: number, daysCount: number, hectares: number): number {
-  const tranches = Array.isArray(offre?.tranches_paiement) ? offre.tranches_paiement : [];
-  const schedule = tranches
-    .map((t: any) => ({ mois: Number(t?.mois || 0), mensuel: Number(t?.mensualite_par_ha || 0) }))
-    .filter((t: any) => t.mois > 0 && t.mensuel > 0);
-  if (schedule.length === 0) {
-    return (Number(offre?.contribution_mensuelle_par_ha || 0) / 30) * daysCount * hectares;
-  }
-  let cursor = Math.max(0, Math.floor(startDayOffset || 0));
-  let remaining = Math.max(0, Math.floor(daysCount || 0));
-  let total = 0;
-  for (const tranche of schedule) {
-    const trancheDays = tranche.mois * 30;
-    if (cursor >= trancheDays) { cursor -= trancheDays; continue; }
-    const days = Math.min(remaining, trancheDays - cursor);
-    total += (tranche.mensuel / 30) * days * hectares;
-    remaining -= days;
-    cursor = 0;
-    if (remaining <= 0) break;
-  }
-  return total;
-}
-
-// === SECURITY: Rate limiting ===
-async function checkRateLimit(supabase: any, identifier: string, maxAttempts = 15, windowMinutes = 15): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
-  
-  // Check if blocked
-  const { data: blocked } = await supabase
-    .from('rate_limits')
-    .select('blocked_until')
-    .eq('identifier', identifier)
-    .eq('action', 'login')
-    .gt('blocked_until', new Date().toISOString())
-    .maybeSingle();
-
-  if (blocked?.blocked_until) {
-    const retryAfter = Math.ceil((new Date(blocked.blocked_until).getTime() - Date.now()) / 1000);
-    return { allowed: false, retryAfter };
-  }
-
-  // Count recent attempts
-  const { count } = await supabase
-    .from('rate_limits')
-    .select('*', { count: 'exact', head: true })
-    .eq('identifier', identifier)
-    .eq('action', 'login')
-    .gt('first_attempt_at', windowStart);
-
-  if ((count || 0) >= maxAttempts) {
-    // Block for 30 minutes
-    await supabase.from('rate_limits').insert({
-      identifier,
-      action: 'login',
-      blocked_until: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-    });
-    return { allowed: false, retryAfter: 1800 };
-  }
-
-  // Record attempt
-  await supabase.from('rate_limits').insert({ identifier, action: 'login' });
-  return { allowed: true };
+async function verifyPortalSession(token: unknown): Promise<string | null> {
+  if (typeof token !== "string" || !token.includes(".")) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const payload = parts[0], sig = parts[1];
+  const raw = Deno.env.get("PORTAL_SESSION_SECRET") || Deno.env.get("SUPABASE_SECRET_KEYS") || "";
+  let secret = raw;
+  try { if (raw.trim().startsWith("{")) secret = JSON.parse(raw).default || ""; } catch { return null; }
+  if (!secret) return null;
+  try {
+    const pad = payload.length % 4 ? "=".repeat(4 - payload.length % 4) : "";
+    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/") + pad);
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const sigPad = sig.length % 4 ? "=".repeat(4 - sig.length % 4) : "";
+    const signature = Uint8Array.from(atob(sig.replace(/-/g, "+").replace(/_/g, "/") + sigPad), c => c.charCodeAt(0));
+    if (!(await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(payload)))) return null;
+    const data = JSON.parse(decoded);
+    return data?.p && typeof data.exp === "number" && data.exp * 1000 > Date.now() ? String(data.p) : null;
+  } catch { return null; }
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
-    
-    // === SECURITY: Validate input ===
-    if (!body || typeof body !== 'object') {
-      throw new Error("Corps de requête invalide");
-    }
-    
+    const token = req.headers.get("x-portal-session") || body.portal_token;
+    const sessionPhone = await verifyPortalSession(token);
+    if (!sessionPhone) throw new Error("Session portail invalide ou expirée");
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-    if (body.action === "logout" && typeof body.session_token === "string") {
-      const tokenHash = await sha256(body.session_token);
-      await supabase.from("client_portal_sessions")
-        .update({ revoked_at: new Date().toISOString() })
-        .eq("token_hash", tokenHash)
-        .is("revoked_at", null);
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const sessionToken = typeof body.session_token === "string" ? body.session_token : "";
-    if (!sessionToken) throw new Error("Session portail requise");
-
-    const tokenHash = await sha256(sessionToken);
-    const { data: session, error: sessionError } = await supabase
-      .from("client_portal_sessions")
-      .select("id, client_id, expires_at")
-      .eq("token_hash", tokenHash)
-      .is("revoked_at", null)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-    if (sessionError) throw sessionError;
-    if (!session) throw new Error("Session expirée. Veuillez vous reconnecter.");
-
-    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
-    await supabase.from("client_portal_sessions").update({
-      last_seen_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
-    }).eq("id", session.id);
-
-    const { data: client, error: clientError } = await supabase
-      .from("clients")
-      .select(`
-        *,
-        offres (*),
-        regions (id, nom),
-        departements (id, nom),
-        districts (id, nom),
-        sous_prefectures (id, nom),
-        promotions:promotion_id (id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids)
-      `)
-      .eq("id", session.client_id)
-      .eq("compte_actif", true)
-      .eq("statut_global", "actif")
-      .maybeSingle();
+    const { data: candidates, error: clientError } = await supabase.from("clients").select("id").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
     if (clientError) throw clientError;
-
-    if (!client) {
-      throw new Error("Compte client introuvable ou non activé. Contactez AgriCapital.");
+    const clientMatch = (candidates || []).find((x: any) => x.telephone ? samePhone(x.telephone, sessionPhone) : true);
+    let clientId = clientMatch?.id;
+    if (!clientId) {
+      const { data: clients } = await supabase.from("clients").select("id,telephone").ilike("telephone", "%" + sessionPhone.slice(-8) + "%").limit(50);
+      clientId = (clients || []).find((x: any) => samePhone(x.telephone, sessionPhone))?.id;
     }
+    if (!clientId) throw new Error("Compte client introuvable");
 
-    // Re-read effective prices on every lookup. The current CRM DA field is the
-    // source of truth and zero is a valid promotional price.
+    const { data: client, error } = await supabase.from("clients").select("*, offres(*), regions(id,nom), departements(id,nom), districts(id,nom), sous_prefectures(id,nom)").eq("id", clientId).eq("compte_actif", true).eq("statut_global", "actif").maybeSingle();
+    if (error) throw error;
+    if (!client) throw new Error("Compte client non actif");
 
-    if (client.offre_id && client.offres) {
-      client.offres._price_source = 'offres (champs CRM)';
-      const { data: effectivePrice } = await supabase
-        .from('v_prix_effectif_offres')
-        .select('di_base, di_effectif, total_effectif')
-        .eq('offre_id', client.offre_id)
-        .maybeSingle();
-      if (effectivePrice) {
-        const effectiveDi = Number(effectivePrice.di_effectif ?? effectivePrice.di_base ?? 0);
-        client.offres.montant_da_par_ha = effectiveDi;
-        client.offres.montant_depot_initial_par_ha = effectiveDi;
-        client.offres.montant_total_par_ha = Number(effectivePrice.total_effectif ?? client.offres.montant_total_par_ha ?? 0);
-        client.offres._price_source = `v_prix_effectif_offres (DI ${effectiveDi} F/ha)`;
-      }
-    }
-
-
-    if (body.silent !== true) {
-      await supabase.from('historique_activites').insert({
-        table_name: 'clients',
-        record_id: client.id,
-        action: 'PORTAIL_LOGIN',
-        details: `Connexion au portail client: ${client.nom_complet || client.id_unique}`,
-        ip_address: clientIP,
-        user_agent: req.headers.get('user-agent') || 'unknown',
-      });
-    }
-
-    console.log("Found subscriber:", client.id, client.nom_complet);
-
-    // Fetch plantations
-    const { data: plantations } = await supabase
-      .from("plantations")
-      .select(`
-        *,
-        regions (id, nom),
-        departements (id, nom),
-        districts (id, nom),
-        sous_prefectures (id, nom)
-      `)
-      .eq("client_id", client.id)
-      .order("created_at", { ascending: false });
-
-    // Fetch paiements
-    const plantationIds = (plantations || []).map((p: any) => p.id);
-    let paiements: any[] = [];
-    
-    if (plantationIds.length > 0) {
-      const { data: paiementsData } = await supabase
-        .from("paiements")
-        .select("*")
-        .or(`client_id.eq.${client.id},plantation_id.in.(${plantationIds.join(',')})`)
-        .order("created_at", { ascending: false });
-      
-      paiements = paiementsData || [];
-    } else {
-      const { data: paiementsData } = await supabase
-        .from("paiements")
-        .select("*")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false });
-      
-      paiements = paiementsData || [];
-    }
-
-    // Technical follow-up is re-read on every synchronization so the portal
-    // reflects CRM interventions/tickets without retaining a stale copy.
-    let technicalTickets: any[] = [];
-    if (plantationIds.length > 0) {
-      const { data: ticketRows } = await supabase
-        .from('tickets_techniques')
-        .select('id, titre, description, plantation_id, priorite, statut, date_resolution, created_at, updated_at')
-        .in('plantation_id', plantationIds)
-        .order('updated_at', { ascending: false });
-      technicalTickets = ticketRows || [];
-    }
-
-    // Calculate totals
-    const totalDAVerse = paiements
-      .filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
-      .reduce((sum: number, p: any) => sum + (p.montant_paye || p.montant || 0), 0);
-
-    const totalRedevances = paiements
-      .filter((p: any) => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
-      .reduce((sum: number, p: any) => sum + (p.montant_paye || p.montant || 0), 0);
-
-    client.total_da_verse = totalDAVerse;
-    client.total_redevances = totalRedevances;
-    client.total_paiements = paiements.filter((p: any) => p.statut === 'valide').length;
-    client.total_paye = totalDAVerse + totalRedevances;
-
-    let totalArrieres = 0;
-    const plantationsEnriched = (plantations || []).map((p: any) => {
-      const tickets = technicalTickets.filter((ticket: any) => ticket.plantation_id === p.id);
-      const etapes = tickets.map(technicalStepFromTicket).filter(Boolean);
-      const technicalData = {
-        tickets_techniques: tickets,
-        etapes,
-        derniere_intervention: tickets[0]?.updated_at || p.derniere_visite || null,
-        prochaine_intervention: p.prochaine_visite || null,
-      };
-      if (p.date_activation && (p.superficie_activee || 0) > 0) {
-        const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
-        const attendu = getProgressiveAmount(client.offres, 0, jours, p.superficie_activee || 0);
-        const paye = paiements
-          .filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')
-          .reduce((sum: number, pay: any) => sum + (pay.montant_paye || pay.montant || 0), 0);
-        
-        const arriere = Math.max(0, attendu - paye);
-        totalArrieres += arriere;
-        const tarifMoyenJour = jours > 0 ? attendu / jours : 0;
-        return { ...p, ...technicalData, _arriere: arriere, _jours_retard: arriere > 0 && tarifMoyenJour > 0 ? Math.floor(arriere / tarifMoyenJour) : 0 };
-      }
-      return { ...p, ...technicalData, _arriere: 0, _jours_retard: 0 };
-    });
-
-    client.total_arrieres = totalArrieres;
-
-    // === Fetch assigned commercial (créateur du dossier) ===
-    if (client.created_by) {
-      const { data: commercial } = await supabase
-        .from('profiles')
-        .select('nom_complet, telephone, email, photo_url')
-        .eq('user_id', client.created_by)
-        .maybeSingle();
-      if (commercial) {
-        client.commercial = {
-          nom: commercial.nom_complet,
-          telephone: commercial.telephone,
-          email: commercial.email,
-          photo: commercial.photo_url,
-          fonction: 'Conseiller AgriCapital',
-        };
-      }
-    }
-
-    // === Fetch active and applicable promotion (client-specific first, then current CRM promotion) ===
-    if (!client.promotions) {
-      const nowIso = new Date().toISOString();
-      const { data: promos } = await supabase
-        .from('promotions')
-        .select('id, nom, code, pourcentage_reduction, montant_fixe_reduction, date_debut, date_fin, cible, active, applique_toutes_offres, offre_ids')
-        .eq('active', true)
-        .lte('date_debut', nowIso)
-        .gte('date_fin', nowIso)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      const offerId = client.offre_id;
-      const offerCode = normalizeOfferCode(client.offres?.code);
-      const activePromo = (promos || []).find((promo: any) => {
-        if (promo.applique_toutes_offres) return true;
-        const offerIds = Array.isArray(promo.offre_ids) ? promo.offre_ids : [];
-        return offerIds.includes(offerId) || offerIds.map((v: any) => normalizeOfferCode(String(v))).includes(offerCode);
-      });
-      if (activePromo) client.promotion_active = activePromo;
-    } else {
-      client.promotion_active = client.promotions;
-    }
-
-    // === Sanitize sensitive fields before returning ===
-    delete client.fichier_piece_url;
-    delete client.fichier_piece_recto_url;
-    delete client.fichier_piece_verso_url;
-    delete client.numero_piece;
-    delete client.user_id;
-    delete client.created_by;
-    delete client.updated_by;
-    delete client.numero_compte;
-
-    console.log(`Subscriber data: ${plantationsEnriched.length} plantations, ${paiements.length} paiements, DA=${totalDAVerse}, Arriérés=${totalArrieres}`);
-
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        client,
-        plantations: plantationsEnriched,
-        paiements
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
-  } catch (error: any) {
-    console.error("Subscriber lookup error:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message || "Erreur serveur" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    const [pRes, payRes, promoRes, commercialRes] = await Promise.all([
+      supabase.from("plantations").select("id,id_unique,nom_plantation,superficie_ha,superficie_activee,date_activation,statut,statut_global,phase_actuelle,derniere_visite,prochaine_visite,district_id,region_id,departement_id,sous_prefecture_id,villages_id,created_at").eq("client_id", clientId).order("created_at", { ascending: false }),
+      supabase.from("paiements").select("id,reference,type_paiement,statut,montant,montant_theorique,montant_paye,mode_paiement,date_paiement,date_echeance,numero_echeance,annee,phase,est_paiement_initial,est_depot_initial,created_at,metadata").eq("client_id", clientId).order("created_at", { ascending: false }).limit(200),
+      supabase.from("promotions").select("id,nom,code,pourcentage_reduction,montant_fixe_reduction,date_debut,date_fin,cible,active,applique_toutes_offres,offre_ids").eq("active", true).lte("date_debut", new Date().toISOString()).gte("date_fin", new Date().toISOString()).order("created_at", { ascending: false }).limit(20),
+      client.created_by ? supabase.from("profiles").select("nom_complet,telephone,email,photo_url").eq("user_id", client.created_by).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    const plantations = pRes.data || [];
+    const paiements = payRes.data || [];
+    const promotion = (promoRes.data || []).find((p: any) => p.applique_toutes_offres || (Array.isArray(p.offre_ids) && p.offre_ids.includes(client.offre_id))) || null;
+    const totalInitial = paiements.filter((p: any) => (p.est_paiement_initial || p.est_depot_initial || p.type_paiement === "DA") && p.statut === "valide").reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
+    const totalRedevances = paiements.filter((p: any) => p.type_paiement === "REDEVANCE" && p.statut === "valide").reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
+    const safe: any = { ...client, promotion_active: promotion, commercial: commercialRes.data ? { ...commercialRes.data, fonction: "Conseiller AgriCapital" } : null, total_initial_verse: totalInitial, total_redevances: totalRedevances, total_paye: totalInitial + totalRedevances };
+    delete safe.user_id; delete safe.created_by; delete safe.updated_by; delete safe.numero_piece; delete safe.fichier_piece_url; delete safe.fichier_piece_recto_url; delete safe.fichier_piece_verso_url; delete safe.numero_compte;
+    if (body.action === "logout") { return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+    return new Response(JSON.stringify({ success: true, client: safe, souscripteur: safe, plantations, paiements }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ success: false, error: e?.message || "Erreur serveur" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

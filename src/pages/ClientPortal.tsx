@@ -54,7 +54,7 @@ const ClientPortal = () => {
         setSessionToken(savedSession);
         setView('dashboard');
       } catch (e) {
-        sessionStorage.removeItem('agri_souscripteur');
+        sessionStorage.removeItem('agri_client');
       }
     }
   }, []);

@@ -23,6 +23,7 @@ const ClientPortal = () => {
   const [searchParams] = useSearchParams();
   const [view, setView] = useState<View>('home');
   const [souscripteur, setSouscripteur] = useState<any>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [plantations, setPlantations] = useState<any[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
   const [paymentOptions, setPaymentOptions] = useState<PaymentOptions>({});
@@ -40,18 +41,20 @@ const ClientPortal = () => {
 
   // Restore session from sessionStorage
   useEffect(() => {
-    const savedSouscripteur = sessionStorage.getItem('agri_souscripteur');
+    const savedSouscripteur = sessionStorage.getItem('agri_client');
+    const savedSession = sessionStorage.getItem('agri_portal_session');
     const savedPlantations = sessionStorage.getItem('agri_plantations');
     const savedPaiements = sessionStorage.getItem('agri_paiements');
     
-    if (savedSouscripteur && view === 'home') {
+    if (savedSouscripteur && savedSession && view === 'home') {
       try {
         setSouscripteur(JSON.parse(savedSouscripteur));
         setPlantations(JSON.parse(savedPlantations || '[]'));
         setPaiements(JSON.parse(savedPaiements || '[]'));
+        setSessionToken(savedSession);
         setView('dashboard');
       } catch (e) {
-        sessionStorage.removeItem('agri_souscripteur');
+        sessionStorage.removeItem('agri_client');
       }
     }
   }, []);
@@ -93,7 +96,7 @@ const ClientPortal = () => {
   // Garantit que tout changement CRM (prix, offre, promo, plantation, paiement)
   // est répercuté sur le portail sans action manuelle du client.
   const { status, lastSync } = useAutoRefresh(
-    souscripteur?.telephone,
+    sessionToken,
     (s, plts, pays) => {
       setSouscripteur(s);
       setPlantations(plts);
@@ -102,20 +105,27 @@ const ClientPortal = () => {
   );
 
 
-  const handleLogin = (sous: any, plants: any[], paies: any[]) => {
+  const handleLogin = (sous: any, plants: any[], paies: any[], token: string) => {
     setSouscripteur(sous);
     setPlantations(plants);
     setPaiements(paies);
+    setSessionToken(token);
+    sessionStorage.setItem('agri_client', JSON.stringify(sous));
+    sessionStorage.setItem('agri_plantations', JSON.stringify(plants));
+    sessionStorage.setItem('agri_paiements', JSON.stringify(paies));
+    sessionStorage.setItem('agri_portal_session', token);
     setView('dashboard');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setSouscripteur(null);
     setPlantations([]);
     setPaiements([]);
-    sessionStorage.removeItem('agri_souscripteur');
+    setSessionToken(null);
+    sessionStorage.removeItem('agri_client');
     sessionStorage.removeItem('agri_plantations');
     sessionStorage.removeItem('agri_paiements');
+    sessionStorage.removeItem('agri_portal_session');
     setView('home');
   };
 
@@ -144,6 +154,7 @@ const ClientPortal = () => {
           paiements={paiements}
           syncStatus={status}
           lastSync={lastSync}
+          sessionToken={sessionToken}
 
           onPayment={(opts?: PaymentOptions) => {
             setPaymentOptions(opts || {});
@@ -161,6 +172,7 @@ const ClientPortal = () => {
         <ClientPlantationHub
           souscripteur={souscripteur}
           plantations={plantations}
+          sessionToken={sessionToken}
           onBack={() => setView('dashboard')}
         />
       )}
@@ -170,6 +182,7 @@ const ClientPortal = () => {
           souscripteur={souscripteur}
           plantations={plantations}
           paiements={paiements}
+          sessionToken={sessionToken}
           onBack={() => setView('dashboard')}
           prefillAmount={paymentOptions.prefillAmount}
           prefillType={paymentOptions.prefillType}

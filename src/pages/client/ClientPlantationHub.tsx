@@ -19,10 +19,11 @@ import { RevenusTab } from "@/components/plantation/tabs/RevenusTab";
 interface Props {
   souscripteur: any;
   plantations: any[];
+  sessionToken?: string | null;
   onBack: () => void;
 }
 
-const ClientPlantationHub = ({ souscripteur, plantations, onBack }: Props) => {
+const ClientPlantationHub = ({ souscripteur, plantations, sessionToken, onBack }: Props) => {
   const [selectedId, setSelectedId] = useState<string>(plantations[plantations.length - 1]?.id || plantations[0]?.id);
   const plantation = useMemo(() => plantations.find((p) => p.id === selectedId) || plantations[0], [plantations, selectedId]);
   const isPlus = (souscripteur?.offres?.code || "").endsWith("+");
@@ -85,7 +86,7 @@ const ClientPlantationHub = ({ souscripteur, plantations, onBack }: Props) => {
           <TabsContent value="documents"><DocumentsTab plantation={plantation} souscripteur={souscripteur} /></TabsContent>
           <TabsContent value="carte"><MapTab plantation={plantation} /></TabsContent>
           <TabsContent value="rapports"><RapportsTab plantation={plantation} /></TabsContent>
-          <TabsContent value="messagerie"><MessagerieTab souscripteur={souscripteur} /></TabsContent>
+          <TabsContent value="messagerie"><MessagerieTab souscripteur={souscripteur} sessionToken={sessionToken} /></TabsContent>
           {isPlus && <TabsContent value="production"><ProductionTab plantation={plantation} /></TabsContent>}
           {isPlus && <TabsContent value="intrants"><IntrantsTab plantation={plantation} /></TabsContent>}
           {isPlus && <TabsContent value="revenus"><RevenusTab plantation={plantation} /></TabsContent>}

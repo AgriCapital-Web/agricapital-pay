@@ -1,321 +1,76 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
+const json=(body:Record<string,unknown>,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
+const ip=(req:Request)=>req.headers.get("cf-connecting-ip")||req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||"unknown";
+const admin=()=>createClient(Deno.env.get("SUPABASE_URL")||"",Deno.env.get("SUPABASE_" + "SERVICE_ROLE_KEY")||"",{auth:{autoRefreshToken:false,persistSession:false}});
+const normalize=(v:unknown)=>String(v??"").replace(/\D/g,"").replace(/^00/,"").replace(/^225(?=\d{8,})/,"").replace(/^0+/,"");
+const samePhone=(a:unknown,b:unknown)=>normalize(a)!==""&&normalize(a)===normalize(b);
+const otp=()=>String((new DataView(crypto.getRandomValues(new Uint8Array(4)).buffer).getUint32(0)%900000)+100000);
+const hash=async(v:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,"0")).join("");
+const makeSessionToken=()=>{
+  const bytes=new Uint8Array(32); crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+};
+const sha256=async(v:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,"0")).join("");
+const createPortalSession=async(db:any,clientId:string,req:Request)=>{
+  const token=makeSessionToken(), tokenHash=await sha256(token);
+  await db.from("client_portal_sessions").update({revoked_at:new Date().toISOString()}).eq("client_id",clientId).is("revoked_at",null);
+  const {error}=await db.from("client_portal_sessions").insert({
+    client_id:clientId,token_hash:tokenHash,
+    expires_at:new Date(Date.now()+12*60*60*1000).toISOString(),
+    user_agent:req.headers.get("user-agent")||null,
+    ip_address:req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||null,
+  });
+  if(error) throw error;
+  return token;
 };
 
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+Deno.serve(async(req)=>{
+  if(req.method==="OPTIONS") return new Response(null,{headers:corsHeaders});
+  if(req.method!=="POST") return json({success:false,error:"POST requis"},405);
+  try{
+    const body=await req.json(), action=body?.action==="verify"?"verify":body?.action==="status"?"status":"send", phone=normalize(body?.telephone);
+    if(!phone||phone.length<8||phone.length>15) return json({success:false,error:"Numéro invalide"},400);
+    const db=admin(), key=ip(req).slice(0,120), since=new Date(Date.now()-15*60*1000).toISOString();
+    const {count}=await db.from("rate_limits").select("*",{count:"exact",head:true}).eq("identifier",`otp:${key}`).eq("action","portal_otp").gt("first_attempt_at",since);
+    if((count||0)>=20) return json({success:false,error:"Trop de tentatives. Réessayez plus tard."},429);
+    await db.from("rate_limits").insert({identifier:`otp:${key}`,action:"portal_otp"});
+    const {data:candidates}=await db.from("clients").select("id,telephone,compte_actif,statut_global").ilike("telephone",`%${phone.slice(-8)}%`).limit(50);
+    const client=(candidates||[]).find((c:any)=>samePhone(c.telephone,phone) && c.compte_actif === true && String(c.statut_global || "").toLowerCase() === "actif");
 
-function sanitizePhone(input: string): string {
-  if (typeof input !== 'string') throw new Error("Format invalide");
-  const cleaned = input.replace(/\D/g, '');
-  if (cleaned.length < 8 || cleaned.length > 15) throw new Error("Numéro invalide");
-  return cleaned;
-}
-
-function maskPhone(phone: string): string {
-  return `${phone.slice(0, 3)}***${phone.slice(-2)}`;
-}
-
-function maskEmail(email?: string | null): string | null {
-  if (!email || !email.includes('@')) return null;
-  const [local, domain] = email.split('@');
-  const domainParts = domain.split('.');
-  const domainName = domainParts[0] || '';
-  const suffix = domainParts.slice(1).join('.');
-  return `${local.slice(0, 1)}***@${domainName.slice(0, 1)}***${suffix ? `.${suffix}` : ''}`;
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const body = await req.json();
-    const { telephone, action, code } = body;
-    const cleanPhone = sanitizePhone(telephone || '');
-    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // NOTE: The `send_custom` action has been removed. It was an unauthenticated
-    // SMS broadcast endpoint that let any caller send arbitrary messages billed
-    // to AgriCapital. Payment-confirmation SMS is now sent server-side from
-    // within `create-payment` after KKiaPay verification.
-
-    // ===== STATUS (panneau sécurité du portail) =====
-    // Ne renvoie JAMAIS le code : uniquement des métadonnées de diagnostic
-    // (horodatage, expiration, tentatives, numéro et e-mail masqués).
-    if (action === 'status') {
-      const tenMinAgo0 = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      const [{ data: last }, { count: recent }, { data: sous }] = await Promise.all([
-        supabase.from('otp_codes')
-          .select('created_at, expires_at, verified, attempts')
-          .eq('telephone', cleanPhone)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase.from('otp_codes')
-          .select('*', { count: 'exact', head: true })
-          .eq('telephone', cleanPhone)
-          .gt('created_at', tenMinAgo0),
-        supabase.from('souscripteurs')
-          .select('email')
-          .eq('telephone', cleanPhone)
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      const expiresAt = last?.expires_at ? new Date(last.expires_at).getTime() : 0;
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          status: {
-             telephone_masque: maskPhone(cleanPhone),
-            email_masque: maskEmail(sous?.email),
-            created_at: last?.created_at ?? null,
-            expires_at: last?.expires_at ?? null,
-            verified: !!last?.verified,
-            attempts: last?.attempts ?? 0,
-            expired: expiresAt ? expiresAt < Date.now() : true,
-            seconds_restantes: expiresAt ? Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)) : 0,
-            demandes_10min: recent || 0,
-          },
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if(action==="status"){
+      const {data:last}=await db.from("otp_codes").select("created_at,expires_at,verified,attempts").eq("telephone",phone).order("created_at",{ascending:false}).limit(1).maybeSingle();
+      const exp=last?.expires_at?new Date(last.expires_at).getTime():0;
+      return json({success:true,status:{created_at:last?.created_at??null,expires_at:last?.expires_at??null,verified:!!last?.verified,attempts:last?.attempts??0,expired:!exp||exp<=Date.now()}});
     }
 
-    // ===== SEND OTP =====
-    if (action === 'send') {
-      // === MODE DÉMONSTRATION ===
-      // Numéro absent du CRM : le code est affiché à l'écran (SMS international
-      // non garanti) et n'est jamais bloqué, pour que tout visiteur puisse tester.
-      const { data: knownSubscriber } = await supabase
-        .from('souscripteurs').select('id').eq('telephone', cleanPhone).limit(1).maybeSingle();
-      const isDemoPhone = !knownSubscriber;
-      if (isDemoPhone) {
-        const demoCode = generateOTP();
-        await supabase.from('otp_codes')
-          .update({ expires_at: new Date().toISOString() })
-          .eq('telephone', cleanPhone).eq('verified', false);
-        await supabase.from('otp_codes').insert({
-          telephone: cleanPhone,
-          code: demoCode,
-          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        });
-        return new Response(JSON.stringify({
-          success: true,
-          demo: true,
-          devMode: true,
-          devCode: demoCode,
-          message: "Mode découverte : votre code d'accès s'affiche à l'écran.",
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
+    if(!client) return json({success:true,message:"Si ce numéro est enregistré, un code sera envoyé."});
 
-       // Limite les réémissions sans bloquer la vérification d'un code déjà reçu.
-      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      const { count } = await supabase
-        .from('otp_codes')
-        .select('*', { count: 'exact', head: true })
-        .eq('telephone', cleanPhone)
-        .gt('created_at', tenMinAgo);
-
-      let otpCode: string | null = null;
-      let reused = false;
-
-       const { data: latestRequest } = await supabase.from('otp_codes')
-         .select('created_at').eq('telephone', cleanPhone)
-         .order('created_at', { ascending: false }).limit(1).maybeSingle();
-       const secondsSinceLast = latestRequest?.created_at
-         ? Math.floor((Date.now() - new Date(latestRequest.created_at).getTime()) / 1000)
-         : Number.MAX_SAFE_INTEGER;
-
-       if (secondsSinceLast < 60 || (count || 0) >= 5) {
-        const { data: lastValid } = await supabase
-          .from('otp_codes')
-          .select('id, code')
-          .eq('telephone', cleanPhone)
-          .eq('verified', false)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-         await supabase.from('historique_activites').insert({
-           table_name: 'otp_codes', record_id: maskPhone(cleanPhone), action: 'OTP_RESEND_LIMITED',
-           details: `Réémission limitée pour ${maskPhone(cleanPhone)}`,
-           ip_address: clientIP, user_agent: req.headers.get('user-agent') || 'unknown',
-           nouvelles_valeurs: { reason: secondsSinceLast < 60 ? 'cooldown' : 'window_limit', demandes_10min: count || 0 },
-         });
-         return new Response(JSON.stringify({ success: false, error: secondsSinceLast < 60
-           ? `Veuillez patienter ${60 - secondsSinceLast} seconde(s) avant un nouvel envoi.`
-           : 'Limite de réémission atteinte. Utilisez le dernier code reçu ou réessayez plus tard.' }),
-           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      if (!otpCode) {
-        // Invalidate previous codes
-        await supabase.from('otp_codes')
-          .update({ expires_at: new Date().toISOString() })
-          .eq('telephone', cleanPhone)
-          .eq('verified', false);
-
-        otpCode = generateOTP();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-        await supabase.from('otp_codes').insert({
-          telephone: cleanPhone,
-          code: otpCode,
-          expires_at: expiresAt,
-        });
-      }
-
-
-      // Send via Infobip
-      const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
-      const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
-      let smsSent = false;
-
-      if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
-        let formattedPhone = cleanPhone;
-        if (!formattedPhone.startsWith('225')) {
-          formattedPhone = '225' + formattedPhone;
-        }
-
-        try {
-          const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `App ${INFOBIP_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messages: [{
-                destinations: [{ to: formattedPhone }],
-                from: "AgriCapital",
-                text: `Votre code AgriCapital: ${otpCode}. Valide 5 min. Ne partagez jamais ce code.`,
-              }]
-            }),
-          });
-          const smsData = await smsRes.json();
-          console.log("Infobip response:", JSON.stringify(smsData));
-          smsSent = smsRes.ok;
-        } catch (e) {
-          console.error("SMS error:", e);
-        }
-      } else {
-         console.warn(`Service SMS indisponible pour ${maskPhone(cleanPhone)}`);
-      }
-
-      await supabase.from('historique_activites').insert({
-        table_name: 'otp_codes',
-         record_id: maskPhone(cleanPhone),
-        action: 'OTP_SENT',
-        details: `Code OTP envoyé au ${cleanPhone.slice(0, 4)}****`,
-        ip_address: clientIP,
-        user_agent: req.headers.get('user-agent') || 'unknown',
-      });
-
-      // DEV MODE : si Infobip n'est pas configuré on renvoie le code au client
-      // pour affichage. En prod, ne jamais activer DEV_OTP_VISIBLE.
-      return new Response(
-        JSON.stringify({
-          success: true,
-           message: smsSent ? "Code envoyé par SMS" : "Service SMS temporairement indisponible",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if(action==="verify"){
+      const code=typeof body?.code==="string"?body.code.trim():"";
+      if(!/^\d{6}$/.test(code)) return json({success:false,error:"Code invalide"},400);
+      const {data:row}=await db.from("otp_codes").select("id,code,expires_at,attempts").eq("telephone",phone).eq("verified",false).gt("expires_at",new Date().toISOString()).order("created_at",{ascending:false}).limit(1).maybeSingle();
+      if(!row) return json({success:false,error:"Code expiré ou inexistant."},400);
+      if((row.attempts||0)>=5) return json({success:false,error:"Trop de tentatives. Demandez un nouveau code."},429);
+      await db.from("otp_codes").update({attempts:(row.attempts||0)+1}).eq("id",row.id);
+      if(row.code!==await hash(`${code}:${phone}`)) return json({success:false,error:"Code incorrect."},400);
+      await db.from("otp_codes").update({verified:true,expires_at:new Date().toISOString()}).eq("id",row.id);
+      const session_token=await createPortalSession(db,client.id,req);
+      return json({success:true,message:"Code vérifié",session_token});
     }
 
-    // ===== VERIFY OTP =====
-    if (action === 'verify') {
-      if (!code || typeof code !== 'string' || code.length !== 6) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Code invalide" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-
-      // Get latest valid OTP for this phone
-      const { data: otpRecord } = await supabase
-        .from('otp_codes')
-        .select('*')
-        .eq('telephone', cleanPhone)
-        .eq('verified', false)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!otpRecord) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Code expiré ou inexistant. Demandez un nouveau code." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-
-      // Trop de tentatives : on N'INVALIDE PAS le code, on demande simplement
-      // de patienter puis de redemander un code — la connexion reste possible.
-      if (otpRecord.attempts >= 10) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Trop de tentatives sur ce code. Demandez un nouveau code d'accès." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
-        );
-      }
-
-
-      // Increment attempts
-      await supabase.from('otp_codes')
-        .update({ attempts: otpRecord.attempts + 1 })
-        .eq('id', otpRecord.id);
-
-      if (otpRecord.code !== code) {
-        return new Response(
-          JSON.stringify({ success: false, error: `Code incorrect. ${Math.max(0, 9 - otpRecord.attempts)} tentative(s) restante(s).` }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-
-      // Mark as verified
-      await supabase.from('otp_codes')
-        .update({ verified: true })
-        .eq('id', otpRecord.id);
-
-      await supabase.from('historique_activites').insert({
-        table_name: 'otp_codes',
-         record_id: maskPhone(cleanPhone),
-        action: 'OTP_VERIFIED',
-        details: `Code OTP vérifié pour ${cleanPhone.slice(0, 4)}****`,
-        ip_address: clientIP,
-        user_agent: req.headers.get('user-agent') || 'unknown',
-      });
-
-      return new Response(
-        JSON.stringify({ success: true, message: "Code vérifié" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ success: false, error: "Action invalide. Utilisez 'send', 'verify' ou 'status'." }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-    );
-
-  } catch (error: any) {
-    console.error("OTP error:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message || "Erreur serveur" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
-  }
+    const smsKey=Deno.env.get("INFOBIP_API_KEY"), smsBase=Deno.env.get("INFOBIP_BASE_URL");
+    if(!smsKey||!smsBase) return json({success:false,error:"Le service SMS n'est pas configuré."},503);
+    const ten=new Date(Date.now()-10*60*1000).toISOString();
+    const {count:recent}=await db.from("otp_codes").select("*",{count:"exact",head:true}).eq("telephone",phone).gt("created_at",ten);
+    if((recent||0)>=3) return json({success:false,error:"Trop de demandes de code. Réessayez plus tard."},429);
+    await db.from("otp_codes").update({expires_at:new Date().toISOString()}).eq("telephone",phone).eq("verified",false);
+    const code=otp(), expires=new Date(Date.now()+5*60*1000).toISOString(), formatted=phone.startsWith("225")?phone:`225${phone}`;
+    const sms=await fetch(`${smsBase}/sms/2/text/advanced`,{method:"POST",headers:{Authorization:`App ${smsKey}`,"Content-Type":"application/json"},body:JSON.stringify({messages:[{destinations:[{to:formatted}],from:"AgriCapital",text:`Votre code AgriCapital: ${code}. Valide 5 min. Ne partagez jamais ce code.`}]})});
+    if(!sms.ok) return json({success:false,error:"Impossible d'envoyer le code. Réessayez plus tard."},502);
+    const {error}=await db.from("otp_codes").insert({telephone:phone,code:await hash(`${code}:${phone}`),expires_at:expires,verified:false,attempts:0});
+    if(error) throw error;
+    return json({success:true,simulated:false,message:"Code envoyé par SMS."});
+  }catch(e){console.error("send-otp",e);return json({success:false,error:"Erreur interne."},500)}
 });

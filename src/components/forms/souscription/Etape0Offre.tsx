@@ -79,18 +79,18 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
     const offre = offres.find(o => o.id === formData.offre_id);
     if (!offre) return null;
     
-    let tarifDA = offre.montant_da_par_ha;
+    let tarifDA = offre.montant_pi_par_ha;
     
     // Appliquer la promotion si elle existe
     if (promotionActive) {
-      tarifDA = offre.montant_da_par_ha - (offre.montant_da_par_ha * promotionActive.pourcentage_reduction / 100);
+      tarifDA = offre.montant_pi_par_ha - (offre.montant_pi_par_ha * promotionActive.pourcentage_reduction / 100);
     }
     
     const total = tarifDA * Number(formData.superficie_prevue);
     
     return {
       tarifUnitaire: tarifDA,
-      tarifNormal: offre.montant_da_par_ha,
+      tarifNormal: offre.montant_pi_par_ha,
       total,
       superficie: Number(formData.superficie_prevue),
       promotionAppliquee: !!promotionActive,
@@ -164,13 +164,13 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                     </div>
                     
                     <div className="mt-auto space-y-2">
-                      {offre.montant_da_par_ha === 0 ? (
+                      {offre.montant_pi_par_ha === 0 ? (
                         <div className="flex items-baseline gap-1">
                           <span className="text-lg font-bold text-green-600">GRATUIT</span>
                         </div>
                       ) : (
                         <div className="flex items-baseline gap-1">
-                          <span className="text-lg font-bold">{formatMontant(offre.montant_da_par_ha)}F</span>
+                          <span className="text-lg font-bold">{formatMontant(offre.montant_pi_par_ha)}F</span>
                           <span className="text-xs text-muted-foreground">/ha</span>
                         </div>
                       )}

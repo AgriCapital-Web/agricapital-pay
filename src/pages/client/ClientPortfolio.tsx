@@ -21,7 +21,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
 
   const getStatutBadge = (statut: string) => {
     const configs: Record<string, { label: string; cls: string }> = {
-      'en_attente_da': { label: 'En attente DI', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
+      'en_attente_da': { label: 'En attente du Paiement initial', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
       'actif': { label: 'Actif', cls: 'bg-primary/10 text-primary border-primary/30' },
       'active': { label: 'Active', cls: 'bg-primary/10 text-primary border-primary/30' },
       'valide': { label: 'Validé', cls: 'bg-primary/10 text-primary border-primary/30' },
@@ -89,7 +89,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
             { icon: Sprout, label: "Plantations", value: stats.totalPlantations, color: "text-primary", bg: "bg-primary/10" },
             { icon: MapPin, label: "Hectares", value: `${stats.totalHectares} ha`, color: "text-gold-dark", bg: "bg-gold/10" },
             { icon: TrendingUp, label: "Total payé", value: fmt(stats.totalPaye), color: "text-primary", bg: "bg-primary/10" },
-            { icon: CreditCard, label: "DI versé", value: fmt(stats.totalDA), color: "text-gold-dark", bg: "bg-gold/10" },
+            { icon: CreditCard, label: "Paiement initial versé", value: fmt(stats.totalDA), color: "text-gold-dark", bg: "bg-gold/10" },
           ].map((s, i) => (
             <Card key={i} className="card-brand-subtle rounded-2xl shadow-sm bg-card">
               <CardContent className="p-3">
@@ -142,7 +142,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
               <Card className="card-brand-subtle rounded-2xl shadow-sm">
                 <CardContent className="p-4 space-y-3">
                   {[
-                    { label: "Dépôt Initial versé", value: fmt(stats.totalDA), color: "text-primary" },
+                    { label: "Paiement Initial versé", value: fmt(stats.totalDA), color: "text-primary" },
                     { label: "Total mensualités versées", value: fmt(stats.totalRedev), color: "text-gold-dark" },
                     { label: "Total payé", value: fmt(stats.totalPaye), color: "text-foreground" },
                     { label: "Paiements validés", value: String(paiements.filter(p => p.statut === 'valide').length), color: "text-primary" },

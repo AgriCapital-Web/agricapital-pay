@@ -38,6 +38,22 @@ async function verifyKkiapayTransaction(transactionId: string): Promise<
   }
 }
 
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function resolvePortalClient(supabase: any, token: string): Promise<string> {
+  if (!token || typeof token !== "string") throw new Error("Session portail requise");
+  const hash = await sha256(token);
+  const { data: session, error } = await supabase.from("client_portal_sessions")
+    .select("id, client_id").eq("token_hash", hash).is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString()).maybeSingle();
+  if (error) throw error;
+  if (!session) throw new Error("Session portail expirée");
+  return session.client_id;
+}
+
 async function sendConfirmationSms(phoneRaw: string | null | undefined, message: string) {
   if (!phoneRaw) return;
   const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
@@ -73,13 +89,13 @@ serve(async (req) => {
     // Le montant est recalculé côté serveur depuis la vue v_prix_effectif_offres
     // (prix CRM + promotions). L'activation n'est possible que si le DI effectif est 0.
     if (action === "activate_free") {
-      const { souscripteur_id, plantation_id, reference } = body;
-      if (!souscripteur_id || !plantation_id) throw new Error("souscripteur_id et plantation_id requis");
+      const { client_id, plantation_id, reference } = body;
+      if (!client_id || !plantation_id) throw new Error("client_id et plantation_id requis");
 
       const { data: souscripteur } = await supabase
-        .from("souscripteurs")
+        .from("clients")
         .select("*, offres(*)")
-        .eq("id", souscripteur_id)
+        .eq("id", client_id)
         .maybeSingle();
       if (!souscripteur) throw new Error("Souscripteur introuvable");
 
@@ -87,12 +103,12 @@ serve(async (req) => {
         .from("plantations")
         .select("*")
         .eq("id", plantation_id)
-        .eq("souscripteur_id", souscripteur_id)
+        .eq("client_id", client_id)
         .maybeSingle();
       if (!plantation) throw new Error("Plantation introuvable");
 
       const { data: effectiveDi, error: priceError } = await supabase
-        .rpc("get_subscriber_effective_di", { _souscripteur_id: souscripteur_id });
+        .rpc("get_subscriber_effective_di", { _client_id: client_id });
       if (priceError) throw priceError;
       const diParHa = Number(effectiveDi ?? souscripteur.offres?.montant_depot_initial_par_ha ?? 0);
       const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
@@ -111,13 +127,13 @@ serve(async (req) => {
       const { data: existing } = await supabase
         .from("paiements")
         .select("id, statut")
-        .eq("souscripteur_id", souscripteur_id)
+        .eq("client_id", client_id)
         .eq("plantation_id", plantation_id)
-        .eq("est_depot_initial", true)
+        .eq("est_paiement_initial", true)
         .maybeSingle();
 
       const payload = {
-        souscripteur_id,
+        client_id,
         plantation_id,
         type_paiement: "DA",
         montant: 0,
@@ -126,7 +142,7 @@ serve(async (req) => {
         statut: "valide",
         mode_paiement: "Promotion",
         reference: ref,
-        est_depot_initial: true,
+        est_paiement_initial: true,
         date_paiement: nowIso,
         metadata: { payment_provider: "promotion", di_offert: true, di_par_ha: diParHa, hectares },
       };
@@ -163,8 +179,10 @@ serve(async (req) => {
 
     if (action === "insert") {
 
-      const { souscripteur_id, plantation_id, type_paiement, montant, reference, mode_paiement, metadata } = body;
-      if (!souscripteur_id || !type_paiement || !montant || !reference) {
+      const portalClientId = await resolvePortalClient(supabase, body.session_token);
+      const { client_id, plantation_id, type_paiement, montant, reference, mode_paiement, metadata } = body;
+      if (client_id !== portalClientId) throw new Error("Client non autorisé");
+      if (!client_id || !type_paiement || !montant || !reference) {
         throw new Error("Champs requis manquants");
       }
       const isDepotInitial = type_paiement === "DA";
@@ -174,9 +192,9 @@ serve(async (req) => {
         const { data: existingDepot, error: existingError } = await supabase
           .from("paiements")
           .select("id, reference, statut, metadata")
-          .eq("souscripteur_id", souscripteur_id)
+          .eq("client_id", client_id)
           .eq("plantation_id", plantation_id)
-          .eq("est_depot_initial", true)
+          .eq("est_paiement_initial", true)
           .maybeSingle();
 
         if (existingError) throw existingError;
@@ -210,7 +228,7 @@ serve(async (req) => {
       }
 
       const { data, error } = await supabase.from("paiements").insert({
-        souscripteur_id,
+        client_id,
         plantation_id: plantation_id || null,
         type_paiement,
         montant,
@@ -218,7 +236,7 @@ serve(async (req) => {
         statut: "en_attente",
         mode_paiement: mode_paiement || "Mobile Money",
         reference,
-        est_depot_initial: isDepotInitial,
+        est_paiement_initial: isDepotInitial,
         phase: paymentPhase,
         metadata: metadata || {},
       }).select().single();
@@ -249,7 +267,7 @@ serve(async (req) => {
 
       const { data: paiementData } = await supabase
         .from("paiements")
-        .select("*, plantations(*), souscripteurs(telephone, nom_complet)")
+        .select("*, plantations(*), clients(telephone, nom_complet)")
         .eq("reference", reference)
         .maybeSingle();
 
@@ -292,9 +310,9 @@ serve(async (req) => {
         }
 
         const { data: souscripteur } = await supabase
-          .from("souscripteurs")
+          .from("clients")
           .select("*, offres(*)")
-          .eq("id", paiementData.souscripteur_id)
+          .eq("id", paiementData.client_id)
           .maybeSingle();
 
         if (souscripteur) {
@@ -305,19 +323,19 @@ serve(async (req) => {
           const prochaine = new Date(debut);
           prochaine.setMonth(prochaine.getMonth() + 1);
 
-          await supabase.from("souscripteurs").update({
+          await supabase.from("clients").update({
             compte_actif: true,
             da_paye_at: new Date().toISOString(),
             contrat_debut_at: debut.toISOString().slice(0, 10),
             contrat_fin_at: fin.toISOString().slice(0, 10),
             phase_actuelle: "annee_1",
             prochaine_echeance: prochaine.toISOString().slice(0, 10),
-          }).eq("id", paiementData.souscripteur_id);
+          }).eq("id", paiementData.client_id);
 
           const { count } = await supabase
             .from("paiements")
             .select("id", { count: "exact", head: true })
-            .eq("souscripteur_id", paiementData.souscripteur_id)
+            .eq("client_id", paiementData.client_id)
             .eq("type_paiement", "REDEVANCE");
 
           const tranches = Array.isArray(souscripteur.offres?.tranches_paiement) ? souscripteur.offres.tranches_paiement : [];
@@ -333,7 +351,7 @@ serve(async (req) => {
                 const due = new Date(debut);
                 due.setMonth(due.getMonth() + numero);
                 echeances.push({
-                  souscripteur_id: paiementData.souscripteur_id,
+                  client_id: paiementData.client_id,
                   type_paiement: "REDEVANCE",
                   statut: "en_attente",
                   montant: mensualite,
@@ -342,7 +360,7 @@ serve(async (req) => {
                   date_echeance: due.toISOString().slice(0, 10),
                   annee: due.getFullYear(),
                   phase: `annee_${anneeOffre}`,
-                  est_depot_initial: false,
+                  est_paiement_initial: false,
                   metadata: { generated_by: "create-payment", offer_tranche: tranche },
                 });
               }
@@ -356,7 +374,7 @@ serve(async (req) => {
       try {
         const fmt = new Intl.NumberFormat("fr-FR").format(trustedMontantPaye);
         await sendConfirmationSms(
-          paiementData.souscripteurs?.telephone,
+          paiementData.clients?.telephone,
           `AgriCapital: Paiement de ${fmt} F CFA recu (Ref: ${reference}). Merci! Votre recu est disponible sur client.agricapital.ci`
         );
       } catch (e) { console.error("SMS post-confirm error:", e); }

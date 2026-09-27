@@ -110,9 +110,9 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
         toast({ variant: "destructive", title: "Code incorrect", description: data?.error || "Vérification échouée" });
         setOtpDigits(['', '', '', '', '', '']); inputRefs.current[0]?.focus(); setLoading(false); return;
       }
-      const sessionToken = data?.session_token;
+      const sessionToken = data?.portal_token;
       if (!sessionToken) throw new Error("Session portail non délivrée");
-      const { data: subData, error: subError } = await supabase.functions.invoke("subscriber-lookup", { body: { session_token: sessionToken } });
+      const { data: subData, error: subError } = await supabase.functions.invoke("subscriber-lookup", { body: { portal_token: sessionToken } });
       if (subError) throw new Error(subError.message);
       if (!subData?.success) {
         toast({ variant: "destructive", title: "Compte introuvable", description: "Aucun compte n'est associé à ce numéro." });

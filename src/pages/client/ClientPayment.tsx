@@ -200,7 +200,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
     return { ...progressive, montant: promo.amount, economie: promo.savings, promotionAppliquee: promo.applied };
   }, [plantation, periodType, periodCount, customAmount, souscripteur?.offres, activePromotion]);
 
-  const depotInitialDetails = useMemo(() => {
+  const paiementInitialDetails = useMemo(() => {
     if (!plantation) return { montant: 0, brut: 0, economie: 0, promotionAppliquee: false };
     const hectares = Math.max(0, (plantation.superficie_ha || 0) - (plantation.superficie_activee || 0));
     const brut = hectares * TARIFS.paiement_initial_par_hectare;
@@ -217,11 +217,11 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
   const montantArriere = plantation ? calculerArrieres(plantation).montant : 0;
   const montantAvance = calculerMontantAvance();
   const montantTotal = useMemo(() => {
-    if (typePaiement === 'da') return depotInitialDetails.montant;
+    if (typePaiement === 'da') return paiementInitialDetails.montant;
     if (modeArriere === 'only') return montantArriere;
     if (modeArriere === 'avance') return montantArriere + montantAvance;
     return calculerMontantRedevance();
-  }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, depotInitialDetails.montant, periodType, periodCount, customAmount, redevanceBreakdown.montant]);
+  }, [typePaiement, plantation, modeArriere, montantArriere, montantAvance, paiementInitialDetails.montant, periodType, periodCount, customAmount, redevanceBreakdown.montant]);
 
   const kkiapayPricing = useMemo(() => calculateKkiapayAbsorption(montantTotal, paymentMethod), [montantTotal, paymentMethod]);
 
@@ -358,7 +358,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
             tarif_mensuel: TARIFS.mois,
             offre_id: souscripteur?.offre_id || souscripteur?.offres?.id,
             promotion_id: activePromotion?.id || null,
-            economie_promotion: typePaiement === 'da' ? depotInitialDetails.economie : (redevanceBreakdown as any).economie || 0,
+            economie_promotion: typePaiement === 'da' ? paiementInitialDetails.economie : (redevanceBreakdown as any).economie || 0,
             ventilation_tarifaire: typePaiement === 'redevance' ? redevanceBreakdown.segments : [],
             client_debit_amount: kkiapayPricing.clientDebitAmount,
             kkiapay_widget_amount: kkiapayPricing.widgetAmount,
@@ -624,8 +624,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
                   {[['Superficie totale', `${plantation.superficie_ha} ha`], ['Activée', `${plantation.superficie_activee || 0} ha`], ['À activer', `${plantation.superficie_ha - (plantation.superficie_activee || 0)} ha`], ['Paiement initial', `${fmt(TARIFS.paiement_initial_par_hectare)}/ha`]].map(([l, v], i) => (
                     <div key={i} className="flex justify-between py-2 border-b last:border-0"><span className="text-muted-foreground">{l}</span><span className="font-bold">{v}</span></div>
                   ))}
-                  {depotInitialDetails.promotionAppliquee && (
-                    <div className="flex justify-between py-2 text-primary"><span>Réduction appliquée</span><span className="font-bold">- {fmt(depotInitialDetails.economie)}</span></div>
+                  {paiementInitialDetails.promotionAppliquee && (
+                    <div className="flex justify-between py-2 text-primary"><span>Réduction appliquée</span><span className="font-bold">- {fmt(paiementInitialDetails.economie)}</span></div>
                   )}
                 </div>
               ) : (

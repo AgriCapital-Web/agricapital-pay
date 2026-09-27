@@ -21,7 +21,7 @@ const ClientPortfolio = ({ souscripteur, plantations, paiements, onBack }: Clien
 
   const getStatutBadge = (statut: string) => {
     const configs: Record<string, { label: string; cls: string }> = {
-      'en_attente_da': { label: 'En attente DI', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
+      'en_attente_da': { label: 'En attente du Paiement initial', cls: 'bg-gold/10 text-gold-dark border-gold/30' },
       'actif': { label: 'Actif', cls: 'bg-primary/10 text-primary border-primary/30' },
       'active': { label: 'Active', cls: 'bg-primary/10 text-primary border-primary/30' },
       'valide': { label: 'Validé', cls: 'bg-primary/10 text-primary border-primary/30' },

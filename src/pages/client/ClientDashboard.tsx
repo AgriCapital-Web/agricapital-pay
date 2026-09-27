@@ -142,7 +142,7 @@ const ClientDashboard = ({
       }
     } catch { toast({ variant: "destructive", title: "Erreur", description: "Impossible d'actualiser." }); }
     finally { setRefreshing(false); }
-  }, [souscripteur.telephone, toast]);
+  }, [sessionToken, toast]);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 28%, #f8f7f4 28.1%, #f8f7f4 100%)' }}>

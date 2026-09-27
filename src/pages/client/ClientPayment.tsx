@@ -817,7 +817,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, sessionToken, onB
               </div>
 
               <Button onClick={handleSubmit} disabled={loading} className="w-full h-14 text-base rounded-xl font-bold btn-brand">
-                {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />{isDiGratuit ? 'Activation...' : 'Ouverture...'}</> : <><CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? 'Activer ma plantation (DI offert)' : 'Procéder au paiement'}</>}
+                {loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />{isDiGratuit ? 'Activation...' : 'Ouverture...'}</> : <><CreditCard className="h-5 w-5 mr-2" />{isDiGratuit ? 'Activer ma plantation (Paiement initial offert)' : 'Procéder au paiement'}</>}
               </Button>
               {isDiGratuit ? (
                 <p className="text-[10px] text-center text-muted-foreground">Paiement Initial à 0 F (promotion CRM) — activation immédiate, aucun paiement requis.</p>

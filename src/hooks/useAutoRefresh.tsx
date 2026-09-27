@@ -35,7 +35,7 @@ export function useAutoRefresh(
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
-        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { session_token: sessionToken, silent: true } });
+        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { portal_token: sessionToken, silent: true } });
         if (!cancelled && !error && data?.success) {
           const plants = data.plantations || [];
           const pays = data.paiements || [];

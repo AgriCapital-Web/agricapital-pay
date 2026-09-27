@@ -31,6 +31,7 @@ interface ClientDashboardProps {
   onStatistics: () => void;
   onPlantationHub: () => void;
   onLogout: () => void;
+  sessionToken?: string | null;
 }
 
 
@@ -39,7 +40,7 @@ const ClientDashboard = ({
   plantations: initialPlantations, 
   paiements: initialPaiements, 
   syncStatus, lastSync,
-  onPayment, onPortfolio, onHistory, onStatistics, onPlantationHub, onLogout 
+  onPayment, onPortfolio, onHistory, onStatistics, onPlantationHub, onLogout, sessionToken
 }: ClientDashboardProps) => {
 
   const { toast } = useToast();
@@ -93,20 +94,20 @@ const ClientDashboard = ({
   const daProgress = useMemo(() => {
     // Priorité stricte au CRM (0 F autorisé) — pas de `||` qui masquerait un DI mis à 0.
     const offre = souscripteur.offres || {};
-    const crmDI = offre.montant_da_par_ha ?? offre.montant_depot_initial_par_ha;
-    const tarifDA = currentRate?.schedule.depot_initial ?? (crmDI ?? 0);
-    const totalDA = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifDA), 0);
-    const totalDAVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
+    const crmPaiementInitial = offre.montant_paiement_initial_par_ha ?? offre.montant_depot_initial_par_ha;
+    const tarifPaiementInitial = currentRate?.schedule.depot_initial ?? (crmPaiementInitial ?? 0);
+    const totalPaiementInitial = plantations.reduce((s: number, p: any) => s + ((p.superficie_ha || 0) * tarifPaiementInitial), 0);
+    const totalPaiementInitialVerse = paiements.filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
       .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
-    const diOffert = tarifDA === 0;
+    const diOffert = tarifPaiementInitial === 0;
     const plantationNonActivee = plantations.some((p: any) => !p.date_activation || !(p.superficie_activee > 0));
     return {
-      tarifDA,
+      tarifPaiementInitial,
       diOffert,
       activationGratuiteDisponible: diOffert && plantationNonActivee,
-      totalDA,
-      totalDAVerse,
-      pct: totalDA > 0 ? Math.min(100, Math.round((totalDAVerse / totalDA) * 100)) : 100,
+      totalPaiementInitial,
+      totalPaiementInitialVerse,
+      pct: totalPaiementInitial > 0 ? Math.min(100, Math.round((totalPaiementInitialVerse / totalPaiementInitial) * 100)) : 100,
     };
   }, [plantations, paiements, souscripteur, currentRate]);
 
@@ -131,11 +132,11 @@ const ClientDashboard = ({
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone: souscripteur.telephone } });
+      const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { session_token: sessionToken } });
       if (error) throw error;
       if (data?.success) {
-        setSouscripteur(data.souscripteur); setPlantations(data.plantations); setPaiements(data.paiements);
-        sessionStorage.setItem('agri_souscripteur', JSON.stringify(data.souscripteur));
+        setSouscripteur(data.client); setPlantations(data.plantations); setPaiements(data.paiements);
+        sessionStorage.setItem('agri_client', JSON.stringify(data.client));
         sessionStorage.setItem('agri_plantations', JSON.stringify(data.plantations));
         sessionStorage.setItem('agri_paiements', JSON.stringify(data.paiements));
         toast({ title: "✅ Données actualisées" });
@@ -311,7 +312,7 @@ const ClientDashboard = ({
         )}
 
         {/* Paiement Initial Progress */}
-        {daProgress.totalDA > 0 && (
+        {daProgress.totalPaiementInitial > 0 && (
           <Card className="card-brand-subtle rounded-2xl shadow-md lg:col-span-4">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2.5">
@@ -323,8 +324,8 @@ const ClientDashboard = ({
               </div>
               <Progress value={daProgress.pct} className="h-3 mb-2" />
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Versé : <span className="font-bold text-primary">{fmt(daProgress.totalDAVerse)}</span></span>
-                <span>Total : {fmt(daProgress.totalDA)}</span>
+                <span>Versé : <span className="font-bold text-primary">{fmt(daProgress.totalPaiementInitialVerse)}</span></span>
+                <span>Total : {fmt(daProgress.totalPaiementInitial)}</span>
               </div>
             </CardContent>
           </Card>
@@ -392,7 +393,7 @@ const ClientDashboard = ({
             </Card>
           ))}
           {[
-            { icon: CheckCircle, label: "Paiement initial versé", value: fmt(daProgress.totalDAVerse), color: "text-primary" },
+            { icon: CheckCircle, label: "Paiement initial versé", value: fmt(daProgress.totalPaiementInitialVerse), color: "text-primary" },
             { icon: CreditCard, label: "Mensualités", value: fmt(totalRedevances), color: "text-gold-dark" },
             { icon: TrendingUp, label: "Validés", value: String(paiements.filter((p: any) => p.statut === 'valide').length), color: "text-primary" },
             { icon: Leaf, label: "Offre", value: offreNom, color: "text-gold-dark" }

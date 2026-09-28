@@ -286,54 +286,6 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                     <ArrowLeft className="h-3.5 w-3.5" /> Modifier le numéro
                   </button>
                 </div>
-              )}                 <div>
-                    <label className="block text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider mb-2">
-                      Code de vérification
-                    </label>
-                    <div className="flex justify-between gap-2" onPaste={handleOtpPaste}>
-                      {otpDigits.map((digit, i) => (
-                        <Input
-                          key={i}
-                          ref={(el) => { inputRefs.current[i] = el; }}
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpInput(i, e.target.value)}
-                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                          className="aspect-square w-full max-w-[52px] h-14 text-center text-2xl font-bold border-[#E5E7E3] bg-white rounded-xl focus-visible:border-[#00643C] focus-visible:ring-2 focus-visible:ring-[#00643C]/15"
-                          autoFocus={i === 0}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {loading && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-[#5A6660]">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Vérification du code…
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-sm">
-                    <button
-                      onClick={() => { setStep('phone'); setOtpDigits(['', '', '', '', '', '']); setDevCode(null); }}
-                      className="flex items-center gap-1.5 text-[#5A6660] hover:text-[#00643C] font-medium"
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" /> Modifier le numéro
-                    </button>
-
-                    {otpTimer > 0 ? (
-                      <span className="text-[#9CA3A0] text-xs">Renvoi dans <span className="font-bold text-[#1A1A1A]">{otpTimer}s</span></span>
-                    ) : (
-                      <button
-                        onClick={handleResendOTP}
-                        className="flex items-center gap-1.5 text-[#00643C] font-semibold hover:underline"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" /> Renvoyer
-                      </button>
-                    )}
-                  </div>
-                </div>
               )}
 
             </div>

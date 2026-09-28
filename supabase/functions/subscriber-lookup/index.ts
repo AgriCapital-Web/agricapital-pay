@@ -269,6 +269,31 @@ serve(async (req) => {
       technicalTickets = ticketRows || [];
     }
 
+    // Rapports terrain publiés : seuls les rapports explicitement validés et rendus visibles au client sont exposés.
+    let technicalReports: any[] = [];
+    let technicalMedia: any[] = [];
+    if (plantationIds.length > 0) {
+      const { data: reportRows } = await supabase
+        .from('rapports_visites_techniques')
+        .select('id, plantation_id, date_visite, type_visite, etat_plantation, contenu_client, prochaine_intervention, client_visible, statut')
+        .in('plantation_id', plantationIds)
+        .eq('client_visible', true)
+        .eq('statut', 'valide')
+        .order('date_visite', { ascending: false });
+      technicalReports = reportRows || [];
+
+      const reportIds = technicalReports.map((r:any) => r.id);
+      if (reportIds.length > 0) {
+        const { data: mediaRows } = await supabase
+          .from('rapports_visites_medias')
+          .select('id, rapport_id, plantation_id, media_type, storage_path, mime_type, nom_fichier, description, client_visible, created_at')
+          .in('rapport_id', reportIds)
+          .eq('client_visible', true)
+          .order('created_at', { ascending: false });
+        technicalMedia = mediaRows || [];
+      }
+    }
+
     // Calculate totals
     const totalDAVerse = paiements
       .filter((p: any) => p.type_paiement === 'DA' && p.statut === 'valide')
@@ -286,9 +311,17 @@ serve(async (req) => {
     let totalArrieres = 0;
     const plantationsEnriched = (plantations || []).map((p: any) => {
       const tickets = technicalTickets.filter((ticket: any) => ticket.plantation_id === p.id);
+      const rapports = technicalReports.filter((r:any) => r.plantation_id === p.id).map((r:any) => ({
+        ...r,
+        titre: r.type_visite ? `Rapport — ${r.type_visite.replace(/_/g,' ')}` : 'Rapport terrain',
+        periode: r.date_visite,
+        contenu: r.contenu_client || '',
+        medias: technicalMedia.filter((m:any) => m.rapport_id === r.id),
+      }));
       const etapes = tickets.map(technicalStepFromTicket).filter(Boolean);
       const technicalData = {
         tickets_techniques: tickets,
+        rapports_visites: rapports,
         etapes,
         derniere_intervention: tickets[0]?.updated_at || p.derniere_visite || null,
         prochaine_intervention: p.prochaine_visite || null,

@@ -1,33 +1,59 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "../EmptyState";
-import { FileBarChart2, Download } from "lucide-react";
+import { FileBarChart2, Camera } from "lucide-react";
 
 export const RapportsTab = ({ plantation }: { plantation: any }) => {
-  const rapports: any[] = plantation?.rapports || [];
+  const rapports: any[] = plantation?.rapports_visites || plantation?.rapports || [];
   if (rapports.length === 0) {
-    return <EmptyState icon={FileBarChart2} title="Aucun rapport pour l'instant" description="Vos rapports mensuels, trimestriels et annuels (travaux, photos, vidéos, observations, recommandations) seront disponibles ici." />;
+    return <EmptyState icon={FileBarChart2} title="Aucun rapport publié pour l'instant" description="Les rapports terrain validés par AgriCapital apparaîtront ici." />;
   }
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {rapports.map((r, i) => (
-        <Card key={i} className="rounded-xl">
-          <CardContent className="p-3 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
-              <FileBarChart2 className="h-5 w-5 text-gold-dark" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">{r.titre || "Rapport"}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Badge variant="outline" className="text-[9px]">{r.periodicite || "mensuel"}</Badge>
-                <span className="text-[10px] text-muted-foreground">{r.periode || ""}</span>
+        <Card key={r.id || i} className="rounded-xl">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
+                <FileBarChart2 className="h-5 w-5 text-gold-dark" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{r.titre || "Rapport terrain"}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-[9px]">Validé</Badge>
+                  {r.date_visite && <span className="text-[10px] text-muted-foreground">{new Date(r.date_visite).toLocaleDateString("fr-FR")}</span>}
+                </div>
               </div>
             </div>
-            {r.url && (
-              <Button asChild size="sm" variant="outline" className="h-8">
-                <a href={r.url} target="_blank" rel="noreferrer"><Download className="h-3.5 w-3.5" /></a>
-              </Button>
+
+            {r.etat_plantation && (
+              <div className="rounded-lg bg-muted/40 p-3">
+                <p className="text-[10px] uppercase text-muted-foreground mb-1">État de la plantation</p>
+                <p className="text-sm font-medium">{r.etat_plantation}</p>
+              </div>
+            )}
+
+            {r.contenu && (
+              <div>
+                <p className="text-[10px] uppercase text-muted-foreground mb-1">Message de l'équipe technique</p>
+                <p className="text-sm leading-relaxed">{r.contenu}</p>
+              </div>
+            )}
+
+            {r.medias?.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {r.medias.map((m:any) => (
+                  <div key={m.id} className="rounded-lg border p-2 flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs truncate">{m.description || m.nom_fichier || "Média terrain"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {r.prochaine_intervention && (
+              <p className="text-xs text-muted-foreground">Prochaine intervention prévue : {new Date(r.prochaine_intervention).toLocaleDateString("fr-FR")}</p>
             )}
           </CardContent>
         </Card>

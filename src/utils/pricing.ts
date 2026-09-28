@@ -70,54 +70,10 @@ export interface ProgressivePaymentResult {
 }
 
 const PRICING: Record<string, PricingSchedule> = {
-  PALMINVEST: {
-    depot_initial: 90700,
-    an1_mensuel: 60000,
-    an1_duree_mois: 12,
-    an2_mensuel: 120000,
-    an2_duree_mois: 12,
-    an3_mensuel: 194000,
-    an3_duree_mois: 11,
-    total_par_ha: 4384700,
-    duree_totale_mois: 35,
-    cash_price: 4070812,
-  },
-  'PALMINVEST+': {
-    depot_initial: 90700,
-    an1_mensuel: 60000,
-    an1_duree_mois: 12,
-    an2_mensuel: 120000,
-    an2_duree_mois: 12,
-    an3_mensuel: 194000,
-    an3_duree_mois: 11,
-    total_par_ha: 4384700,
-    duree_totale_mois: 35,
-    cash_price: 4070812,
-  },
-  TERRAPALM: {
-    depot_initial: 84700,
-    an1_mensuel: 54000,
-    an1_duree_mois: 12,
-    an2_mensuel: 75000,
-    an2_duree_mois: 12,
-    an3_mensuel: 96200,
-    an3_duree_mois: 11,
-    total_par_ha: 2690900,
-    duree_totale_mois: 35,
-    cash_price: 2379777,
-  },
-  'TERRAPALM+': {
-    depot_initial: 84700,
-    an1_mensuel: 54000,
-    an1_duree_mois: 12,
-    an2_mensuel: 75000,
-    an2_duree_mois: 12,
-    an3_mensuel: 96200,
-    an3_duree_mois: 11,
-    total_par_ha: 2690900,
-    duree_totale_mois: 35,
-    cash_price: 2379777,
-  },
+  PALMINVEST: { depot_initial: 90700, an1_mensuel: 31900, an1_duree_mois: 11, an2_mensuel: 56900, an2_duree_mois: 12, an3_mensuel: 83800, an3_duree_mois: 16, total_par_ha: 2465200, duree_totale_mois: 40, cash_price: 2465200 },
+  'PALMINVEST+': { depot_initial: 90700, an1_mensuel: 31900, an1_duree_mois: 11, an2_mensuel: 56900, an2_duree_mois: 12, an3_mensuel: 83800, an3_duree_mois: 16, total_par_ha: 2465200, duree_totale_mois: 40, cash_price: 2465200 },
+  TERRAPALM: { depot_initial: 84700, an1_mensuel: 26900, an1_duree_mois: 11, an2_mensuel: 36900, an2_duree_mois: 12, an3_mensuel: 49800, an3_duree_mois: 16, total_par_ha: 1620200, duree_totale_mois: 40, cash_price: 1620200 },
+  'TERRAPALM+': { depot_initial: 84700, an1_mensuel: 26900, an1_duree_mois: 11, an2_mensuel: 36900, an2_duree_mois: 12, an3_mensuel: 49800, an3_duree_mois: 16, total_par_ha: 1620200, duree_totale_mois: 40, cash_price: 1620200 },
 };
 
 /**

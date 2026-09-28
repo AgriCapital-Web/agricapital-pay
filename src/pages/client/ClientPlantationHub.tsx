@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, LayoutGrid, ListChecks, Sprout, Camera, FileText, MapPin, FileBarChart2, MessageSquare, TrendingUp, Package, PieChart } from "lucide-react";
 import logoWhiteBg from "@/assets/logo-white-bg.png";
@@ -26,6 +27,8 @@ const ClientPlantationHub = ({ souscripteur, plantations, onBack }: Props) => {
   const [selectedId, setSelectedId] = useState<string>(plantations[plantations.length - 1]?.id || plantations[0]?.id);
   const plantation = useMemo(() => plantations.find((p) => p.id === selectedId) || plantations[0], [plantations, selectedId]);
   const isPlus = (souscripteur?.offres?.code || "").endsWith("+");
+  const isPalmTerroir = String(souscripteur?.formule_code || "").startsWith("PALMTERROIR");
+  const formuleLabel = souscripteur?.formule_nom || souscripteur?.formule_code || souscripteur?.famille_offre || souscripteur?.offres?.nom || "Formule";
 
   const baseTabs = [
     { value: "overview", icon: LayoutGrid, label: "Vue" },
@@ -59,6 +62,7 @@ const ClientPlantationHub = ({ souscripteur, plantations, onBack }: Props) => {
             <div className="min-w-0">
               <p className="text-[10px] uppercase text-white/60 tracking-wider">Ma Plantation</p>
               <h1 className="text-lg font-bold text-white truncate">{plantation?.nom_plantation || plantation?.id_unique || "—"}</h1>
+              <div className="flex items-center gap-2 mt-1 flex-wrap"><Badge className="bg-white/10 border-white/20 text-white text-[9px]">{formuleLabel}</Badge>{isPalmTerroir && <span className="text-[9px] text-white/70">Encadrement & suivi après mise en terre</span>}</div>
             </div>
             <div className="w-56 shrink-0">
               <PlantationSelector plantations={plantations} selectedId={selectedId} onChange={setSelectedId} />
@@ -68,6 +72,7 @@ const ClientPlantationHub = ({ souscripteur, plantations, onBack }: Props) => {
       </header>
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-8 max-w-lg lg:max-w-[1400px] py-4 lg:py-6">
+        {isPalmTerroir && <div className="mb-3 rounded-2xl border border-primary/15 bg-primary/5 p-3 text-xs text-muted-foreground"><strong className="text-primary">PalmTerroir :</strong> après la mise en terre, les travaux réguliers d’entretien et les intrants restent à la charge du client. AgriCapital assure l’encadrement, les recommandations et le suivi technique.</div>}
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="w-full flex overflow-x-auto no-scrollbar h-auto p-1 bg-white/80 backdrop-blur rounded-xl mb-4 justify-start lg:justify-center">
             {tabs.map((t) => (

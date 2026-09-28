@@ -44,9 +44,14 @@ export const RapportsTab = ({ plantation }: { plantation: any }) => {
             {r.medias?.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {r.medias.map((m:any) => (
-                  <div key={m.id} className="rounded-lg border p-2 flex items-center gap-2">
-                    <Camera className="h-4 w-4 text-primary shrink-0" />
-                    <span className="text-xs truncate">{m.description || m.nom_fichier || "Média terrain"}</span>
+                  <div key={m.id} className="rounded-lg border overflow-hidden">
+                    {m.url && m.media_type === "photo" ? (
+                      <img src={m.url} alt={m.description || "Photo terrain"} className="w-full aspect-video object-cover" />
+                    ) : m.url && m.media_type === "video" ? (
+                      <video src={m.url} controls className="w-full aspect-video object-cover" />
+                    ) : (
+                      <div className="p-3 flex items-center gap-2"><Camera className="h-4 w-4 text-primary shrink-0" /><span className="text-xs truncate">{m.description || m.nom_fichier || "Média terrain"}</span></div>
+                    )}
                   </div>
                 ))}
               </div>

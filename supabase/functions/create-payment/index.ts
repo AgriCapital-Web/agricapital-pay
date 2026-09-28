@@ -157,7 +157,7 @@ serve(async (req) => {
       }
 
       const { data, error } = await supabase.from("paiements").insert({
-        souscripteur_id,
+        client_id,
         plantation_id: plantation_id || null,
         type_paiement,
         montant,

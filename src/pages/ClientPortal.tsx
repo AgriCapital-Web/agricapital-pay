@@ -55,7 +55,7 @@ const ClientPortal = () => {
           setPlantations(JSON.parse(savedPlantations || "[]"));
           setPaiements(JSON.parse(savedPaiements || "[]"));
           setView("dashboard");
-        } catch { handleLogout(); }
+        } catch { sessionStorage.removeItem("agri_client"); sessionStorage.removeItem("agri_souscripteur"); sessionStorage.removeItem("agri_plantations"); sessionStorage.removeItem("agri_paiements"); sessionStorage.removeItem("agri_demo"); }
         return;
       }
       if (!token) return;

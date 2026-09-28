@@ -98,10 +98,22 @@ serve(async (req) => {
 
     if (action === "insert") {
 
-      const { souscripteur_id, plantation_id, type_paiement, montant, reference, mode_paiement, metadata } = body;
-      if (!souscripteur_id || !type_paiement || !montant || !reference) {
+      const { client_id, plantation_id, type_paiement, montant, reference, mode_paiement, metadata } = body;
+      if (!client_id || !type_paiement || !montant || !reference) {
         throw new Error("Champs requis manquants");
       }
+      const { data: client } = await supabase.from("clients").select("id,offre_id,compte_actif,statut_global").eq("id", client_id).maybeSingle();
+      if (!client || !client.compte_actif || client.statut_global !== "actif") throw new Error("Client introuvable ou inactif");
+      if (plantation_id) {
+        const { data: plantation } = await supabase.from("plantations").select("id,client_id,superficie_activee").eq("id", plantation_id).eq("client_id", client_id).maybeSingle();
+        if (!plantation) throw new Error("Plantation introuvable ou non rattachée au client");
+      }
+      if (type_paiement === "REDEVANCE" && Number(metadata?.jours_demandes || 0) > 0 && !metadata?.mode_arriere) {
+        const { data: quote, error: quoteError } = await supabase.rpc("portal_quote_payment", {_client_id:client_id,_plantation_id:plantation_id,_days:Math.floor(Number(metadata.jours_demandes))});
+        if (quoteError) throw quoteError;
+        if (Math.abs(Number(quote?.montant || 0)-Number(montant)) > 1) throw new Error("Le montant du paiement ne correspond pas au tarif journalier actuel.");
+      }
+
       const isDepotInitial = type_paiement === "DA";
       const paymentPhase = isDepotInitial ? null : (metadata?.phase || (metadata?.annee_tarif ? `annee_${metadata.annee_tarif}` : null));
 
@@ -109,7 +121,7 @@ serve(async (req) => {
         const { data: existingDepot, error: existingError } = await supabase
           .from("paiements")
           .select("id, reference, statut, metadata")
-          .eq("souscripteur_id", souscripteur_id)
+          .eq("client_id", client_id)
           .eq("plantation_id", plantation_id)
           .eq("est_depot_initial", true)
           .maybeSingle();
@@ -184,7 +196,7 @@ serve(async (req) => {
 
       const { data: paiementData } = await supabase
         .from("paiements")
-        .select("*, plantations(*), souscripteurs(telephone, nom_complet)")
+        .select("*, plantations(*), clients(telephone, nom_complet)")
         .eq("reference", reference)
         .maybeSingle();
 

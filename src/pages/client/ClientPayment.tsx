@@ -38,6 +38,17 @@ const STEPS = [
 const KKIAPAY_MOBILE_MONEY_FEE_RATE = 0.019;
 type ClientPaymentMethod = 'momo' | 'card';
 
+const daysForPeriod = (type: string, count: number) => {
+  const n = Math.max(1, Math.floor(Number(count) || 1));
+  if (type === 'jour') return n;
+  if (type === 'semaine') return n * 7;
+  if (type === 'mois') return n * 30;
+  if (type === 'trimestre') return n * 90;
+  if (type === 'semestre') return n * 180;
+  if (type === 'annee') return n * 360;
+  return n;
+};
+
 const calculateKkiapayAbsorption = (amount: number, method: ClientPaymentMethod) => {
   const clientDebitAmount = Math.round(amount || 0);
   if (method === 'card') {
@@ -198,7 +209,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
     const sup = plantation.superficie_activee || plantation.superficie_ha || 1;
     const progressive = avancePeriodType === 'jours'
       ? calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), avancePeriodCount, sup)
-      : calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), periodToDaysSafe(avancePeriodType, avancePeriodCount), sup);
+      : calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), daysForPeriod(avancePeriodType, avancePeriodCount), sup);
     return applyPromotion(progressive.montant, 'redevance').amount;
   };
 

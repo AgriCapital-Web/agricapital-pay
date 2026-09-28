@@ -39,26 +39,44 @@ const ClientPortal = () => {
     }
   }, [searchParams]);
 
-  // Restore session from sessionStorage
+  // Restore and revalidate the private portal session.
   useEffect(() => {
-    const savedSouscripteur = sessionStorage.getItem("agri_client") || sessionStorage.getItem("agri_souscripteur");
-    const savedPlantations = sessionStorage.getItem('agri_plantations');
-    const savedPaiements = sessionStorage.getItem('agri_paiements');
-    
-    if (savedSouscripteur && view === 'home') {
-      try {
-        setSouscripteur(JSON.parse(savedSouscripteur));
-        setPlantations(JSON.parse(savedPlantations || '[]'));
-        setPaiements(JSON.parse(savedPaiements || '[]'));
-        setView('dashboard');
-      } catch (e) {
-        const token = sessionStorage.getItem("agri_portal_access_token");
-    if (token) { void supabase.functions.invoke("portal-access", { body: { action: "logout", access_token: token, telephone: souscripteur?.telephone } }); }
-    sessionStorage.removeItem("agri_client");
-    sessionStorage.removeItem("agri_souscripteur");
+    if (view !== "home") return;
+    const token = sessionStorage.getItem("agri_portal_access_token");
+    const isDemo = sessionStorage.getItem("agri_demo") === "1";
+    const savedClient = sessionStorage.getItem("agri_client") || sessionStorage.getItem("agri_souscripteur");
+    const savedPlantations = sessionStorage.getItem("agri_plantations");
+    const savedPaiements = sessionStorage.getItem("agri_paiements");
+
+    const restore = async () => {
+      if (isDemo && savedClient) {
+        try {
+          setSouscripteur(JSON.parse(savedClient));
+          setPlantations(JSON.parse(savedPlantations || "[]"));
+          setPaiements(JSON.parse(savedPaiements || "[]"));
+          setView("dashboard");
+        } catch { handleLogout(); }
+        return;
       }
-    }
-  }, []);
+      if (!token) return;
+      const { data, error } = await supabase.functions.invoke("client-portal-data", { body: { access_token: token } });
+      if (!error && data?.success) {
+        setSouscripteur(data.client || data.souscripteur);
+        setPlantations(data.plantations || []);
+        setPaiements(data.paiements || []);
+        setView("dashboard");
+      } else {
+        sessionStorage.removeItem("agri_portal_access_token");
+        sessionStorage.removeItem("agri_client");
+        sessionStorage.removeItem("agri_souscripteur");
+        sessionStorage.removeItem("agri_plantations");
+        sessionStorage.removeItem("agri_paiements");
+        sessionStorage.removeItem("agri_demo");
+      }
+    };
+    void restore();
+  }, [view]);
+
 
   // PWA meta
   useEffect(() => {

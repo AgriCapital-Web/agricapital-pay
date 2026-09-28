@@ -131,7 +131,9 @@ const ClientDashboard = ({
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone: souscripteur.telephone } });
+      const accessToken = sessionStorage.getItem("agri_portal_access_token");
+      const isDemo = sessionStorage.getItem("agri_demo") === "1";
+      const { data, error } = await supabase.functions.invoke(isDemo ? "subscriber-lookup" : "client-portal-data", { body: isDemo ? { telephone: souscripteur.telephone, silent: true } : { access_token: accessToken } });
       if (error) throw error;
       if (data?.success) {
         setSouscripteur(data.souscripteur); setPlantations(data.plantations); setPaiements(data.paiements);

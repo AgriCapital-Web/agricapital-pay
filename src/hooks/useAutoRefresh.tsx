@@ -16,7 +16,7 @@ export type RealtimeStatus = "loading" | "connecting" | "live" | "offline" | "er
 export function useAutoRefresh(
   telephone: string | null | undefined,
   onData: (souscripteur: any, plantations: any[], paiements: any[]) => void,
-  intervalMs: number = 3000,
+  intervalMs: number = 30000,
 ) {
   const [status, setStatus] = useState<RealtimeStatus>("loading");
   const [lastSync, setLastSync] = useState<Date | null>(null);

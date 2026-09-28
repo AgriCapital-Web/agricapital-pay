@@ -371,7 +371,7 @@ const ClientDashboard = ({
         </Button>
 
         {/* Suivi temps réel des transactions */}
-        <div className="lg:col-span-12"><TransactionStatusWidget souscripteurId={souscripteur.id} limit={5} /></div>
+        <div className="lg:col-span-12"><TransactionStatusWidget paiements={paiements} limit={5} /></div>
 
         {/* Navigation + Summary unifiés (7 blocs sur desktop) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2 lg:gap-3 lg:col-span-12">

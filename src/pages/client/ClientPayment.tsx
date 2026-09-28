@@ -71,14 +71,15 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [step, setStep] = useState<'type' | 'plantation' | 'details' | 'confirm'>('type');
   const [typePaiement, setTypePaiement] = useState<'da' | 'redevance'>('redevance');
   const [selectedPlantation, setSelectedPlantation] = useState('');
-  const [periodType, setPeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee' | 'custom'>('mois');
+  const [periodType, setPeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee' | 'jours' | 'custom'>('mois');
   const [periodCount, setPeriodCount] = useState(1);
   const [customAmount, setCustomAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentPaiementRef, setCurrentPaiementRef] = useState<string | null>(null);
   const [modeArriere, setModeArriere] = useState<'only' | 'avance' | null>(null);
-  const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee'>('mois');
+  const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee' | 'jours'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
+  const [joursDemandes, setJoursDemandes] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');
   const paymentContextRef = useRef<{
     reference: string;
@@ -195,14 +196,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const calculerMontantAvance = () => {
     if (!plantation) return 0;
     const sup = plantation.superficie_activee || plantation.superficie_ha || 1;
-    const progressive = calculateProgressivePeriodAmount(souscripteur?.offres, plantation.date_activation, avancePeriodType, avancePeriodCount, sup);
+    const progressive = avancePeriodType === 'jours'
+      ? calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), avancePeriodCount, sup)
+      : calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), periodToDaysSafe(avancePeriodType, avancePeriodCount), sup);
     return applyPromotion(progressive.montant, 'redevance').amount;
   };
 
   const redevanceBreakdown = useMemo(() => {
     if (!plantation || periodType === 'custom') return { montant: Number(customAmount) || 0, totalJours: 0, segments: [] };
     const sup = plantation.superficie_activee || plantation.superficie_ha || 1;
-    const progressive = calculateProgressivePeriodAmount(souscripteur?.offres, plantation.date_activation, periodType, periodCount, sup);
+    const progressive = periodType === 'jours'
+      ? calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), joursDemandes, sup)
+      : calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), periodType === 'jour' ? 1 * periodCount : periodType === 'semaine' ? 7 * periodCount : periodType === 'mois' ? 30 * periodCount : periodType === 'trimestre' ? 90 * periodCount : periodType === 'semestre' ? 180 * periodCount : 360 * periodCount, sup);
     const promo = applyPromotion(progressive.montant, 'redevance');
     return { ...progressive, montant: promo.amount, economie: promo.savings, promotionAppliquee: promo.applied };
   }, [plantation, periodType, periodCount, customAmount, souscripteur?.offres, activePromotion]);
@@ -284,7 +289,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'activate_free',
-          souscripteur_id: souscripteur.id,
+          client_id: souscripteur.id,
           plantation_id: targetPlantation.id,
           reference,
         },
@@ -354,6 +359,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
           mode_paiement: paymentMethod === 'momo' ? 'Mobile Money' : 'Carte bancaire',
           reference,
           metadata: {
+            jours_demandes: typePaiement === 'redevance' && modeArriere === null ? (periodType === 'jours' ? joursDemandes : redevanceBreakdown.totalJours) : null,
             mode_arriere: modeArriere,
             montant_arriere: modeArriere ? montantArriere : null,
             montant_avance: modeArriere === 'avance' ? montantAvance : null,
@@ -398,7 +404,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   };
 
   const PERIODE_OPTIONS = [
-    { key: 'jour' as const, label: 'Jour', tarif: TARIFS.jour },
+    { key: 'jours' as const, label: 'Jours personnalisés', tarif: TARIFS.jour },
+    { key: 'jour' as const, label: '1 jour', tarif: TARIFS.jour },
     { key: 'semaine' as const, label: 'Semaine', tarif: TARIFS.semaine },
     { key: 'mois' as const, label: 'Mois', tarif: TARIFS.mois },
     { key: 'trimestre' as const, label: 'Trimestre', tarif: TARIFS.trimestre },

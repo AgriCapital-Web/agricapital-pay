@@ -35,7 +35,11 @@ export function useAutoRefresh(
       if (busy.current || document.hidden) return;
       busy.current = true;
       try {
-        const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone, silent: true } });
+        const accessToken = sessionStorage.getItem("agri_portal_access_token");
+        const isDemo = sessionStorage.getItem("agri_demo") === "1";
+        const functionName = isDemo ? "subscriber-lookup" : "client-portal-data";
+        const body = isDemo ? { telephone, silent: true } : { access_token: accessToken };
+        const { data, error } = await supabase.functions.invoke(functionName, { body });
         if (!cancelled && !error && data?.success) {
           const plants = data.plantations || [];
           const pays = data.paiements || [];
@@ -93,7 +97,9 @@ export function useAutoRefresh(
       .channel(`portal-sync-${Date.now()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "offres" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, () => refresh(false))
-      .on("postgres_changes", { event: "*", schema: "public", table: "souscripteurs" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "rapports_visites_techniques" }, () => refresh(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "rapports_visites_medias" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "plantations" }, () => refresh(false))
       .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => refresh(false))
       .subscribe((s) => {

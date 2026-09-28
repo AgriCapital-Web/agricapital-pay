@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import { buildDemoAccount } from "../_shared/demo-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,14 +84,7 @@ serve(async (req) => {
     if (!client) {
       if (action === "inspect" || action === "demo") {
         const demoCode = randomCode();
-        const demo = buildDemoAccount(phone);
-        return json({
-          success: true,
-          demo: true,
-          needs_access_code_setup: false,
-          access_code: demoCode,
-          ...demo,
-        });
+        return json({ success: true, demo: true, needs_access_code_setup: false, access_code: demoCode });
       }
       return json({ success: false, error: "Compte client introuvable." }, 404);
     }

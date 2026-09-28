@@ -221,7 +221,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       : calculateProgressiveAmountByDays(souscripteur?.offres, Number(souscripteur?.jours_payes || 0), periodType === 'jour' ? 1 * periodCount : periodType === 'semaine' ? 7 * periodCount : periodType === 'mois' ? 30 * periodCount : periodType === 'trimestre' ? 90 * periodCount : periodType === 'semestre' ? 180 * periodCount : 360 * periodCount, sup);
     const promo = applyPromotion(progressive.montant, 'redevance');
     return { ...progressive, montant: promo.amount, economie: promo.savings, promotionAppliquee: promo.applied };
-  }, [plantation, periodType, periodCount, customAmount, souscripteur?.offres, activePromotion]);
+  }, [plantation, periodType, periodCount, joursDemandes, customAmount, souscripteur?.offres, activePromotion, souscripteur?.jours_payes]);
 
   const depotInitialDetails = useMemo(() => {
     if (!plantation) return { montant: 0, brut: 0, economie: 0, promotionAppliquee: false };
@@ -710,7 +710,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                       <Label className="text-sm font-bold">Période de paiement</Label>
                       <div className="grid grid-cols-3 gap-1.5">
                         {PERIODE_OPTIONS.map(opt => (
-                          <div key={opt.key} onClick={() => { setPeriodType(opt.key); setPeriodCount(1); }}
+                          <div key={opt.key} onClick={() => { setPeriodType(opt.key); setPeriodCount(1); setJoursDemandes(1); }}
                             className={`p-2 rounded-xl border-2 cursor-pointer text-center transition-all ${periodType === opt.key ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/30'}`}>
                             <p className="text-[11px] font-bold">{opt.label}</p>
                             <p className="text-[9px] text-muted-foreground">{fmt(opt.tarif * (plantation.superficie_activee || plantation.superficie_ha || 1))}</p>
@@ -721,7 +721,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
                         <p className="text-xs font-bold">Montant personnalisé</p>
                       </div>
                       {periodType !== 'custom' ? (
-                        <div className="flex items-center gap-2"><Label className="text-xs shrink-0">Quantité</Label><Input type="number" min="1" max="36" value={periodCount} onChange={e => setPeriodCount(Math.max(1, Number(e.target.value)))} className="h-9 rounded-xl" /></div>
+                        <div className="flex items-center gap-2"><Label className="text-xs shrink-0">{periodType === "jours" ? "Nombre de jours" : "Quantité"}</Label><Input type="number" min="1" max="360" value={periodType === "jours" ? joursDemandes : periodCount} onChange={e => periodType === "jours" ? setJoursDemandes(Math.max(1, Number(e.target.value))) : setPeriodCount(Math.max(1, Number(e.target.value)))} className="h-9 rounded-xl" /></div>
                       ) : (
                         <div><Label className="text-xs">Montant (F CFA)</Label><Input type="number" value={customAmount} onChange={e => setCustomAmount(e.target.value)} placeholder="50000" className="h-12 mt-1 rounded-xl" /></div>
                       )}

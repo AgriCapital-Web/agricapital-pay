@@ -18,6 +18,16 @@ serve(async(req)=>{
   const {data:session}=await supabase.from("client_portal_sessions").select("client_id,expires_at,revoked_at").eq("token_hash",tokenHash).maybeSingle();
   if(!session || session.revoked_at || new Date(session.expires_at).getTime()<=Date.now()) return json({success:false,error:"Session portail expirée. Veuillez vous reconnecter."},401);
   await supabase.from("client_portal_sessions").update({last_seen_at:new Date().toISOString()}).eq("token_hash",tokenHash);
+  if (body?.action === "quote_payment") {
+    const days = Math.max(1, Math.floor(Number(body?.days || 0)));
+    const { data: quote, error: quoteError } = await supabase.rpc("portal_quote_payment", {
+      _client_id: session.client_id,
+      _plantation_id: body?.plantation_id,
+      _days: days,
+    });
+    if (quoteError) throw quoteError;
+    return json({ success: true, quote });
+  }
 
   const {data:client,error:clientError}=await supabase.from("clients").select("*,offres(*),regions(id,nom),departements(id,nom),districts(id,nom),sous_prefectures(id,nom),promotions:promotion_id(id,nom,code,pourcentage_reduction,montant_fixe_reduction,date_debut,date_fin,cible,active,applique_toutes_offres,offre_ids)").eq("id",session.client_id).eq("compte_actif",true).eq("statut_global","actif").maybeSingle();
   if(clientError) throw clientError;

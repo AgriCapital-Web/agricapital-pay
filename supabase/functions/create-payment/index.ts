@@ -70,95 +70,30 @@ serve(async (req) => {
     );
 
     // === DI à 0 F : activation automatique sans passer par KKiaPay ===
-    // Le montant est recalculé côté serveur depuis la vue v_prix_effectif_offres
-    // (prix CRM + promotions). L'activation n'est possible que si le DI effectif est 0.
     if (action === "activate_free") {
-      const { souscripteur_id, plantation_id, reference } = body;
-      if (!souscripteur_id || !plantation_id) throw new Error("souscripteur_id et plantation_id requis");
-
-      const { data: souscripteur } = await supabase
-        .from("souscripteurs")
-        .select("*, offres(*)")
-        .eq("id", souscripteur_id)
-        .maybeSingle();
-      if (!souscripteur) throw new Error("Souscripteur introuvable");
-
-      const { data: plantation } = await supabase
-        .from("plantations")
-        .select("*")
-        .eq("id", plantation_id)
-        .eq("souscripteur_id", souscripteur_id)
-        .maybeSingle();
+      const { client_id, plantation_id, reference } = body;
+      if (!client_id || !plantation_id) throw new Error("client_id et plantation_id requis");
+      const { data: client } = await supabase.from("clients").select("*, offres(*)").eq("id", client_id).eq("compte_actif", true).eq("statut_global", "actif").maybeSingle();
+      if (!client) throw new Error("Client introuvable ou inactif");
+      const { data: plantation } = await supabase.from("plantations").select("*").eq("id", plantation_id).eq("client_id", client_id).maybeSingle();
       if (!plantation) throw new Error("Plantation introuvable");
-
-      const { data: effectiveDi, error: priceError } = await supabase
-        .rpc("get_subscriber_effective_di", { _souscripteur_id: souscripteur_id });
+      const { data: effectivePrice, error: priceError } = await supabase.from("v_prix_effectif_offres").select("di_effectif").eq("offre_id", client.offre_id).maybeSingle();
       if (priceError) throw priceError;
-      const diParHa = Number(effectiveDi ?? souscripteur.offres?.montant_depot_initial_par_ha ?? 0);
+      const diParHa = Number(effectivePrice?.di_effectif ?? client.offres?.montant_pi_par_ha ?? 0);
       const hectares = Math.max(0, Number(plantation.superficie_ha || 0) - Number(plantation.superficie_activee || 0));
       const diTotal = diParHa * hectares;
-
-      if (diTotal > 0) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Le Dépôt Initial de cette plantation n'est pas à 0 F.", montant: diTotal }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const ref = reference || `DI0-${Date.now()}`;
-      const nowIso = new Date().toISOString();
-
-      const { data: existing } = await supabase
-        .from("paiements")
-        .select("id, statut")
-        .eq("souscripteur_id", souscripteur_id)
-        .eq("plantation_id", plantation_id)
-        .eq("est_depot_initial", true)
-        .maybeSingle();
-
-      const payload = {
-        souscripteur_id,
-        plantation_id,
-        type_paiement: "DA",
-        montant: 0,
-        montant_theorique: 0,
-        montant_paye: 0,
-        statut: "valide",
-        mode_paiement: "Promotion",
-        reference: ref,
-        est_depot_initial: true,
-        date_paiement: nowIso,
-        metadata: { payment_provider: "promotion", di_offert: true, di_par_ha: diParHa, hectares },
-      };
-
-      let paiementId = existing?.id;
-      if (existing) {
-        const { error } = await supabase.from("paiements").update(payload).eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { data: created, error } = await supabase.from("paiements").insert(payload).select("id").single();
-        if (error) throw error;
-        paiementId = created.id;
-      }
-
-      const { data: finalized, error: finalizeError } = await supabase.rpc("finalize_portal_payment", {
-        _paiement_id: paiementId,
-        _provider_amount: 0,
-        _metadata: { payment_provider: "promotion", di_offert: true, activation_source: "client_portal" },
-        _validated_at: nowIso,
-      });
-      if (finalizeError) throw finalizeError;
-
-      try {
-        await sendConfirmationSms(
-          souscripteur.telephone,
-          `AgriCapital: Votre Depot Initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`
-        );
-      } catch (_e) { /* ignore */ }
-
-      return new Response(JSON.stringify({ success: true, activated: true, reference: ref, propagation: finalized }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (diTotal > 0) return new Response(JSON.stringify({ success:false,error:"Le Dépôt Initial de cette plantation n'est pas à 0 F.",montant:diTotal }),{status:400,headers:{...corsHeaders,"Content-Type":"application/json"}});
+      const ref=reference||`DI0-${Date.now()}`;
+      const nowIso=new Date().toISOString();
+      const {data:existing}=await supabase.from("paiements").select("id,statut").eq("client_id",client_id).eq("plantation_id",plantation_id).eq("est_depot_initial",true).maybeSingle();
+      const payload={client_id,plantation_id,type_paiement:"DA",montant:0,montant_theorique:0,montant_paye:0,statut:"valide",mode_paiement:"Promotion",reference:ref,est_depot_initial:true,date_paiement:nowIso,metadata:{payment_provider:"promotion",di_offert:true,di_par_ha:diParHa,hectares}};
+      let paiementId=existing?.id;
+      if(existing){const {error}=await supabase.from("paiements").update(payload).eq("id",existing.id);if(error)throw error;}
+      else{const {data:created,error}=await supabase.from("paiements").insert(payload).select("id").single();if(error)throw error; paiementId=created.id;}
+      const {data:finalized,error:finalizeError}=await supabase.rpc("finalize_portal_payment",{_paiement_id:paiementId,_provider_amount:0,_metadata:{payment_provider:"promotion",di_offert:true,activation_source:"client_portal"},_validated_at:nowIso});
+      if(finalizeError)throw finalizeError;
+      try{await sendConfirmationSms(client.telephone,`AgriCapital: Votre Depot Initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`);}catch(_e){}
+      return new Response(JSON.stringify({success:true,activated:true,reference:ref,propagation:finalized}),{headers:{...corsHeaders,"Content-Type":"application/json"}});
     }
 
     if (action === "insert") {
@@ -278,85 +213,11 @@ serve(async (req) => {
 
       if (updateError) throw updateError;
 
-      // Legacy repair remains intentionally absent: finalize_portal_payment is
-      // the single atomic source of truth for payment and activation propagation.
-      if (false && paiementData.type_paiement === "DA" && paiementData.plantation_id) {
-        const p = paiementData.plantations;
-        if (p) {
-          await supabase.from("plantations").update({
-            superficie_activee: p.superficie_ha,
-            date_activation: new Date().toISOString(),
-            statut: "active",
-            statut_global: "actif",
-          }).eq("id", paiementData.plantation_id);
-        }
-
-        const { data: souscripteur } = await supabase
-          .from("souscripteurs")
-          .select("*, offres(*)")
-          .eq("id", paiementData.souscripteur_id)
-          .maybeSingle();
-
-        if (souscripteur) {
-          const debut = new Date();
-          const dureeMois = Number(souscripteur.offres?.duree_paiement_mois || 34);
-          const fin = new Date(debut);
-          fin.setMonth(fin.getMonth() + dureeMois);
-          const prochaine = new Date(debut);
-          prochaine.setMonth(prochaine.getMonth() + 1);
-
-          await supabase.from("souscripteurs").update({
-            compte_actif: true,
-            da_paye_at: new Date().toISOString(),
-            contrat_debut_at: debut.toISOString().slice(0, 10),
-            contrat_fin_at: fin.toISOString().slice(0, 10),
-            phase_actuelle: "annee_1",
-            prochaine_echeance: prochaine.toISOString().slice(0, 10),
-          }).eq("id", paiementData.souscripteur_id);
-
-          const { count } = await supabase
-            .from("paiements")
-            .select("id", { count: "exact", head: true })
-            .eq("souscripteur_id", paiementData.souscripteur_id)
-            .eq("type_paiement", "REDEVANCE");
-
-          const tranches = Array.isArray(souscripteur.offres?.tranches_paiement) ? souscripteur.offres.tranches_paiement : [];
-          if ((count || 0) === 0 && tranches.length > 0) {
-            const echeances: any[] = [];
-            let numero = 0;
-            for (const tranche of tranches) {
-              const mois = Number(tranche?.mois || 0);
-              const anneeOffre = Number(tranche?.annee || 1);
-              const mensualite = Number(tranche?.mensualite_par_ha || 0) * Number(souscripteur.total_hectares || 0);
-              for (let i = 0; i < mois; i++) {
-                numero += 1;
-                const due = new Date(debut);
-                due.setMonth(due.getMonth() + numero);
-                echeances.push({
-                  souscripteur_id: paiementData.souscripteur_id,
-                  type_paiement: "REDEVANCE",
-                  statut: "en_attente",
-                  montant: mensualite,
-                  montant_theorique: mensualite,
-                  numero_echeance: numero,
-                  date_echeance: due.toISOString().slice(0, 10),
-                  annee: due.getFullYear(),
-                  phase: `annee_${anneeOffre}`,
-                  est_depot_initial: false,
-                  metadata: { generated_by: "create-payment", offer_tranche: tranche },
-                });
-              }
-            }
-            if (echeances.length > 0) await supabase.from("paiements").insert(echeances);
-          }
-        }
-      }
-
       // Server-side confirmation SMS (replaces the removed `send_custom` action).
       try {
         const fmt = new Intl.NumberFormat("fr-FR").format(trustedMontantPaye);
         await sendConfirmationSms(
-          paiementData.souscripteurs?.telephone,
+          paiementData.clients?.telephone,
           `AgriCapital: Paiement de ${fmt} F CFA recu (Ref: ${reference}). Merci! Votre recu est disponible sur client.agricapital.ci`
         );
       } catch (e) { console.error("SMS post-confirm error:", e); }

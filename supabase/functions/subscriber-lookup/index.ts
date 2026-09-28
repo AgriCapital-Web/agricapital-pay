@@ -291,6 +291,10 @@ serve(async (req) => {
           .eq('client_visible', true)
           .order('created_at', { ascending: false });
         technicalMedia = mediaRows || [];
+        for (const media of technicalMedia) {
+          const { data: signed } = await supabase.storage.from('rapports-techniques').createSignedUrl(media.storage_path, 3600);
+          media.url = signed?.signedUrl || null;
+        }
       }
     }
 

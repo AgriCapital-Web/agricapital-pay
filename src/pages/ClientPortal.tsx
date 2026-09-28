@@ -10,6 +10,7 @@ import PaymentReturn from "./client/PaymentReturn";
 import ClientPlantationHub from "./client/ClientPlantationHub";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { supabase } from "@/integrations/supabase/client";
 import SyncStatusBanner from "@/components/client/SyncStatusBanner";
 
 type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statistics' | 'payment-return' | 'plantation-hub';
@@ -40,7 +41,7 @@ const ClientPortal = () => {
 
   // Restore session from sessionStorage
   useEffect(() => {
-    const savedSouscripteur = sessionStorage.getItem('agri_souscripteur');
+    const savedSouscripteur = sessionStorage.getItem("agri_client") || sessionStorage.getItem("agri_souscripteur");
     const savedPlantations = sessionStorage.getItem('agri_plantations');
     const savedPaiements = sessionStorage.getItem('agri_paiements');
     
@@ -51,7 +52,10 @@ const ClientPortal = () => {
         setPaiements(JSON.parse(savedPaiements || '[]'));
         setView('dashboard');
       } catch (e) {
-        sessionStorage.removeItem('agri_souscripteur');
+        const token = sessionStorage.getItem("agri_portal_access_token");
+    if (token) { void supabase.functions.invoke("portal-access", { body: { action: "logout", access_token: token, telephone: souscripteur?.telephone } }); }
+    sessionStorage.removeItem("agri_client");
+    sessionStorage.removeItem("agri_souscripteur");
       }
     }
   }, []);
@@ -116,6 +120,8 @@ const ClientPortal = () => {
     sessionStorage.removeItem('agri_souscripteur');
     sessionStorage.removeItem('agri_plantations');
     sessionStorage.removeItem('agri_paiements');
+    sessionStorage.removeItem("agri_portal_access_token");
+    sessionStorage.removeItem("agri_demo");
     setView('home');
   };
 

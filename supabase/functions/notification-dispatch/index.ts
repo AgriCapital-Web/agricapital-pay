@@ -76,10 +76,13 @@ async function staffAuthorized(req: Request) {
 }
 
 async function sendPushToOwner(owner: { user_id?: string | null; client_id?: string | null }, payload: { title: string; body: string; url?: string; tag?: string; dedupe_key?: string | null }) {
-  const publicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-  const privateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-  const subject = Deno.env.get("VAPID_SUBJECT") || "mailto:contact@agricapital.ci";
-  if (!publicKey || !privateKey) throw new Error("VAPID push non configure : VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY requis.");
+  const { data: vapid, error: vapidError } = await admin.rpc("notification_vapid_config");
+  if (vapidError || !vapid?.public_key || !vapid?.private_key) {
+    throw new Error("Configuration VAPID indisponible.");
+  }
+  const publicKey = vapid.public_key;
+  const privateKey = vapid.private_key;
+  const subject = vapid.subject || "mailto:contact@agricapital.ci";
 
   let query = admin.from("push_subscriptions")
     .select("id,endpoint,p256dh,auth,content_encoding")
@@ -134,7 +137,7 @@ async function providerStatus() {
     resend_email: resend, brevo_email: brevo,
     brevo_sms: brevo && Boolean(Deno.env.get("BREVO_SMS_SENDER")),
     whatsapp: Boolean(Deno.env.get("WHATSAPP_ACCESS_TOKEN")) && Boolean(Deno.env.get("WHATSAPP_PHONE_NUMBER_ID")),
-    push: Boolean(Deno.env.get("VAPID_PUBLIC_KEY")) && Boolean(Deno.env.get("VAPID_PRIVATE_KEY")),
+    push: true,
     email_provider: resend ? "resend" : brevo ? "brevo" : null,
   };
 }

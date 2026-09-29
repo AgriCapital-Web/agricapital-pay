@@ -103,6 +103,18 @@ serve(async (req) => {
     });
   }
 
+  // === 6. Protect terminal success from late PENDING/FAILED/CREATED webhooks.
+  // A successful payment must never be downgraded by an out-of-order event.
+  if (paiement.statut === "valide" && newStatut !== "valide") {
+    return new Response(JSON.stringify({
+      acknowledged: true,
+      paiement_id: paiement.id,
+      new_status: "valide",
+      ignored_status: newStatut,
+      reason: "payment_already_validated",
+    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
   // === 6. Update payment ===
   const updateData: any = {
     statut: newStatut,
@@ -141,7 +153,7 @@ serve(async (req) => {
     const rpc = await supabase.rpc("finalize_portal_payment", {
       _paiement_id: paiement.id,
       _transaction_id: transactionId,
-      _provider_amount: paiement.metadata?.client_debit_amount || paiement.montant,
+      _provider_amount: typeof amount === "number" ? amount : null,
       _metadata: updateData.metadata,
       _validated_at: new Date().toISOString(),
     });

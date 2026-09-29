@@ -35,6 +35,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     sessionStorage.setItem("agri_paiements", JSON.stringify(data.paiements || []));
     if (token) sessionStorage.setItem("agri_portal_access_token", token);
     if (demoToken) sessionStorage.setItem("agri_demo_token", demoToken);
+    if (demo && demoCode) sessionStorage.setItem("agri_demo_code", demoCode);
     sessionStorage.setItem("agri_demo", demo ? "1" : "0");
     onLogin(client, data.plantations || [], data.paiements || []);
   };

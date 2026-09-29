@@ -2,69 +2,68 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
-
 const json=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
 async function sha256(v:string){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,"0")).join("");}
+function cleanMessage(value:unknown){const message=String(value??"").trim();if(!message)throw new Error("Le message ne peut pas être vide.");if(message.length>4000)throw new Error("Le message ne peut pas dépasser 4 000 caractères.");return message;}
 
 serve(async(req)=>{
- if(req.method==="OPTIONS") return new Response(null,{headers:corsHeaders});
+ if(req.method==="OPTIONS")return new Response(null,{headers:corsHeaders});
  try{
-  const body=await req.json();
-  const token=String(body?.access_token||"");
-  if(!token) return json({success:false,error:"Session portail manquante."},401);
-  const secret= Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}").default;
-  const supabase=createClient(Deno.env.get("SUPABASE_URL")!,secret);
-  const tokenHash=await sha256(token);
+  const body=await req.json();const token=String(body?.access_token||"");if(!token)return json({success:false,error:"Session portail manquante."},401);
+  const secret=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}").default;const supabase=createClient(Deno.env.get("SUPABASE_URL")!,secret);const tokenHash=await sha256(token);
   const {data:session}=await supabase.from("client_portal_sessions").select("client_id,expires_at,revoked_at").eq("token_hash",tokenHash).maybeSingle();
-  if(!session || session.revoked_at || new Date(session.expires_at).getTime()<=Date.now()) return json({success:false,error:"Session portail expirée. Veuillez vous reconnecter."},401);
+  if(!session||session.revoked_at||new Date(session.expires_at).getTime()<=Date.now())return json({success:false,error:"Session portail expirée. Veuillez vous reconnecter."},401);
   await supabase.from("client_portal_sessions").update({last_seen_at:new Date().toISOString()}).eq("token_hash",tokenHash);
-  if (body?.action === "quote_payment") {
-    const days = Math.max(1, Math.floor(Number(body?.days || 0)));
-    const { data: quote, error: quoteError } = await supabase.rpc("portal_quote_payment", {
-      _client_id: session.client_id,
-      _plantation_id: body?.plantation_id,
-      _days: days,
-    });
-    if (quoteError) throw quoteError;
-    return json({ success: true, quote });
+
+  const action=String(body?.action||"data");
+  if(action==="quote_payment"){
+   const days=Math.max(1,Math.floor(Number(body?.days||0)));const {data:quote,error}=await supabase.rpc("portal_quote_payment",{_client_id:session.client_id,_plantation_id:body?.plantation_id,_days:days});if(error)throw error;return json({success:true,quote});
   }
 
   const {data:client,error:clientError}=await supabase.from("clients").select("*,offres(*),regions(id,nom),departements(id,nom),districts(id,nom),sous_prefectures(id,nom),promotions:promotion_id(id,nom,code,pourcentage_reduction,montant_fixe_reduction,date_debut,date_fin,cible,active,applique_toutes_offres,offre_ids)").eq("id",session.client_id).eq("compte_actif",true).eq("statut_global","actif").maybeSingle();
-  if(clientError) throw clientError;
-  if(!client) return json({success:false,error:"Compte client inactif ou introuvable."},403);
+  if(clientError)throw clientError;if(!client)return json({success:false,error:"Compte client inactif ou introuvable."},403);
+
+  if(action==="list_messages"){
+   const plantationId=body?.plantation_id||null;
+   if(plantationId){const {data:p}=await supabase.from("plantations").select("id").eq("id",plantationId).eq("client_id",client.id).maybeSingle();if(!p)return json({success:false,error:"Plantation non autorisée."},403);}
+   let query=supabase.from("portail_messages").select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at").eq("client_id",client.id).order("created_at",{ascending:true}).limit(500);
+   if(plantationId)query=query.eq("plantation_id",plantationId);
+   const {data:messages,error}=await query;if(error)throw error;
+   return json({success:true,messages:messages||[]});
+  }
+
+  if(action==="send_message"){
+   const message=cleanMessage(body?.message);const plantationId=body?.plantation_id||null;
+   if(plantationId){const {data:p}=await supabase.from("plantations").select("id").eq("id",plantationId).eq("client_id",client.id).maybeSingle();if(!p)return json({success:false,error:"Plantation non autorisée."},403);}
+   const {data:created,error}=await supabase.from("portail_messages").insert({client_id:client.id,plantation_id:plantationId,auteur_type:"client",auteur_nom:client.nom_complet||"Client AgriCapital",message,lu:true}).select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at").single();
+   if(error)throw error;
+   await supabase.from("historique_activites").insert({table_name:"portail_messages",record_id:created.id,action:"PORTAL_MESSAGE_SENT",details:"Message envoyé depuis l'espace client.",nouvelles_valeurs:{client_id:client.id,plantation_id:plantationId}});
+   return json({success:true,message:created});
+  }
+
+  if(action==="mark_messages_read"){
+   const plantationId=body?.plantation_id||null;let query=supabase.from("portail_messages").update({lu:true}).eq("client_id",client.id).neq("auteur_type","client").eq("lu",false);
+   if(plantationId)query=query.eq("plantation_id",plantationId);
+   const {error}=await query;if(error)throw error;return json({success:true});
+  }
 
   const [pRes,payRes,commercialRes]=await Promise.all([
    supabase.from("plantations").select("*,regions(id,nom),departements(id,nom),districts(id,nom),sous_prefectures(id,nom)").eq("client_id",client.id).order("created_at",{ascending:false}),
    supabase.from("paiements").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(500),
-   client.created_by ? supabase.from("profiles").select("nom_complet,telephone,email,photo_url").eq("user_id",client.created_by).maybeSingle() : Promise.resolve({data:null})
+   client.created_by?supabase.from("profiles").select("nom_complet,telephone,email,photo_url").eq("user_id",client.created_by).maybeSingle():Promise.resolve({data:null})
   ]);
-  const plantations=pRes.data||[], paiements=payRes.data||[];
-  const ids=plantations.map((p:any)=>p.id);
-
-  let tickets:any[]=[]; let reports:any[]=[]; let media:any[]=[];
-  if(ids.length){
-   const [tRes,rRes]=await Promise.all([
-    supabase.from("tickets_techniques").select("id,titre,description,plantation_id,priorite,statut,date_resolution,created_at,updated_at").in("plantation_id",ids).order("updated_at",{ascending:false}),
-    supabase.from("rapports_visites_techniques").select("id,plantation_id,date_visite,type_visite,etat_plantation,contenu_client,prochaine_intervention,client_visible,statut").in("plantation_id",ids).eq("client_visible",true).eq("statut","valide").order("date_visite",{ascending:false})
-   ]);
-   tickets=tRes.data||[]; reports=rRes.data||[];
-   const reportIds=reports.map((r:any)=>r.id);
-   if(reportIds.length){
-    const {data:m}=await supabase.from("rapports_visites_medias").select("id,rapport_id,plantation_id,media_type,storage_path,mime_type,nom_fichier,description,client_visible,created_at").in("rapport_id",reportIds).eq("client_visible",true).order("created_at",{ascending:false});
-    media=m||[];
-    for(const item of media){if(item.storage_path){const {data:signed}=await supabase.storage.from("rapports-techniques").createSignedUrl(item.storage_path,3600);item.url=signed?.signedUrl||null;}}
-   }
-  }
-
-  for(const p of plantations){
-    p.rapports_visites=reports.filter((r:any)=>r.plantation_id===p.id).map((r:any)=>({...r,medias:media.filter((m:any)=>m.rapport_id===r.id)}));
-    p.tickets_techniques=tickets.filter((t:any)=>t.plantation_id===p.id);
-    const {data:rate}=await supabase.rpc("portal_client_daily_rate",{_client_id:client.id,_at_date:new Date().toISOString().slice(0,10)});
-    p.taux_journalier_ha=Number(rate||0);
-  }
-
-  const safe:any={...client,client:true,promotion_active:client.promotions||null,commercial:commercialRes.data?{...commercialRes.data,nom:commercialRes.data.nom_complet,fonction:"Conseiller AgriCapital"}:null,taux_journalier_actuel_ha:Number((await supabase.rpc("portal_client_daily_rate",{_client_id:client.id,_at_date:new Date().toISOString().slice(0,10)})).data||client.taux_journalier_ha||0)};
+  const plantations=pRes.data||[],paiements=payRes.data||[],ids=plantations.map((p:any)=>p.id);
+  let tickets:any[]=[];let reports:any[]=[];let media:any[]=[];
+  if(ids.length){const [tRes,rRes]=await Promise.all([
+   supabase.from("tickets_techniques").select("id,titre,description,plantation_id,priorite,statut,date_resolution,created_at,updated_at").in("plantation_id",ids).order("updated_at",{ascending:false}),
+   supabase.from("rapports_visites_techniques").select("id,plantation_id,date_visite,type_visite,etat_plantation,contenu_client,prochaine_intervention,client_visible,statut").in("plantation_id",ids).eq("client_visible",true).eq("statut","valide").order("date_visite",{ascending:false})
+  ]);tickets=tRes.data||[];reports=rRes.data||[];const reportIds=reports.map((r:any)=>r.id);if(reportIds.length){const {data:m}=await supabase.from("rapports_visites_medias").select("id,rapport_id,plantation_id,media_type,storage_path,mime_type,nom_fichier,description,client_visible,created_at").in("rapport_id",reportIds).eq("client_visible",true).order("created_at",{ascending:false});media=m||[];for(const item of media){if(item.storage_path){const {data:signed}=await supabase.storage.from("rapports-techniques").createSignedUrl(item.storage_path,3600);item.url=signed?.signedUrl||null;}}}}
+  const {data:messages}=await supabase.from("portail_messages").select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at").eq("client_id",client.id).order("created_at",{ascending:true}).limit(500);
+  const unreadMessages=(messages||[]).filter((m:any)=>m.auteur_type!=="client"&&!m.lu).length;
+  const {data:rate}=await supabase.rpc("portal_client_daily_rate",{_client_id:client.id,_at_date:new Date().toISOString().slice(0,10)});
+  for(const p of plantations){p.rapports_visites=reports.filter((r:any)=>r.plantation_id===p.id).map((r:any)=>({...r,medias:media.filter((m:any)=>m.rapport_id===r.id)}));p.tickets_techniques=tickets.filter((t:any)=>t.plantation_id===p.id);p.taux_journalier_ha=Number(rate||0);}
+  const safe:any={...client,client:true,promotion_active:client.promotions||null,commercial:commercialRes.data?{...commercialRes.data,nom:commercialRes.data.nom_complet,fonction:"Conseiller AgriCapital"}:null,taux_journalier_actuel_ha:Number(rate||client.taux_journalier_ha||0),messages_non_lus:unreadMessages};
   delete safe.user_id;delete safe.created_by;delete safe.updated_by;delete safe.numero_piece;delete safe.fichier_piece_url;delete safe.fichier_piece_recto_url;delete safe.fichier_piece_verso_url;delete safe.numero_compte;
-  return json({success:true,demo:false,client:safe,souscripteur:safe,plantations,paiements});
+  return json({success:true,demo:false,client:safe,souscripteur:safe,plantations,paiements,messages:messages||[]});
  }catch(e:any){console.error("client-portal-data",e);return json({success:false,error:e?.message||"Erreur serveur."},500);}
 });

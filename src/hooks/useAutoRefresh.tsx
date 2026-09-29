@@ -38,7 +38,14 @@ export function useAutoRefresh(
         const accessToken = sessionStorage.getItem("agri_portal_access_token");
         const isDemo = sessionStorage.getItem("agri_demo") === "1";
         const functionName = isDemo ? "subscriber-lookup" : "client-portal-data";
-        const body = isDemo ? { telephone, silent: true } : { access_token: accessToken };
+        const body = isDemo
+          ? {
+              telephone,
+              silent: true,
+              demo_token: sessionStorage.getItem("agri_demo_token"),
+              demo_code: sessionStorage.getItem("agri_demo_code"),
+            }
+          : { access_token: accessToken };
         const { data, error } = await supabase.functions.invoke(functionName, { body });
         if (!cancelled && !error && data?.success) {
           const plants = data.plantations || [];

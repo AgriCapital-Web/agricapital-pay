@@ -90,7 +90,7 @@ const ClientPlantationHub = ({ souscripteur, plantations, onBack }: Props) => {
           <TabsContent value="documents"><DocumentsTab plantation={plantation} souscripteur={souscripteur} /></TabsContent>
           <TabsContent value="carte"><MapTab plantation={plantation} /></TabsContent>
           <TabsContent value="rapports"><RapportsTab plantation={plantation} /></TabsContent>
-          <TabsContent value="messagerie"><MessagerieTab souscripteur={souscripteur} /></TabsContent>
+          <TabsContent value="messagerie"><MessagerieTab souscripteur={souscripteur} plantation={plantation} /></TabsContent>
           {isPlus && <TabsContent value="production"><ProductionTab plantation={plantation} /></TabsContent>}
           {isPlus && <TabsContent value="intrants"><IntrantsTab plantation={plantation} /></TabsContent>}
           {isPlus && <TabsContent value="revenus"><RevenusTab plantation={plantation} /></TabsContent>}

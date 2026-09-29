@@ -55,7 +55,9 @@ const ClientPortal = () => {
           setPlantations(JSON.parse(savedPlantations || "[]"));
           setPaiements(JSON.parse(savedPaiements || "[]"));
           setView("dashboard");
-        } catch { sessionStorage.removeItem("agri_client"); sessionStorage.removeItem("agri_souscripteur"); sessionStorage.removeItem("agri_plantations"); sessionStorage.removeItem("agri_paiements"); sessionStorage.removeItem("agri_demo"); }
+        } catch { sessionStorage.removeItem("agri_client"); sessionStorage.removeItem("agri_souscripteur"); sessionStorage.removeItem("agri_plantations"); sessionStorage.removeItem("agri_paiements"); sessionStorage.removeItem("agri_demo");
+    sessionStorage.removeItem("agri_demo_token");
+    sessionStorage.removeItem("agri_demo_code"); }
         return;
       }
       if (!token) return;

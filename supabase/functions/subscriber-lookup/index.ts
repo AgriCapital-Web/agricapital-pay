@@ -382,6 +382,21 @@ function sanitizePhone(input: string): string {
   return cleaned;
 }
 
+async function sha256(value: string) {
+  const secret = Deno.env.get("PORTAL_ACCESS_CODE_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value + ":" + secret));
+  return Array.from(new Uint8Array(digest)).map(x => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyDemoToken(phone: string, token: string | null | undefined, code: string | null | undefined): Promise<boolean> {
+  if (!token) return false;
+  if (!code || !/^\d{4}$/.test(code)) return false;
+  const secret = Deno.env.get("PORTAL_ACCESS_CODE_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`demo:${phone}:${code}:${secret}`));
+  const expected = Array.from(new Uint8Array(digest)).map(x => x.toString(16).padStart(2, "0")).join("");
+  return token === expected;
+}
+
 function normalizeOfferCode(code: string | null | undefined): string {
   return (code || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]+/g, '').replace(/_PLUS/g, '+').replace(/PLUS/g, '+');
 }
@@ -493,6 +508,8 @@ serve(async (req) => {
     }
     
     const cleanPhone = sanitizePhone(body.telephone || '');
+    const demoToken = typeof body.demo_token === 'string' ? body.demo_token : null;
+    const demoCode = typeof body.demo_code === 'string' ? body.demo_code : null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -538,6 +555,12 @@ serve(async (req) => {
 
 
     if (!souscripteur) {
+      if (!(await verifyDemoToken(cleanPhone, demoToken, demoCode))) {
+        return new Response(
+          JSON.stringify({ success: false, demo: false, error: "Numéro non enregistré : utilisez le code de démonstration généré sur l'écran de connexion." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
+        );
+      }
       // === MODE DÉMONSTRATION ===
       // Numéro inconnu du CRM (quel que soit l'indicatif pays) : on renvoie un
       // compte de démonstration complet, sans aucune écriture en base.

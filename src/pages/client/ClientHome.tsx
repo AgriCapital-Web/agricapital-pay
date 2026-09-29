@@ -18,10 +18,13 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const [accessCode, setAccessCode] = useState("");
   const [confirmCode, setConfirmCode] = useState("");
   const [demoCode, setDemoCode] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string>("");
+  const [showSetupSuccess, setShowSetupSuccess] = useState(false);
 
   useEffect(() => { document.title = "Portail Client | AgriCapital"; }, []);
 
   const cleanPhone = () => telephone.replace(/\D/g, "").slice(0, 10);
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => setTelephone(e.target.value.replace(/\D/g, "").slice(0, 10));
   const formatPhoneDisplay = (value: string) => value.replace(/\D/g, "").slice(0, 10).replace(/(\d{2})(?=\d)/g, "$1 ").trim();
 
   const saveSession = (data: any, token?: string, demo = false) => {
@@ -54,7 +57,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     try {
       const { data, error } = await supabase.functions.invoke("portal-access", { body: { action: "inspect", telephone: phone } });
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Vérification impossible.");
-      if (data.demo) { setDemoCode(data.access_code); setStep("demo"); }
+      if (data.demo) { setDemoCode(data.access_code); setAccessCode(data.access_code); setStep("demo"); }
       else if (data.needs_access_code_setup) { setAccessCode(""); setConfirmCode(""); setStep("setup"); }
       else { setAccessCode(""); setStep("login"); }
     } catch (e: any) {
@@ -68,8 +71,8 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     try {
       const { data, error } = await supabase.functions.invoke("portal-access", { body: { action: "setup", telephone: cleanPhone(), code: accessCode, confirm_code: confirmCode } });
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Enregistrement impossible.");
-      toast({ title: "Code d'accès enregistré", description: "Votre code d'accès a été enregistré. Merci de le noter et de le conserver dans un lieu sûr." });
-      await loadRealClient(data.access_token);
+      setShowSetupSuccess(true);
+      window.setTimeout(() => { setShowSetupSuccess(false); void loadRealClient(data.access_token); }, 1400);
     } catch (e: any) { toast({ variant: "destructive", title: "Erreur", description: e.message || "Impossible d'enregistrer le code." }); }
     finally { setLoading(false); }
   };
@@ -85,7 +88,9 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     finally { setLoading(false); }
   };
 
-  const handleDemo = async () => { if (!demoCode) return; setLoading(true); try { await loadDemo(); } catch (e:any) { toast({variant:"destructive",title:"Erreur",description:e.message}); } finally {setLoading(false);} };
+  const handleDemo = async () => { if (!demoCode) return; setLoading(true); try { const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone: cleanPhone(), demo_only: true } });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Impossible de charger la démonstration.");
+      saveSession(data, undefined, true); } catch (e:any) { toast({variant:"destructive",title:"Erreur",description:e.message}); } finally {setLoading(false);} };
   const handleWhatsApp = () => window.open("https://wa.me/2250564551717?text="+encodeURIComponent("Bonjour AgriCapital, je souhaite créer mon compte client."), "_blank");
 
   return (
@@ -259,6 +264,13 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                     </div>
                   )}
 
+                  {step === "login" && clientName && (
+                    <div className="rounded-xl border border-[#E5E7E3] bg-white p-3 mb-1">
+                      <label className="block text-[10px] font-semibold text-[#9CA3A0] uppercase tracking-wider mb-1">Client</label>
+                      <Input value={clientName} readOnly className="h-10 bg-[#FAFAF7] font-semibold border-0 px-0 focus-visible:ring-0" />
+                    </div>
+                  )}
+
                   {step !== "demo" && (
                     <div className="space-y-4">
                       <div>
@@ -279,10 +291,10 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                   {step === "setup" && <div className="rounded-xl bg-[#00643C]/5 border border-[#00643C]/10 p-4 text-sm text-[#315248]"><strong>Important :</strong> votre code d'accès a été enregistré de façon sécurisée. Merci de le noter et de le conserver dans un lieu sûr. AgriCapital ne vous demandera jamais de le communiquer à un tiers.</div>}
 
                   <Button onClick={step === "setup" ? handleSetup : step === "login" ? handleLogin : handleDemo} disabled={loading || (step !== "demo" && accessCode.length !== 4)} className="w-full h-14 rounded-xl bg-[#00643C] hover:bg-[#004D2E] text-white font-semibold">
-                    {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Connexion…</> : <>Accéder à mon espace <ArrowRight className="h-4 w-4" /></>}
+                    {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Connexion…</> : <>{step === "demo" ? "Utiliser ce code" : "Accéder à mon espace"} <ArrowRight className="h-4 w-4" /></>}
                   </Button>
 
-                  <button onClick={()=>{setStep("phone");setAccessCode("");setConfirmCode("");setDemoCode(null)}} className="flex items-center gap-1.5 text-[#5A6660] hover:text-[#00643C] font-medium text-sm">
+                  <button onClick={()=>{setStep("phone");setAccessCode("");setConfirmCode("");setDemoCode(null);setClientName("");setShowSetupSuccess(false)}} className="flex items-center gap-1.5 text-[#5A6660] hover:text-[#00643C] font-medium text-sm">
                     <ArrowLeft className="h-3.5 w-3.5" /> Modifier le numéro
                   </button>
                 </div>
@@ -290,6 +302,16 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
 
             </div>
           </div>
+
+          {showSetupSuccess && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 px-5">
+              <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#00643C]/10 text-[#00643C]">✓</div>
+                <h3 className="text-lg font-bold text-[#0F1B17]">Code d'accès enregistré avec succès</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#5A6660]">Merci de le conserver en lieu sûr. Il vous sera demandé lors de vos prochaines connexions à votre espace client.</p>
+              </div>
+            </div>
+          )}
 
           {/* Footer mobile */}
           <footer className="lg:hidden px-5 pb-6 text-center">

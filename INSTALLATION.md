@@ -119,6 +119,6 @@ Après l'installation :
 ## 🔄 Mises à Jour
 
 Le système se met à jour automatiquement via :
-- **Frontend** : Cliquez sur "Publier" dans Lovable
+- **Frontend** : Cliquez sur "Déployer" dans Inocent KOFFI _ AgriCapital
 - **Backend** : Les edge functions se déploient automatiquement
 - **Base de données** : Exécutez les nouveaux scripts SQL manuellement

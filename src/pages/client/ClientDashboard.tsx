@@ -18,6 +18,7 @@ import { fr } from "date-fns/locale";
 import { TransactionStatusWidget } from "@/components/client/TransactionStatusWidget";
 import SyncJournalDialog from "@/components/client/SyncJournalDialog";
 import AccessCodePanel from "@/components/client/AccessCodePanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface ClientDashboardProps {
   souscripteur: any;
@@ -48,6 +49,7 @@ const ClientDashboard = ({
   const [plantations, setPlantations] = useState(initialPlantations);
   const [paiements, setPaiements] = useState(initialPaiements);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAccessSaved, setShowAccessSaved] = useState(false);
 
   useEffect(() => {
     setSouscripteur(initialSouscripteur);
@@ -58,6 +60,13 @@ const ClientDashboard = ({
   useEffect(() => {
     if (permission === 'granted') checkAndNotifyArrears(plantations, souscripteur);
   }, [permission, plantations, souscripteur, checkAndNotifyArrears]);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("agri_access_code_saved") === "1") {
+      sessionStorage.removeItem("agri_access_code_saved");
+      setShowAccessSaved(true);
+    }
+  }, []);
 
   const fmt = (m: number) => formatCFA(m);
   const totalHectares = plantations.reduce((s: number, p: any) => s + (p.superficie_ha || 0), 0);
@@ -148,6 +157,22 @@ const ClientDashboard = ({
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 28%, #f8f7f4 28.1%, #f8f7f4 100%)' }}>
+      <Dialog open={showAccessSaved} onOpenChange={setShowAccessSaved}>
+        <DialogContent className="max-w-sm text-center rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex flex-col items-center gap-3 text-lg">
+              <span className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-primary" />
+              </span>
+              Code d'accès enregistré avec succès
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Merci de conserver votre code d'accès en lieu sûr pour vos futures connexions à votre espace client.
+          </p>
+          <Button className="w-full btn-brand" onClick={() => setShowAccessSaved(false)}>Continuer</Button>
+        </DialogContent>
+      </Dialog>
       {/* Header */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50" style={{ background: 'linear-gradient(180deg, #00643C 0%, #004d2e 100%)' }}>
         <div className="container mx-auto flex items-center justify-between max-w-lg lg:max-w-7xl">

@@ -1,4 +1,5 @@
 drop index if exists public.idx_portail_messages_client_created_at;
+drop index if exists public.idx_portail_messages_client;
 
 do $$
 begin

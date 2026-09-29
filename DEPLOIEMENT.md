@@ -105,3 +105,23 @@ En cas de problème: +225 07 59 56 60 87
 
 **Domaine de production:** https://www.agricapital.ci  
 **Hébergeur:** SafaryCloud
+
+
+## PWA et notifications push
+
+Le portail utilise un Service Worker unique (`public/sw.js`) pour :
+- le cache PWA ;
+- la réception Web Push ;
+- l'affichage des notifications lorsque l'application n'est pas ouverte ;
+- le clic sur notification et le retour vers le portail.
+
+Les abonnements sont enregistrés dans `public.push_subscriptions` et rattachés soit à un utilisateur CRM, soit à un client portail.
+
+Les événements de notification passent par `notification_event_outbox`. La clé `dedupe_key` est la référence d'idempotence afin d'éviter les doubles notifications.
+
+Les clés VAPID sont stockées dans le coffre Supabase Vault sous `agricapital_vapid_config`. Elles ne doivent jamais être commitées dans Git.
+
+## Identité du projet
+
+Éditeur : **AgriCapital SARL**  
+Fondateur / responsable : **Inocent KOFFI _ AgriCapital**

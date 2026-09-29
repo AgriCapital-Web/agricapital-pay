@@ -1,42 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function PortalNotificationCenter({ compact=false }: { compact?: boolean }) {
   const [items,setItems]=useState<any[]>([]);
   const [open,setOpen]=useState(false);
-  const [permission,setPermission]=useState<NotificationPermission>(
-    typeof Notification==="undefined" ? "default" : Notification.permission
-  );
-  const initialized=useRef(false);
-  const knownIds=useRef(new Set<string>());
+  const { permission, requestPermission } = usePushNotifications();
 
   const load=async()=>{
     const token=sessionStorage.getItem("agri_portal_access_token");
     const isDemo=sessionStorage.getItem("agri_demo")==="1";
     if(!token||isDemo) return;
-    const {data,error}=await supabase.functions.invoke("portal-messages",{
+    const {data,error}=await supabase.functions.invoke("portal-messaging",{
       body:{action:"notifications",access_token:token}
     });
     if(error||!data?.success) return;
     const next=data.notifications||[];
-    if(initialized.current){
-      for(const n of next.filter((x:any)=>!x.read && !knownIds.current.has(x.id)).slice(0,3)){
-        if(typeof Notification!=="undefined" && Notification.permission==="granted"){
-          const reg=await navigator.serviceWorker?.getRegistration().catch(()=>null);
-          if(reg?.showNotification) {
-            await reg.showNotification(n.title||"AgriCapital",{body:n.message||"",tag:"agri-portal-"+n.id,data:n.data||{}});
-          } else {
-            new Notification(n.title||"AgriCapital",{body:n.message||"",tag:"agri-portal-"+n.id});
-          }
-        }
-      }
-    }
-    knownIds.current=new Set(next.map((n:any)=>n.id));
     setItems(next);
-    initialized.current=true;
   };
 
   useEffect(()=>{
@@ -46,15 +29,11 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
   },[]);
 
   const unread=items.filter(n=>!n.read).length;
-  const enable=async()=>{
-    if(typeof Notification==="undefined") return;
-    const p=await Notification.requestPermission();
-    setPermission(p);
-  };
+  const enable=async()=>{ await requestPermission(); };
   const markAll=async()=>{
     const token=sessionStorage.getItem("agri_portal_access_token");
     if(!token) return;
-    await supabase.functions.invoke("portal-messages",{body:{action:"mark_notification_read",access_token:token}});
+    await supabase.functions.invoke("portal-messaging",{body:{action:"mark_notification_read",access_token:token}});
     setItems((prev)=>prev.map(n=>({...n,read:true})));
   };
 
@@ -80,7 +59,7 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
             {items.length===0?<p className="p-5 text-center text-xs text-muted-foreground">Aucune notification.</p>:items.map((n:any)=>(
               <button key={n.id} className={`w-full rounded-xl p-3 text-left hover:bg-muted/50 ${n.read?"":"bg-primary/5"}`} onClick={async()=>{
                 const token=sessionStorage.getItem("agri_portal_access_token");
-                if(token&&!n.read) await supabase.functions.invoke("portal-messages",{body:{action:"mark_notification_read",access_token:token,notification_id:n.id}});
+                if(token&&!n.read) await supabase.functions.invoke("portal-messaging",{body:{action:"mark_notification_read",access_token:token,notification_id:n.id}});
                 setItems(prev=>prev.map(x=>x.id===n.id?{...x,read:true}:x));
               }}>
                 <div className="flex items-start gap-2"><Bell className="mt-0.5 h-3.5 w-3.5 text-primary shrink-0"/><div className="min-w-0"><p className="text-xs font-semibold">{n.title}</p><p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{n.message}</p><p className="mt-1 text-[9px] text-muted-foreground">{new Date(n.created_at).toLocaleString("fr-FR")}</p></div></div>

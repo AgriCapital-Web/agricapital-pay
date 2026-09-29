@@ -58,9 +58,12 @@ serve(async(req)=>{
     const action=body.action||"list";
 
     if(action==="list"){
-      const {data,error}=await supabase.from("portail_messages")
+      let query=supabase.from("portail_messages")
         .select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at")
         .eq("client_id",session.clientId).order("created_at",{ascending:true}).limit(500);
+      if(body.plantation_id) query=query.eq("plantation_id",body.plantation_id);
+      const {data,error}=await query;
+      if(body.plantation_id) query = query.eq("plantation_id", body.plantation_id);
       if(error) throw error;
       const {data:notifications}=await supabase.from("portail_notifications")
         .select("id,type,title,message,data,read,created_at")
@@ -114,6 +117,7 @@ serve(async(req)=>{
       let query=supabase.from("portail_messages").update({lu:true})
         .eq("client_id",session.clientId).eq("auteur_type","staff").eq("lu",false);
       if(body.message_id) query=query.eq("id",body.message_id);
+      if(body.plantation_id) query=query.eq("plantation_id",body.plantation_id);
       const {error}=await query;
       if(error) throw error;
       return json({success:true});

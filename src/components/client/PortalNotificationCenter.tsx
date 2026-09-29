@@ -8,7 +8,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 export default function PortalNotificationCenter({ compact=false }: { compact?: boolean }) {
   const [items,setItems]=useState<any[]>([]);
   const [open,setOpen]=useState(false);
-  const { permission, isSupported, requestPermission } = usePushNotifications();
+  const { permission, requestPermission } = usePushNotifications();
   const initialized=useRef(false);
 
   const load=async()=>{

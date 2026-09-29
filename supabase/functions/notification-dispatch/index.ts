@@ -342,6 +342,25 @@ async function runCampaign(campaignId: string) {
 }
 
 async function runEvent(eventCode: string, context: Record<string, unknown>) {
+  if (eventCode === "plantation_activee") {
+    const clientId = String(context.client_id || "");
+    const plantationId = String(context.plantation_id || "");
+    if (!clientId || !plantationId) return [];
+    const dedupeKey = `plantation_activee:${clientId}:${plantationId}`;
+    const title = "Plantation activée";
+    const body = `Votre plantation de ${Number(context.surface || 0).toLocaleString("fr-FR")} ha est activée. ${context.village ? `Localisation : ${context.village}.` : ""}`;
+    const { data: notification, error } = await admin.from("portail_notifications").upsert({
+      client_id: clientId,
+      type: "plantation_activee",
+      title,
+      message: body,
+      data: { plantation_id: plantationId, parcelle_id: context.parcelle_id || null, route: "/client/plantations" },
+      dedupe_key: dedupeKey,
+    }, { onConflict: "dedupe_key" }).select("id,client_id,title,message,dedupe_key,data").single();
+    if (error) throw error;
+    return [{ event: eventCode, portal_notification_id: notification.id, dedupe_key: dedupeKey }];
+  }
+
   if (eventCode === "notification_push") {
     const notificationId = String(context.notification_id || "");
     if (!notificationId) return [];

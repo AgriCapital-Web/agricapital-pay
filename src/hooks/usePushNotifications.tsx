@@ -100,10 +100,14 @@ export const usePushNotifications = () => {
     }
 
     try {
+      if (document.visibilityState === 'visible') {
+        toast({ title: payload.title, description: payload.body });
+        return;
+      }
       const registration = await navigator.serviceWorker.ready;
       await registration.showNotification(payload.title, {
         body: payload.body,
-        icon: payload.icon || '/logo-agricapital.png',
+        icon: payload.icon || '/images/logo-light.png',
         badge: payload.badge || '/icons/icon-192x192.png',
         tag: payload.tag,
         data: payload.data,
@@ -114,7 +118,7 @@ export const usePushNotifications = () => {
       try {
         new Notification(payload.title, {
           body: payload.body,
-          icon: payload.icon || '/logo-agricapital.png',
+          icon: payload.icon || '/images/logo-light.png',
           tag: payload.tag
         });
       } catch {

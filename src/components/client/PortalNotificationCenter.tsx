@@ -3,13 +3,12 @@ import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function PortalNotificationCenter({ compact=false }: { compact?: boolean }) {
   const [items,setItems]=useState<any[]>([]);
   const [open,setOpen]=useState(false);
-  const [permission,setPermission]=useState<NotificationPermission>(
-    typeof Notification==="undefined" ? "default" : Notification.permission
-  );
+  const { permission, isSupported, requestPermission } = usePushNotifications();
   const initialized=useRef(false);
   const knownIds=useRef(new Set<string>());
 

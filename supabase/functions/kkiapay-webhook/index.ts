@@ -141,7 +141,7 @@ serve(async (req) => {
     const rpc = await supabase.rpc("finalize_portal_payment", {
       _paiement_id: paiement.id,
       _transaction_id: transactionId,
-      _provider_amount: paiement.metadata?.client_debit_amount || paiement.montant,
+      _provider_amount: paiement.metadata?.kkiapay_widget_amount || paiement.montant,
       _metadata: updateData.metadata,
       _validated_at: new Date().toISOString(),
     });

@@ -48,12 +48,11 @@ serve(async (req) => {
     const action = String(body?.action || "config");
 
     if (action === "config") {
-      const publicKey = Deno.env.get("VAPID_PUBLIC_KEY") || "";
-      return json({
-        success: true,
-        supported: Boolean(publicKey),
-        public_key: publicKey || null,
-      });
+      const { data: vapid, error: vapidError } = await admin.rpc("notification_vapid_config");
+      if (vapidError || !vapid?.public_key) {
+        return json({ success: true, supported: false, public_key: null });
+      }
+      return json({ success: true, supported: true, public_key: vapid.public_key });
     }
 
     const owner = await resolveOwner(admin, req, body);

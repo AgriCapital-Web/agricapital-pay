@@ -8,11 +8,11 @@ begin
       and schemaname='public'
   loop
     if r.qual is not null then
-      q := regexp_replace(r.qual, 'auth\\.uid\\(\\)', '(select auth.uid())', 'g');
+      q := replace(r.qual, 'auth.uid()', '(select auth.uid())');
       execute format('alter policy %I on %I.%I using (%s)', r.policyname,r.schemaname,r.tablename,q);
     end if;
     if r.with_check is not null then
-      q := regexp_replace(r.with_check, 'auth\\.uid\\(\\)', '(select auth.uid())', 'g');
+      q := replace(r.with_check, 'auth.uid()', '(select auth.uid())');
       execute format('alter policy %I on %I.%I with check (%s)', r.policyname,r.schemaname,r.tablename,q);
     end if;
   end loop;

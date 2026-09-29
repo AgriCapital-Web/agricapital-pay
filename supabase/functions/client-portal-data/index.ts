@@ -170,7 +170,9 @@ serve(async(req)=>{
       proprietaire:owner,
       commercial:commercialRes.data?{...commercialRes.data,nom:commercialRes.data.nom_complet,fonction:"Conseiller AgriCapital"}:null,
       taux_journalier_actuel_ha:dailyRate,
-      portail_notifications_unread:notificationRows.filter((n:any)=>!n.read).length};
+      portail_notifications_unread:notificationRows.filter((n:any)=>!n.read).length,
+      parcelles,
+      attributions};
     delete safe.user_id; delete safe.created_by; delete safe.updated_by; delete safe.numero_piece;
     delete safe.fichier_piece_url; delete safe.fichier_piece_recto_url; delete safe.fichier_piece_verso_url; delete safe.numero_compte;
 

@@ -72,7 +72,9 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
       const { data, error } = await supabase.functions.invoke("portal-access", { body: { action: "setup", telephone: cleanPhone(), code: accessCode, confirm_code: confirmCode } });
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Enregistrement impossible.");
       setShowSetupSuccess(true);
-      window.setTimeout(() => { setShowSetupSuccess(false); void loadRealClient(data.access_token); }, 1400);
+      await new Promise(resolve => window.setTimeout(resolve, 1400));
+      setShowSetupSuccess(false);
+      await loadRealClient(data.access_token);
     } catch (e: any) { toast({ variant: "destructive", title: "Erreur", description: e.message || "Impossible d'enregistrer le code." }); }
     finally { setLoading(false); }
   };
@@ -288,7 +290,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                     </div>
                   )}
 
-                  {step === "setup" && <div className="rounded-xl bg-[#00643C]/5 border border-[#00643C]/10 p-4 text-sm text-[#315248]"><strong>Important :</strong> votre code d'accès a été enregistré de façon sécurisée. Merci de le noter et de le conserver dans un lieu sûr. AgriCapital ne vous demandera jamais de le communiquer à un tiers.</div>}
+                  {step === "setup" && <div className="rounded-xl bg-[#00643C]/5 border border-[#00643C]/10 p-4 text-sm text-[#315248]"><strong>Important :</strong> votre code d'accès sera enregistré de façon sécurisée. Merci de le noter et de le conserver dans un lieu sûr. AgriCapital ne vous demandera jamais de le communiquer à un tiers.</div>}
 
                   <Button onClick={step === "setup" ? handleSetup : step === "login" ? handleLogin : handleDemo} disabled={loading || (step !== "demo" && accessCode.length !== 4)} className="w-full h-14 rounded-xl bg-[#00643C] hover:bg-[#004D2E] text-white font-semibold">
                     {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Connexion…</> : <>{step === "demo" ? "Utiliser ce code" : "Accéder à mon espace"} <ArrowRight className="h-4 w-4" /></>}

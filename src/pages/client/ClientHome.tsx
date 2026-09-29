@@ -78,9 +78,9 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
     try {
       const { data, error } = await supabase.functions.invoke("portal-access", { body: { action: "setup", telephone: cleanPhone(), code: accessCode, confirm_code: confirmCode } });
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Enregistrement impossible.");
-      sessionStorage.setItem("agri_access_code_saved", "1");
       await new Promise((resolve) => setTimeout(resolve, 250));
       await loadRealClient(data.access_token);
+      sessionStorage.setItem("agri_access_code_saved", "1");
     } catch (e: any) { toast({ variant: "destructive", title: "Erreur", description: e.message || "Impossible d'enregistrer le code." }); }
     finally { setLoading(false); }
   };

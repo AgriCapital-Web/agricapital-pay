@@ -8,6 +8,8 @@ import ClientPaymentHistory from "./client/ClientPaymentHistory";
 import ClientStatistics from "./client/ClientStatistics";
 import PaymentReturn from "./client/PaymentReturn";
 import ClientPlantationHub from "./client/ClientPlantationHub";
+import StakeholderDashboard from "./client/StakeholderDashboard";
+import PortalNotificationCenter from "@/components/client/PortalNotificationCenter";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { supabase } from "@/integrations/supabase/client";
@@ -159,11 +161,23 @@ const ClientPortal = () => {
       <InstallPrompt />
 
       {souscripteur && <SyncStatusBanner status={status} lastSync={lastSync} />}
+      {souscripteur && view !== "home" && (
+        <div className="fixed right-3 top-3 z-[70] md:right-5 md:top-5">
+          <PortalNotificationCenter compact />
+        </div>
+      )}
 
       
       {view === 'home' && <ClientHome onLogin={handleLogin} />}
       
-      {view === 'dashboard' && (
+      {view === 'dashboard' && souscripteur?.portal_primary_role !== "client" ? (
+        <StakeholderDashboard
+          souscripteur={souscripteur}
+          plantations={plantations}
+          onPlantationHub={() => setView('plantation-hub')}
+          onLogout={handleLogout}
+        />
+      ) : view === 'dashboard' && (
         <ClientDashboard
           souscripteur={souscripteur}
           plantations={plantations}

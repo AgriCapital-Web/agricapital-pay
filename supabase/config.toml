@@ -33,5 +33,5 @@ verify_jwt = false
 [functions.generate-receipt]
 verify_jwt = false
 
-[functions.portal-messaging]
+[functions.portal-messages]
 verify_jwt = false

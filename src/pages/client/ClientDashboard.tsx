@@ -133,7 +133,11 @@ const ClientDashboard = ({
     try {
       const accessToken = sessionStorage.getItem("agri_portal_access_token");
       const isDemo = sessionStorage.getItem("agri_demo") === "1";
-      const { data, error } = await supabase.functions.invoke(isDemo ? "subscriber-lookup" : "client-portal-data", { body: isDemo ? { telephone: souscripteur.telephone, silent: true } : { access_token: accessToken } });
+      if (isDemo) {
+        toast({ title: "Démonstration", description: "Les données de démonstration sont déjà disponibles." });
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("client-portal-data", { body: { access_token: accessToken } });
       if (error) throw error;
       if (data?.success) {
         setSouscripteur(data.souscripteur); setPlantations(data.plantations); setPaiements(data.paiements);

@@ -1,73 +1,53 @@
-# Welcome to your Lovable project
+# AgriCapital — Portail client
 
-## Project info
+**Éditeur :** AgriCapital SARL  
+**Fondateur / responsable :** Inocent KOFFI _ AgriCapital  
+**Domaine :** https://agricapital.ci/  
+**Portail client :** https://client.agricapital.ci/  
+**CRM :** https://app.agricapital.ci/
 
-**URL**: https://lovable.dev/projects/45e181d3-ea5a-46fb-a67b-757f4018c922
+## Présentation
 
-## How can I edit this code?
+AgriCapital est une plateforme de gestion et de suivi de projets agricoles. Le portail client permet notamment :
 
-There are several ways of editing your application.
+- suivi des plantations de palmier à huile ;
+- consultation des superficies et activations ;
+- suivi des paiements et échéances ;
+- consultation des rapports et médias terrain ;
+- messagerie avec les équipes AgriCapital ;
+- notifications applicatives et notifications push PWA ;
+- accès sécurisé par téléphone et code personnel à 4 chiffres.
 
-**Use Lovable**
+## Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/45e181d3-ea5a-46fb-a67b-757f4018c922) and start prompting.
+- React + TypeScript + Vite
+- Supabase Database / Edge Functions / Storage
+- PWA avec Service Worker et Web Push
+- Vercel pour le déploiement web
+- KKiaPay pour les paiements
+- CRM AgriCapital comme source opérationnelle de référence
 
-Changes made via Lovable will be committed automatically to this repo.
+## Principes
 
-**Use your preferred IDE**
+Le portail ne duplique pas la logique métier du CRM : les offres, contrats, plantations, parcelles, paiements, rapports et relations clients sont synchronisés depuis les données métier centrales.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Les notifications utilisent une clé de déduplication commune afin d'éviter les doubles notifications entre le CRM, l'application et le push.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Développement
 
-Follow these steps:
+1. Installer les dépendances avec le gestionnaire de paquets du projet.
+2. Configurer les variables Supabase nécessaires.
+3. Lancer l'environnement de développement.
+4. Vérifier les migrations et les Edge Functions avant déploiement.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Maintenance
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Les migrations SQL sous `supabase/migrations/` constituent la source versionnée des évolutions de la base.
 
-# Step 3: Install the necessary dependencies.
-npm i
+Les secrets serveur, notamment les clés Web Push VAPID, ne doivent jamais être commités dans Git. Ils sont conservés dans le coffre sécurisé Supabase.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Identité
 
-**Edit a file directly in GitHub**
+Toute attribution de contenu, documentation ou métadonnée interne du projet doit utiliser :
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/45e181d3-ea5a-46fb-a67b-757f4018c922) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+**Inocent KOFFI _ AgriCapital**

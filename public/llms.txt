@@ -17,11 +17,18 @@ AgriCapital est une société agro-industrielle ivoirienne qui propose à ses cl
 - (formules +) gérer les intrants (recommandés, quantités, coût, approvisionnement) et leur paiement (comptant, échelonné, retenue sur revenus)
 - (formules +) suivre la répartition des revenus 70% client / 30% AgriCapital sur toute la durée du cycle (jusqu'à 28 ans)
 
-Authentification par numéro de téléphone + code OTP envoyé par SMS. Les données affichées sont strictement personnelles et protégées (RLS Supabase, PII filtrées côté API, buckets privés avec signed URLs).
+Authentification par numéro de téléphone : première connexion avec création d'un code personnel à 4 chiffres, puis connexion sécurisée avec ce code. Les données affichées sont strictement personnelles et protégées (RLS Supabase, PII filtrées côté API, buckets privés avec signed URLs).
 
 ## Pages
 
 - [Espace Client AgriCapital](/) : connexion, tableau de bord, paiements, "Ma Plantation" (progression, médias, documents, carte, rapports, messagerie, production, intrants, revenus)
+
+## Identité et gouvernance
+
+- Éditeur : AgriCapital SARL
+- Fondateur et responsable : Inocent KOFFI _ AgriCapital
+- Portail client : https://client.agricapital.ci/
+- Source CRM : https://app.agricapital.ci/
 
 ## Contact
 
@@ -29,6 +36,12 @@ Authentification par numéro de téléphone + code OTP envoyé par SMS. Les donn
 - CRM interne : https://app.agricapital.ci
 - Support client : +225 05 64 55 17 17
 - Adresse : Abidjan, Côte d'Ivoire
+
+## Notifications et PWA
+
+- Notifications applicatives dédupliquées et synchronisées avec le CRM
+- Notifications push Web via Service Worker lorsque l'utilisateur a accordé la permission
+- Les notifications push peuvent être reçues lorsque le portail n'est pas ouvert, selon les capacités et permissions du navigateur et de l'appareil
 
 ## Optional
 

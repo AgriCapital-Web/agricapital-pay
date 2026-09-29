@@ -45,7 +45,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   };
 
   const loadDemo = async () => {
-    const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone: cleanPhone(), silent: true } });
+    const { data, error } = await supabase.functions.invoke("subscriber-lookup", { body: { telephone: cleanPhone(), demo_only: true } });
     if (error || !data?.success) throw new Error(data?.error || error?.message || "Impossible de charger la démonstration.");
     saveSession(data, undefined, true);
   };
@@ -58,8 +58,8 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
       const { data, error } = await supabase.functions.invoke("portal-access", { body: { action: "inspect", telephone: phone } });
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Vérification impossible.");
       if (data.demo) { setDemoCode(data.access_code); setAccessCode(data.access_code); setStep("demo"); }
-      else if (data.needs_access_code_setup) { setAccessCode(""); setConfirmCode(""); setStep("setup"); }
-      else { setAccessCode(""); setStep("login"); }
+      else if (data.needs_access_code_setup) { setClientName(data.client_name || ""); setAccessCode(""); setConfirmCode(""); setStep("setup"); }
+      else { setClientName(data.client_name || ""); setAccessCode(""); setStep("login"); }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message || "Connexion impossible." });
     } finally { setLoading(false); }

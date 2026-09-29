@@ -26,6 +26,9 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
 
   const cleanPhone = () => telephone.replace(/\D/g, "").slice(0, 10);
   const formatPhoneDisplay = (value: string) => value.replace(/\D/g, "").slice(0, 10).replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTelephone(e.target.value.replace(/\D/g, "").slice(0, 10));
+  };
 
   const saveSession = (data: any, token?: string, demo = false) => {
     const client = data.client || data.souscripteur;

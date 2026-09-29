@@ -363,7 +363,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       const { data: invokeData, error: insertError } = await supabase.functions.invoke('create-payment', {
         body: {
           action: 'insert',
-          souscripteur_id: souscripteur.id,
+          client_id: souscripteur.id,
           plantation_id: plantation.id,
           type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
           montant: montantTotal,

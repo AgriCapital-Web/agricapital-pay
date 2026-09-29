@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationPayload {
   title: string;
@@ -9,6 +10,13 @@ interface NotificationPayload {
   data?: Record<string, any>;
   tag?: string;
 }
+
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+};
 
 export const usePushNotifications = () => {
   const { toast } = useToast();
@@ -38,9 +46,36 @@ export const usePushNotifications = () => {
       setPermission(result);
       
       if (result === 'granted') {
+        const { data: config, error: configError } = await supabase.functions.invoke('push-subscriptions', {
+          body: { action: 'config' },
+        });
+        if (configError || !config?.supported || !config?.public_key) {
+          throw new Error("Le service Push AgriCapital n'est pas encore configuré.");
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        const applicationServerKey = urlBase64ToUint8Array(config.public_key);
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          });
+        }
+
+        const accessToken = sessionStorage.getItem('agri_portal_access_token');
+        const { error: saveError } = await supabase.functions.invoke('push-subscriptions', {
+          body: {
+            action: 'subscribe',
+            access_token: accessToken || undefined,
+            subscription: subscription.toJSON(),
+          },
+        });
+        if (saveError) throw saveError;
+
         toast({
           title: "Notifications activées",
-          description: "Vous recevrez des alertes pour vos paiements"
+          description: "Vous recevrez les alertes AgriCapital même lorsque l'application est fermée.",
         });
         return true;
       } else {
@@ -65,10 +100,14 @@ export const usePushNotifications = () => {
     }
 
     try {
+      if (document.visibilityState === 'visible') {
+        toast({ title: payload.title, description: payload.body });
+        return;
+      }
       const registration = await navigator.serviceWorker.ready;
       await registration.showNotification(payload.title, {
         body: payload.body,
-        icon: payload.icon || '/logo-agricapital.png',
+        icon: payload.icon || '/images/logo-light.png',
         badge: payload.badge || '/icons/icon-192x192.png',
         tag: payload.tag,
         data: payload.data,
@@ -79,7 +118,7 @@ export const usePushNotifications = () => {
       try {
         new Notification(payload.title, {
           body: payload.body,
-          icon: payload.icon || '/logo-agricapital.png',
+          icon: payload.icon || '/images/logo-light.png',
           tag: payload.tag
         });
       } catch {

@@ -87,7 +87,9 @@ serve(async (req) => {
     const client = await findClient(supabase, phone);
 
     if (!client) {
-      if (action === "inspect" || action === "demo") {
+      // A normal client login must NEVER create a session, demo code or SMS
+      // for an unknown phone number. Demo is intentionally explicit only.
+      if (action === "demo") {
         const demoCode = randomCode();
         return json({
           success: true,
@@ -97,7 +99,11 @@ serve(async (req) => {
           demo_token: await demoToken(phone, demoCode),
         });
       }
-      return json({ success: false, error: "Compte client introuvable." }, 404);
+      return json({
+        success: false,
+        demo: false,
+        error: "Aucun compte client AgriCapital n'est associé à ce numéro.",
+      }, 404);
     }
 
     if (!client.compte_actif || client.statut_global !== "actif") {

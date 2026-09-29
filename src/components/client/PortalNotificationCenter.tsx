@@ -14,7 +14,7 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
     const token=sessionStorage.getItem("agri_portal_access_token");
     const isDemo=sessionStorage.getItem("agri_demo")==="1";
     if(!token||isDemo) return;
-    const {data,error}=await supabase.functions.invoke("portal-messages",{
+    const {data,error}=await supabase.functions.invoke("portal-messaging",{
       body:{action:"notifications",access_token:token}
     });
     if(error||!data?.success) return;
@@ -33,7 +33,7 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
   const markAll=async()=>{
     const token=sessionStorage.getItem("agri_portal_access_token");
     if(!token) return;
-    await supabase.functions.invoke("portal-messages",{body:{action:"mark_notification_read",access_token:token}});
+    await supabase.functions.invoke("portal-messaging",{body:{action:"mark_notification_read",access_token:token}});
     setItems((prev)=>prev.map(n=>({...n,read:true})));
   };
 
@@ -59,7 +59,7 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
             {items.length===0?<p className="p-5 text-center text-xs text-muted-foreground">Aucune notification.</p>:items.map((n:any)=>(
               <button key={n.id} className={`w-full rounded-xl p-3 text-left hover:bg-muted/50 ${n.read?"":"bg-primary/5"}`} onClick={async()=>{
                 const token=sessionStorage.getItem("agri_portal_access_token");
-                if(token&&!n.read) await supabase.functions.invoke("portal-messages",{body:{action:"mark_notification_read",access_token:token,notification_id:n.id}});
+                if(token&&!n.read) await supabase.functions.invoke("portal-messaging",{body:{action:"mark_notification_read",access_token:token,notification_id:n.id}});
                 setItems(prev=>prev.map(x=>x.id===n.id?{...x,read:true}:x));
               }}>
                 <div className="flex items-start gap-2"><Bell className="mt-0.5 h-3.5 w-3.5 text-primary shrink-0"/><div className="min-w-0"><p className="text-xs font-semibold">{n.title}</p><p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{n.message}</p><p className="mt-1 text-[9px] text-muted-foreground">{new Date(n.created_at).toLocaleString("fr-FR")}</p></div></div>

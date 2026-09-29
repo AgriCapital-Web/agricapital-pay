@@ -1,6 +1,3 @@
-create index if not exists idx_portail_messages_client_created_at
-  on public.portail_messages (client_id, created_at desc);
-
 create index if not exists idx_portail_messages_plantation_created_at
   on public.portail_messages (plantation_id, created_at desc);
 

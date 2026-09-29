@@ -123,6 +123,14 @@ serve(async (req) => {
     }
 
     if (action === "setup") {
+      if (access) {
+        return json({
+          success: false,
+          error: "Un code d'accès existe déjà pour ce compte. Utilisez-le pour vous connecter.",
+          needs_access_code_setup: false,
+        }, 409);
+      }
+
       const code = String(body?.code || "");
       const confirm = String(body?.confirm_code || "");
       if (!/^\d{4}$/.test(code) || code !== confirm) {
@@ -131,7 +139,7 @@ serve(async (req) => {
 
       const salt = randomHex(16);
       const hash = await codeHash(code, salt);
-      const { error } = await supabase.from("client_portal_access_codes").upsert({
+      const { error } = await supabase.from("client_portal_access_codes").insert({
         client_id: client.id,
         code_hash: hash,
         code_salt: salt,
@@ -139,8 +147,17 @@ serve(async (req) => {
         locked_until: null,
         set_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "client_id" });
-      if (error) throw error;
+      });
+      if (error) {
+        if (error.code === "23505") {
+          return json({
+            success: false,
+            error: "Un code d'accès vient d'être enregistré pour ce compte. Utilisez-le pour vous connecter.",
+            needs_access_code_setup: false,
+          }, 409);
+        }
+        throw error;
+      }
 
       const token = await issueSession(supabase, client.id);
       await supabase.from("historique_activites").insert({

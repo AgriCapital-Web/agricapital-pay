@@ -6,7 +6,6 @@ import { Check, Circle, Loader2 } from "lucide-react";
 const ETAPES_BASE = [
   { key: "validation_parcelle", label: "Validation de la parcelle", optional: true },
   { key: "defrichage", label: "Défrichage" },
-  { key: "piquetage", label: "Piquetage" },
   { key: "trouaison", label: "Trouaison" },
   { key: "mise_en_terre", label: "Mise en terre" },
   { key: "remplacement", label: "Remplacement des manquants" },

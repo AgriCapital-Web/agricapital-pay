@@ -5,6 +5,8 @@ drop trigger if exists trg_plantations_update_client_stats on public.plantations
 drop trigger if exists trigger_update_client_stats on public.plantations;
 drop trigger if exists trg_set_generated_ids_plantations on public.plantations;
 drop trigger if exists trg_check_docs_create_depot on public.documents_acquisition;
+drop trigger if exists trg_paiements_commission_auto on public.paiements;
+drop trigger if exists trg_refresh_activation_payment on public.paiements;
 drop trigger if exists recompute_pending_pi_after_offres_change on public.offres;
 drop trigger if exists trg_offres_recompute_pi on public.offres;
 drop trigger if exists trigger_calculate_parcelle_surfaces on public.parcelles;

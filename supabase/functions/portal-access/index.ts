@@ -41,6 +41,11 @@ async function sessionTokenHash(token: string) {
   return sha256(token);
 }
 
+async function demoToken(phone: string, code: string) {
+  const secret = Deno.env.get("PORTAL_ACCESS_CODE_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  return sha256(`demo:${phone}:${code}:${secret}`);
+}
+
 async function issueSession(supabase: any, clientId: string) {
   const raw = randomHex(32) + "." + randomHex(16);
   const token_hash = await sessionTokenHash(raw);
@@ -84,7 +89,13 @@ serve(async (req) => {
     if (!client) {
       if (action === "inspect" || action === "demo") {
         const demoCode = randomCode();
-        return json({ success: true, demo: true, needs_access_code_setup: false, access_code: demoCode });
+        return json({
+          success: true,
+          demo: true,
+          needs_access_code_setup: false,
+          access_code: demoCode,
+          demo_token: await demoToken(phone, demoCode),
+        });
       }
       return json({ success: false, error: "Compte client introuvable." }, 404);
     }
@@ -105,6 +116,7 @@ serve(async (req) => {
         demo: false,
         client_id: client.id,
         telephone: client.telephone,
+        nom_complet: client.nom_complet,
         needs_access_code_setup: !access,
         locked_until: access?.locked_until || null,
       });

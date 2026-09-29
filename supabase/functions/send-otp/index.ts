@@ -100,26 +100,29 @@ serve(async (req) => {
       // === MODE DÉMONSTRATION ===
       // Numéro absent du CRM : le code est affiché à l'écran (SMS international
       // non garanti) et n'est jamais bloqué, pour que tout visiteur puisse tester.
+      // Security rule: OTP is only issued to a phone number belonging to
+      // an existing active AgriCapital client. Unknown numbers are rejected
+      // before any OTP is generated or any SMS provider is called.
       const { data: knownSubscriber } = await supabase
-        .from('souscripteurs').select('id').eq('telephone', cleanPhone).limit(1).maybeSingle();
-      const isDemoPhone = !knownSubscriber;
-      if (isDemoPhone) {
-        const demoCode = generateOTP();
-        await supabase.from('otp_codes')
-          .update({ expires_at: new Date().toISOString() })
-          .eq('telephone', cleanPhone).eq('verified', false);
-        await supabase.from('otp_codes').insert({
-          telephone: cleanPhone,
-          code: demoCode,
-          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        });
+        .from('souscripteurs')
+        .select('id, statut_global, compte_actif')
+        .eq('telephone', cleanPhone)
+        .limit(1)
+        .maybeSingle();
+
+      if (!knownSubscriber) {
         return new Response(JSON.stringify({
-          success: true,
-          demo: true,
-          devMode: true,
-          devCode: demoCode,
-          message: "Mode découverte : votre code d'accès s'affiche à l'écran.",
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          success: false,
+          demo: false,
+          error: "Aucun compte client AgriCapital n'est associé à ce numéro.",
+        }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      if (knownSubscriber.compte_actif === false || (knownSubscriber.statut_global && knownSubscriber.statut_global !== 'actif')) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Votre compte client n'est pas encore activé. Veuillez contacter AgriCapital.",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
        // Limite les réémissions sans bloquer la vérification d'un code déjà reçu.

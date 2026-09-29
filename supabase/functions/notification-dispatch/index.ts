@@ -79,7 +79,7 @@ async function sendPushToOwner(owner: { user_id?: string | null; client_id?: str
   const publicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   const privateKey = Deno.env.get("VAPID_PRIVATE_KEY");
   const subject = Deno.env.get("VAPID_SUBJECT") || "mailto:contact@agricapital.ci";
-  if (!publicKey || !privateKey) return { delivered: 0, gone: 0, failed: 0, configured: false };
+  if (!publicKey || !privateKey) throw new Error("VAPID push non configure : VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY requis.");
 
   let query = admin.from("push_subscriptions")
     .select("id,endpoint,p256dh,auth,content_encoding")

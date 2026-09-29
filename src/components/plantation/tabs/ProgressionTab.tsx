@@ -4,10 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Circle, Loader2 } from "lucide-react";
 
 const ETAPES_BASE = [
+  { key: "validation_parcelle", label: "Validation de la parcelle", optional: true },
   { key: "defrichage", label: "Défrichage" },
   { key: "piquetage", label: "Piquetage" },
   { key: "trouaison", label: "Trouaison" },
-  { key: "planting", label: "Planting" },
+  { key: "mise_en_terre", label: "Mise en terre" },
   { key: "remplacement", label: "Remplacement des manquants" },
   { key: "entretien", label: "Entretien" },
   { key: "fertilisation", label: "Fertilisation" },
@@ -20,7 +21,8 @@ export const ProgressionTab = ({ plantation, souscripteur }: { plantation: any; 
   const isPlus = (souscripteur?.offres?.code || "").endsWith("+");
 
   const etapes = ETAPES_BASE.map((e) => {
-    const matches = etapesFromDb.filter((x: any) => x.type === e.key || x.key === e.key);
+    const aliases = e.key === "mise_en_terre" ? ["mise_en_terre", "planting"] : [e.key];
+    const matches = etapesFromDb.filter((x: any) => aliases.includes(x.type) || aliases.includes(x.key));
     const found = matches.find((x: any) => x.statut === "termine") || matches.find((x: any) => x.statut === "en_cours") || matches[0];
     return {
       ...e,
@@ -30,8 +32,9 @@ export const ProgressionTab = ({ plantation, souscripteur }: { plantation: any; 
     };
   });
 
+  const requiredEtapes = etapes.filter((e:any) => !e.optional);
   const completed = etapes.filter((e) => e.statut === "termine").length;
-  const pct = Math.round((completed / etapes.length) * 100);
+  const pct = Math.round((completed / requiredEtapes.length) * 100);
 
   return (
     <div className="space-y-3">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,6 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
   const [items,setItems]=useState<any[]>([]);
   const [open,setOpen]=useState(false);
   const { permission, requestPermission } = usePushNotifications();
-  const initialized=useRef(false);
 
   const load=async()=>{
     const token=sessionStorage.getItem("agri_portal_access_token");
@@ -20,9 +19,7 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
     });
     if(error||!data?.success) return;
     const next=data.notifications||[];
-    knownIds.current=new Set(next.map((n:any)=>n.id));
     setItems(next);
-    initialized.current=true;
   };
 
   useEffect(()=>{

@@ -17,3 +17,5 @@ create index if not exists idx_portefeuille_versements_paye_par on public.portef
 create index if not exists idx_portefeuille_versements_valide_par on public.portefeuille_versements(valide_par);
 create index if not exists idx_rapports_visites_techniques_equipe_id on public.rapports_visites_techniques(equipe_id);
 create index if not exists idx_tickets_techniques_equipe_id on public.tickets_techniques(equipe_id);
+create index if not exists idx_interventions_techniques_parcelle_id on public.interventions_techniques(parcelle_id);
+create index if not exists idx_portefeuille_versement_lignes_commission_id on public.portefeuille_versement_lignes(commission_id);

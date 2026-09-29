@@ -29,19 +29,19 @@ export const MessagerieTab = ({ souscripteur, plantation }: Props) => {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase.functions.invoke("portal-messages", {
-      body: { action: "list", access_token: token },
+    const { data, error } = await supabase.functions.invoke("portal-messaging", {
+      body: { action: "list", access_token: token, plantation_id: plantation?.id || null },
     });
     if (!error && data?.success) {
       setMessages(data.messages || []);
       if ((data.messages || []).some((m: any) => m.auteur_type === "staff" && !m.lu)) {
-        await supabase.functions.invoke("portal-messages", {
-          body: { action: "mark_read", access_token: token },
+        await supabase.functions.invoke("portal-messaging", {
+          body: { action: "mark_read", access_token: token, plantation_id: plantation?.id || null },
         });
       }
     }
     setLoading(false);
-  }, [token, isDemo]);
+  }, [token, isDemo, plantation?.id]);
 
   useEffect(() => {
     load();
@@ -59,7 +59,7 @@ export const MessagerieTab = ({ souscripteur, plantation }: Props) => {
     if (!message || !token || isDemo) return;
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke("portal-messages", {
+      const { data, error } = await supabase.functions.invoke("portal-messaging", {
         body: {
           action: "send",
           access_token: token,

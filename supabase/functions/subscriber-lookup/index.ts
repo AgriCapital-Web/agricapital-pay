@@ -486,6 +486,11 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
+
+    if (body?.demo_only === true) {
+      const demo = buildDemoAccount(sanitizePhone(body.telephone || ""));
+      return new Response(JSON.stringify({ success: true, demo: true, ...demo }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+    }
     
     // === SECURITY: Validate input ===
     if (!body || typeof body !== 'object') {

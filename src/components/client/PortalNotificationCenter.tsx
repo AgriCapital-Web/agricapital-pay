@@ -10,7 +10,6 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
   const [open,setOpen]=useState(false);
   const { permission, isSupported, requestPermission } = usePushNotifications();
   const initialized=useRef(false);
-  const knownIds=useRef(new Set<string>());
 
   const load=async()=>{
     const token=sessionStorage.getItem("agri_portal_access_token");
@@ -21,18 +20,6 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
     });
     if(error||!data?.success) return;
     const next=data.notifications||[];
-    if(initialized.current){
-      for(const n of next.filter((x:any)=>!x.read && !knownIds.current.has(x.id)).slice(0,3)){
-        if(typeof Notification!=="undefined" && Notification.permission==="granted"){
-          const reg=await navigator.serviceWorker?.getRegistration().catch(()=>null);
-          if(reg?.showNotification) {
-            await reg.showNotification(n.title||"AgriCapital",{body:n.message||"",tag:"agri-portal-"+n.id,data:n.data||{}});
-          } else {
-            new Notification(n.title||"AgriCapital",{body:n.message||"",tag:"agri-portal-"+n.id});
-          }
-        }
-      }
-    }
     knownIds.current=new Set(next.map((n:any)=>n.id));
     setItems(next);
     initialized.current=true;
@@ -45,11 +32,7 @@ export default function PortalNotificationCenter({ compact=false }: { compact?: 
   },[]);
 
   const unread=items.filter(n=>!n.read).length;
-  const enable=async()=>{
-    if(typeof Notification==="undefined") return;
-    const p=await Notification.requestPermission();
-    setPermission(p);
-  };
+  const enable=async()=>{ await requestPermission(); };
   const markAll=async()=>{
     const token=sessionStorage.getItem("agri_portal_access_token");
     if(!token) return;

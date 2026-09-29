@@ -2,19 +2,13 @@
  * Progressive pricing system based on AgriCapital flyer structure.
  * Rates change automatically per year (An1, An2, An3) based on activation date.
  * 
- * PalmInvest / PalmInvest+:
- *   Dépôt initial: 90,700 F/ha
- *   An 1 (12 mois): 60,000 F/mois/ha
- *   An 2 (12 mois): 120,000 F/mois/ha
- *   An 3 (11 mois): 194,000 F/mois/ha
- *   Total: 4,384,700 F/ha (35 mois)
- * 
- * TerraPalm / TerraPalm+:
- *   Dépôt initial: 84,700 F/ha
- *   An 1 (12 mois): 54,000 F/mois/ha
- *   An 2 (12 mois): 75,000 F/mois/ha
- *   An 3 (11 mois): 96,200 F/mois/ha
- *   Total: 2,690,900 F/ha (35 mois)
+ * Grille canonique actuelle (source CRM) :
+ *   PalmInvest / PalmInvest+ : PI 90 700 F/ha · 11 mois à 31 900 · 12 mois à 56 900 · 16 mois à 83 800 · total 2 465 200 F/ha (40 mois)
+ *   TerraPalm / TerraPalm+ : PI 84 700 F/ha · 11 mois à 26 900 · 12 mois à 36 900 · 16 mois à 49 800 · total 1 620 200 F/ha (40 mois)
+ *   PalmTerroir Essentielle : PI 230 000 F/ha · 36 mois à 3 500 · total 356 000 F/ha
+ *   PalmTerroir Flexible : PI 65 000 F/ha · 36 mois à 12 600 · total 518 600 F/ha
+ *
+ * Les données CRM tranches_paiement restent prioritaires sur cette grille de secours.
  */
 
 export interface PricingSchedule {
@@ -295,9 +289,9 @@ export function getFullTariffGrid(offreCode: string | undefined): {
   if (!schedule) return null;
 
   return [
-    { label: 'An 1 — 12 mois', mensuel: schedule.an1_mensuel, duree: schedule.an1_duree_mois, total: schedule.an1_mensuel * schedule.an1_duree_mois },
-    { label: 'An 2 — 12 mois', mensuel: schedule.an2_mensuel, duree: schedule.an2_duree_mois, total: schedule.an2_mensuel * schedule.an2_duree_mois },
-    { label: 'An 3 — 11 mois', mensuel: schedule.an3_mensuel, duree: schedule.an3_duree_mois, total: schedule.an3_mensuel * schedule.an3_duree_mois },
+    { label: `An 1 — ${schedule.an1_duree_mois} mois`, mensuel: schedule.an1_mensuel, duree: schedule.an1_duree_mois, total: schedule.an1_mensuel * schedule.an1_duree_mois },
+    { label: `An 2 — ${schedule.an2_duree_mois} mois`, mensuel: schedule.an2_mensuel, duree: schedule.an2_duree_mois, total: schedule.an2_mensuel * schedule.an2_duree_mois },
+    { label: `An 3 — ${schedule.an3_duree_mois} mois`, mensuel: schedule.an3_mensuel, duree: schedule.an3_duree_mois, total: schedule.an3_mensuel * schedule.an3_duree_mois },
   ];
 }
 

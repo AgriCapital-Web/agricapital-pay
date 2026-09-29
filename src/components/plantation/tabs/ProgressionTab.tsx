@@ -33,7 +33,7 @@ export const ProgressionTab = ({ plantation, souscripteur }: { plantation: any; 
   });
 
   const requiredEtapes = etapes.filter((e:any) => !e.optional);
-  const completed = etapes.filter((e) => e.statut === "termine").length;
+  const completed = requiredEtapes.filter((e) => e.statut === "termine").length;
   const pct = Math.round((completed / requiredEtapes.length) * 100);
 
   return (

@@ -413,7 +413,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         data: {
           reference,
           paiement_id: paiementRow.id,
-          plantation_id: plantation.id,
+          plantation_id: plantation ? plantation.id : null,
           type: typePaiement,
           client_debit_amount: kkiapayPricing.clientDebitAmount,
           kkiapay_widget_amount: kkiapayPricing.widgetAmount,

@@ -63,6 +63,7 @@ async function checkForUpdate() {
 export async function initCacheBuster() {
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     try {
+      const hadController = !!navigator.serviceWorker.controller;
       const registration = await navigator.serviceWorker.register('/sw.js?v=' + currentBuildId, {
         updateViaCache: 'none',
       });
@@ -79,8 +80,9 @@ export async function initCacheBuster() {
       });
 
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // Le nouveau SW est actif : on recharge sans afficher quoi que ce soit.
-        void forceReload();
+        // Pas de reload lors de la toute première prise de contrôle.
+        // Si une version existait déjà, le nouveau SW entraîne un reload silencieux.
+        if (hadController) void forceReload();
       });
 
       await registration.update();

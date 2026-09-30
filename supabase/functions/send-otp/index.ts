@@ -95,148 +95,21 @@ serve(async (req) => {
       );
     }
 
-    // ===== SEND OTP =====
+    // ===== LEGACY SEND OTP — DÉSACTIVÉ =====
+    // Le portail actuel n'utilise plus SMS/OTP pour la connexion.
+    // - Numéro inconnu : le parcours portal-access fournit un code démo affiché.
+    // - Numéro connu : création/validation d'un code personnel à 4 chiffres.
+    // Cette ancienne route reste uniquement pour éviter une rupture brutale avec
+    // d'anciens clients déployés, mais elle ne contacte PLUS Infobip et n'envoie
+    // aucun SMS.
     if (action === 'send') {
-      // === MODE DÉMONSTRATION ===
-      // Numéro absent du CRM : le code est affiché à l'écran (SMS international
-      // non garanti) et n'est jamais bloqué, pour que tout visiteur puisse tester.
-      // Security rule: OTP is only issued to a phone number belonging to
-      // an existing active AgriCapital client. Unknown numbers are rejected
-      // before any OTP is generated or any SMS provider is called.
-      const { data: knownSubscriber } = await supabase
-        .from('souscripteurs')
-        .select('id, statut_global, compte_actif')
-        .eq('telephone', cleanPhone)
-        .limit(1)
-        .maybeSingle();
-
-      if (!knownSubscriber) {
-        return new Response(JSON.stringify({
-          success: false,
-          demo: false,
-          error: "Aucun compte client AgriCapital n'est associé à ce numéro.",
-        }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
-      if (knownSubscriber.compte_actif === false || (knownSubscriber.statut_global && knownSubscriber.statut_global !== 'actif')) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: "Votre compte client n'est pas encore activé. Veuillez contacter AgriCapital.",
-        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
-       // Limite les réémissions sans bloquer la vérification d'un code déjà reçu.
-      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      const { count } = await supabase
-        .from('otp_codes')
-        .select('*', { count: 'exact', head: true })
-        .eq('telephone', cleanPhone)
-        .gt('created_at', tenMinAgo);
-
-      let otpCode: string | null = null;
-      let reused = false;
-
-       const { data: latestRequest } = await supabase.from('otp_codes')
-         .select('created_at').eq('telephone', cleanPhone)
-         .order('created_at', { ascending: false }).limit(1).maybeSingle();
-       const secondsSinceLast = latestRequest?.created_at
-         ? Math.floor((Date.now() - new Date(latestRequest.created_at).getTime()) / 1000)
-         : Number.MAX_SAFE_INTEGER;
-
-       if (secondsSinceLast < 60 || (count || 0) >= 5) {
-        const { data: lastValid } = await supabase
-          .from('otp_codes')
-          .select('id, code')
-          .eq('telephone', cleanPhone)
-          .eq('verified', false)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-         await supabase.from('historique_activites').insert({
-           table_name: 'otp_codes', record_id: maskPhone(cleanPhone), action: 'OTP_RESEND_LIMITED',
-           details: `Réémission limitée pour ${maskPhone(cleanPhone)}`,
-           ip_address: clientIP, user_agent: req.headers.get('user-agent') || 'unknown',
-           nouvelles_valeurs: { reason: secondsSinceLast < 60 ? 'cooldown' : 'window_limit', demandes_10min: count || 0 },
-         });
-         return new Response(JSON.stringify({ success: false, error: secondsSinceLast < 60
-           ? `Veuillez patienter ${60 - secondsSinceLast} seconde(s) avant un nouvel envoi.`
-           : 'Limite de réémission atteinte. Utilisez le dernier code reçu ou réessayez plus tard.' }),
-           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      if (!otpCode) {
-        // Invalidate previous codes
-        await supabase.from('otp_codes')
-          .update({ expires_at: new Date().toISOString() })
-          .eq('telephone', cleanPhone)
-          .eq('verified', false);
-
-        otpCode = generateOTP();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-        await supabase.from('otp_codes').insert({
-          telephone: cleanPhone,
-          code: otpCode,
-          expires_at: expiresAt,
-        });
-      }
-
-
-      // Send via Infobip
-      const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
-      const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
-      let smsSent = false;
-
-      if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
-        let formattedPhone = cleanPhone;
-        if (!formattedPhone.startsWith('225')) {
-          formattedPhone = '225' + formattedPhone;
-        }
-
-        try {
-          const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `App ${INFOBIP_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messages: [{
-                destinations: [{ to: formattedPhone }],
-                from: "AgriCapital",
-                text: `Votre code AgriCapital: ${otpCode}. Valide 5 min. Ne partagez jamais ce code.`,
-              }]
-            }),
-          });
-          const smsData = await smsRes.json();
-          console.log("Infobip response:", JSON.stringify(smsData));
-          smsSent = smsRes.ok;
-        } catch (e) {
-          console.error("SMS error:", e);
-        }
-      } else {
-         console.warn(`Service SMS indisponible pour ${maskPhone(cleanPhone)}`);
-      }
-
-      await supabase.from('historique_activites').insert({
-        table_name: 'otp_codes',
-         record_id: maskPhone(cleanPhone),
-        action: 'OTP_SENT',
-        details: `Code OTP envoyé au ${cleanPhone.slice(0, 4)}****`,
-        ip_address: clientIP,
-        user_agent: req.headers.get('user-agent') || 'unknown',
-      });
-
-      // DEV MODE : si Infobip n'est pas configuré on renvoie le code au client
-      // pour affichage. En prod, ne jamais activer DEV_OTP_VISIBLE.
       return new Response(
         JSON.stringify({
-          success: true,
-           message: smsSent ? "Code envoyé par SMS" : "Service SMS temporairement indisponible",
+          success: false,
+          legacy: true,
+          error: "L'ancien parcours SMS/OTP a été remplacé. Utilisez le portail AgriCapital avec votre numéro puis votre code d'accès à 4 chiffres.",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 410 }
       );
     }
 

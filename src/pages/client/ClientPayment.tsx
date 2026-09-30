@@ -91,7 +91,11 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee' | 'jours'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
   const [joursDemandes, setJoursDemandes] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');\n  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;\n  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);\n  const customMonthlyActive = customPayment?.mensualite?.active === true;\n  const customSchedulePayment = customMonthlyActive && !plantations.length && typePaiement === 'redevance';
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');
+  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;
+  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);
+  const customMonthlyActive = customPayment?.mensualite?.active === true;
+  const customSchedulePayment = customMonthlyActive && !plantations.length && typePaiement === 'redevance';
   const paymentContextRef = useRef<{
     reference: string;
     montantTotal: number;
@@ -99,7 +103,14 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   } | null>(null);
 
   useEffect(() => {
-    if (!prefillType && customMonthlyActive && plantations.length === 0) {\n      setTypePaiement('redevance'); setModeArriere(null); setPeriodType('custom'); setCustomAmount(String(customPayment?.mensualite?.montant || 0)); setStep('details');\n    } else if (prefillType === 'solde_initial') {\n      setTypePaiement('da'); setModeArriere(null);\n      const p = plantations.find((p: any) => p.superficie_ha > 0) || plantations[0];\n      if (p) setSelectedPlantation(p.id);\n      setStep('details');\n    } else if (prefillType === 'arriere') {
+    if (!prefillType && customMonthlyActive && plantations.length === 0) {
+      setTypePaiement('redevance'); setModeArriere(null); setPeriodType('custom'); setCustomAmount(String(customPayment?.mensualite?.montant || 0)); setStep('details');
+    } else if (prefillType === 'solde_initial') {
+      setTypePaiement('da'); setModeArriere(null);
+      const p = plantations.find((p: any) => p.superficie_ha > 0) || plantations[0];
+      if (p) setSelectedPlantation(p.id);
+      setStep('details');
+    } else if (prefillType === 'arriere') {
       setTypePaiement('redevance'); setModeArriere('only');
       const p = plantations.find((p: any) => p.superficie_activee > 0);
       if (p) setSelectedPlantation(p.id);
@@ -250,7 +261,8 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const montantArriere = plantation ? calculerArrieres(plantation).montant : 0;
   const montantAvance = calculerMontantAvance();
   const montantTotal = useMemo(() => {
-    if (typePaiement === 'da') return depotInitialDetails.montant;\n    if (customSchedulePayment) return Number(customMonthly?.montant || 0);
+    if (typePaiement === 'da') return depotInitialDetails.montant;
+    if (customSchedulePayment) return Number(customMonthly?.montant || 0);
     if (modeArriere === 'only') return montantArriere;
     if (modeArriere === 'avance') return montantArriere + montantAvance;
     return calculerMontantRedevance();

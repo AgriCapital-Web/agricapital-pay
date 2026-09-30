@@ -68,7 +68,10 @@ const ClientDashboard = ({
     }
   }, []);
 
-  const fmt = (m: number) => formatCFA(m);\n  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;\n  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);\n  const customMonthly = customPayment?.mensualite?.active === true ? customPayment.mensualite : null;
+  const fmt = (m: number) => formatCFA(m);
+  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;
+  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);
+  const customMonthly = customPayment?.mensualite?.active === true ? customPayment.mensualite : null;
   const totalHectares = plantations.reduce((s: number, p: any) => s + (p.superficie_ha || 0), 0);
   const hectaresActifs = plantations.reduce((s: number, p: any) => s + (p.superficie_activee || 0), 0);
 

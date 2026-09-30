@@ -129,7 +129,7 @@ const ClientDashboard = ({
   const prochaines = useMemo(() => {
     if (customPayment) {
       if (!customMonthly) return [];
-      return plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3).map((p: any) => ({
+      return (paiements.length ? paiements.filter((p: any) => p.type_paiement === 'REDEVANCE' && ['planifie','en_attente'].includes(p.statut) && p.date_echeance).slice(0, 3) : plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3)).map((p: any) => ({
         nom: p.nom_plantation || p.id_unique,
         montant: Number(customMonthly.montant || 0) * Number(p.superficie_activee || 0),
         annee: 'Échéancier personnalisé',

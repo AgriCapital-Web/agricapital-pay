@@ -91,7 +91,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee' | 'jours'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
   const [joursDemandes, setJoursDemandes] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');\n  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;\n  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);\n  const customMonthlyActive = customPayment?.mensualite?.active === true;
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');\n  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;\n  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);\n  const customMonthlyActive = customPayment?.mensualite?.active === true;\n  const customSchedulePayment = customMonthlyActive && !plantations.length && typePaiement === 'redevance';
   const paymentContextRef = useRef<{
     reference: string;
     montantTotal: number;
@@ -99,7 +99,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   } | null>(null);
 
   useEffect(() => {
-    if (prefillType === 'solde_initial') {\n      setTypePaiement('da'); setModeArriere(null);\n      const p = plantations.find((p: any) => p.superficie_ha > 0) || plantations[0];\n      if (p) setSelectedPlantation(p.id);\n      setStep('details');\n    } else if (prefillType === 'arriere') {
+    if (!prefillType && customMonthlyActive && plantations.length === 0) {\n      setTypePaiement('redevance'); setModeArriere(null); setPeriodType('custom'); setCustomAmount(String(customPayment?.mensualite?.montant || 0)); setStep('details');\n    } else if (prefillType === 'solde_initial') {\n      setTypePaiement('da'); setModeArriere(null);\n      const p = plantations.find((p: any) => p.superficie_ha > 0) || plantations[0];\n      if (p) setSelectedPlantation(p.id);\n      setStep('details');\n    } else if (prefillType === 'arriere') {
       setTypePaiement('redevance'); setModeArriere('only');
       const p = plantations.find((p: any) => p.superficie_activee > 0);
       if (p) setSelectedPlantation(p.id);
@@ -110,7 +110,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
       if (p) setSelectedPlantation(p.id);
       setStep('details');
     }
-  }, [prefillType]);
+  }, [prefillType, customMonthlyActive, plantations.length]);
 
   // Auto-select most recent plantation when entering plantation step
   useEffect(() => {
@@ -250,7 +250,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const montantArriere = plantation ? calculerArrieres(plantation).montant : 0;
   const montantAvance = calculerMontantAvance();
   const montantTotal = useMemo(() => {
-    if (typePaiement === 'da') return depotInitialDetails.montant;
+    if (typePaiement === 'da') return depotInitialDetails.montant;\n    if (customSchedulePayment) return Number(customMonthly?.montant || 0);
     if (modeArriere === 'only') return montantArriere;
     if (modeArriere === 'avance') return montantArriere + montantAvance;
     return calculerMontantRedevance();
@@ -348,7 +348,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const isDemoAccount = !!souscripteur?._demo;
 
   const handleDemoPayment = async () => {
-    if (!plantation || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: "Plantation et montant requis" }); return; }
+    if ((!plantation && !customSchedulePayment) || montantTotal <= 0) { toast({ variant: "destructive", title: "Erreur", description: customSchedulePayment ? "Montant invalide" : "Plantation et montant requis" }); return; }
     setLoading(true);
     const reference = `DEMO-${Date.now()}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
     await new Promise((r) => setTimeout(r, 1400));
@@ -374,7 +374,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         body: {
           action: 'insert',
           souscripteur_id: souscripteur.id,
-          plantation_id: plantation.id,
+          plantation_id: plantation?.id || null,
           type_paiement: typePaiement === 'da' ? 'DA' : 'REDEVANCE',
           montant: montantTotal,
           mode_paiement: paymentMethod === 'momo' ? 'Mobile Money' : 'Carte bancaire',
@@ -621,6 +621,33 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
         )}
 
         {/* Step 3: Details */}
+        {step === 'details' && customSchedulePayment && (
+          <Card className="card-brand rounded-2xl shadow-md">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="text-base font-bold">Échéancier personnalisé</h3>
+                  <p className="text-xs text-muted-foreground">Aucune plantation n'est encore activée pour ce dossier.</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+                <p className="text-xs text-muted-foreground">Prochaine échéance</p>
+                <p className="text-lg font-black text-primary">{customPayment?.mensualite?.date_debut ? format(new Date(customPayment.mensualite.date_debut), 'dd/MM/yyyy') : '—'}</p>
+                <p className="text-xs mt-1">{fmt(Number(customMonthly?.montant || 0))} F CFA · échéance personnalisée</p>
+              </div>
+              <div className="rounded-2xl p-4 bg-muted/20 flex justify-between items-center">
+                <span className="font-bold">Montant à payer</span>
+                <span className="text-2xl font-black text-primary">{fmt(Number(customMonthly?.montant || 0))}</span>
+              </div>
+              <Button onClick={handleSubmit} disabled={loading || montantTotal <= 0} className="w-full h-12 rounded-xl font-bold btn-brand-green">
+                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
+                Payer {fmt(Number(customMonthly?.montant || 0))} F CFA
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {step === 'details' && plantation && (
           <Card className="card-brand rounded-2xl shadow-md">
             <CardContent className="p-5 space-y-4">

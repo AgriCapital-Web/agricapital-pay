@@ -26,7 +26,7 @@ interface ClientDashboardProps {
   paiements: any[];
   syncStatus?: string;
   lastSync?: Date | null;
-  onPayment: (options?: { prefillAmount?: number; prefillType?: 'arriere' | 'avance' }) => void;
+  onPayment: (options?: { prefillAmount?: number; prefillType?: 'arriere' | 'avance' | 'solde_initial' }) => void;
   onPortfolio: () => void;
   onHistory: () => void;
   onStatistics: () => void;
@@ -68,7 +68,7 @@ const ClientDashboard = ({
     }
   }, []);
 
-  const fmt = (m: number) => formatCFA(m);
+  const fmt = (m: number) => formatCFA(m);\n  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;\n  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);\n  const customMonthly = customPayment?.mensualite?.active === true ? customPayment.mensualite : null;
   const totalHectares = plantations.reduce((s: number, p: any) => s + (p.superficie_ha || 0), 0);
   const hectaresActifs = plantations.reduce((s: number, p: any) => s + (p.superficie_activee || 0), 0);
 
@@ -82,6 +82,14 @@ const ClientDashboard = ({
   const tariffGrid = useMemo(() => getFullTariffGridFromOffer(souscripteur.offres), [souscripteur]);
 
   const arriereData = useMemo(() => {
+    if (customPayment) {
+      if (!customMonthly) return { totalArrieres: 0, joursRetard: 0 };
+      const pending = paiements.filter((pay: any) => pay.type_paiement === 'REDEVANCE' && pay.statut === 'en_attente' && pay.date_echeance && new Date(pay.date_echeance).getTime() < Date.now());
+      const totalArrieres = pending.reduce((s: number, pay: any) => s + Number(pay.montant || 0), 0);
+      const firstDue = pending.length ? new Date(pending[0].date_echeance).getTime() : 0;
+      const joursRetard = firstDue ? Math.max(1, Math.floor((Date.now() - firstDue) / 86400000)) : 0;
+      return { totalArrieres, joursRetard };
+    }
     let totalArrieres = 0, joursRetard = 0;
     plantations.forEach((p: any) => {
       if (p.date_activation && p.superficie_activee > 0) {
@@ -89,13 +97,12 @@ const ClientDashboard = ({
         const tarifJour = plantRate?.jour_par_ha || 2000;
         const jours = Math.floor((Date.now() - new Date(p.date_activation).getTime()) / 86400000);
         const attendu = jours * tarifJour * (p.superficie_activee || 0);
-        const paye = paiements.filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide')
-          .reduce((s: number, pay: any) => s + (pay.montant_paye || pay.montant || 0), 0);
+        const paye = paiements.filter((pay: any) => pay.plantation_id === p.id && (pay.type_paiement === 'REDEVANCE' || pay.type_paiement === 'contribution') && pay.statut === 'valide').reduce((s: number, pay: any) => s + (pay.montant_paye || pay.montant || 0), 0);
         if (attendu > paye) { totalArrieres += attendu - paye; joursRetard = Math.max(joursRetard, Math.floor((attendu - paye) / (tarifJour * (p.superficie_activee || 1)))); }
       }
     });
     return { totalArrieres, joursRetard };
-  }, [plantations, paiements, souscripteur]);
+  }, [plantations, paiements, souscripteur, customPayment, customMonthly]);
 
   const { totalArrieres, joursRetard } = arriereData;
 
@@ -120,16 +127,20 @@ const ClientDashboard = ({
   }, [plantations, paiements, souscripteur, currentRate]);
 
   const prochaines = useMemo(() => {
+    if (customPayment) {
+      if (!customMonthly) return [];
+      return plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3).map((p: any) => ({
+        nom: p.nom_plantation || p.id_unique,
+        montant: Number(customMonthly.montant || 0) * Number(p.superficie_activee || 0),
+        annee: 'Échéancier personnalisé',
+        prochaine: souscripteur.prochaine_echeance ? new Date(souscripteur.prochaine_echeance) : new Date(customMonthly.date_debut + 'T00:00:00'),
+      }));
+    }
     return plantations.filter((p: any) => p.superficie_activee > 0 && p.date_activation).slice(0, 3).map((p: any) => {
       const rate = getCurrentRateFromOffer(souscripteur.offres, p.date_activation);
-      return {
-        nom: p.nom_plantation || p.id_unique,
-        montant: (rate?.mensuel_par_ha || 0) * (p.superficie_activee || 0),
-        annee: rate?.label || '',
-        prochaine: addDays(new Date(), 30),
-      };
+      return { nom: p.nom_plantation || p.id_unique, montant: (rate?.mensuel_par_ha || 0) * (p.superficie_activee || 0), annee: rate?.label || '', prochaine: addDays(new Date(), 30) };
     });
-  }, [plantations, souscripteur]);
+  }, [plantations, souscripteur, customPayment, customMonthly]);
 
   const totalRedevances = paiements.filter((p: any) => (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
     .reduce((s: number, p: any) => s + (p.montant_paye || p.montant || 0), 0);
@@ -230,6 +241,35 @@ const ClientDashboard = ({
             </div>
           </CardContent>
         </Card>
+
+        {customPayment && (
+          <Card className="lg:col-span-7 border-primary/20 bg-primary/5 shadow-sm">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    <p className="font-bold">Conditions de règlement personnalisées</p>
+                    <Badge variant="outline" className="text-primary border-primary/30">Exception individuelle</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-2xl">Cette configuration reste rattachée à l’offre {souscripteur.offres?.formule_nom || 'PalmTerroir Essentielle'} sans créer d’offre spéciale.</p>
+                </div>
+                <div className="text-left sm:text-right shrink-0">
+                  <p className="text-xs text-muted-foreground">Solde du PI</p>
+                  <p className="text-xl font-extrabold">{fmt(customInitialBalance)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4 text-sm">
+                <div className="rounded-xl bg-background/70 border p-3"><p className="text-xs text-muted-foreground">PI déjà versé</p><p className="font-bold">{fmt(Number(customPayment.paiement_initial?.montant_verse || 0))}</p></div>
+                <div className="rounded-xl bg-background/70 border p-3"><p className="text-xs text-muted-foreground">Mensualité</p><p className="font-bold">{customMonthly ? fmt(Number(customMonthly.montant || 0)) + ' × ' + customMonthly.nombre : 'Aucune'}</p></div>
+                <div className="rounded-xl bg-background/70 border p-3"><p className="text-xs text-muted-foreground">Début mensualités</p><p className="font-bold">{customMonthly?.date_debut ? format(new Date(customMonthly.date_debut), 'dd/MM/yyyy') : '—'}</p></div>
+              </div>
+              {customInitialBalance > 0 && (
+                <Button className="mt-4" size="sm" onClick={() => onPayment({ prefillAmount: customInitialBalance, prefillType: 'solde_initial' })}>Payer le solde du PI — {fmt(customInitialBalance)}</Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-2 lg:col-span-7">

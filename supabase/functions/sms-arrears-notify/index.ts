@@ -1,255 +1,73 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const corsHeaders={ "Access-Control-Allow-Origin":"*", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-cron-secret" };
+const formatMontant=(m:number)=>new Intl.NumberFormat("fr-FR").format(Math.round(m));
+const formatPhone=(phone:string)=>{const c=phone.replace(/\D/g,"");return c.startsWith("225")?c:"225"+c;};
 
-function formatMontant(m: number): string {
-  return new Intl.NumberFormat("fr-FR").format(Math.round(m));
+async function sendSms(base:string|undefined,key:string|undefined,to:string,text:string){
+  if(!base||!key){console.log("[DEV SMS]",to,text);return {sent:false,dev:true};}
+  const res=await fetch(`${base}/sms/2/text/advanced`,{method:"POST",headers:{Authorization:`App ${key}`,"Content-Type":"application/json"},body:JSON.stringify({messages:[{destinations:[{to:formatPhone(to)}],from:"AgriCapital",text}]})});
+  return {sent:res.ok,status:res.status};
 }
 
-function formatPhone(phone: string): string {
-  const cleaned = phone.replace(/\D/g, '');
-  return cleaned.startsWith('225') ? cleaned : '225' + cleaned;
-}
+serve(async(req)=>{
+  if(req.method==="OPTIONS")return new Response(null,{headers:corsHeaders});
+  try{
+    const auth=req.headers.get("Authorization"); const cron=req.headers.get("x-cron-secret"); const expected=Deno.env.get("CRON_SECRET");
+    let authorized=Boolean(expected&&cron&&cron===expected);
+    if(!authorized&&auth?.startsWith("Bearer ")){
+      const uc=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_ANON_KEY")!,{global:{headers:{Authorization:auth}}});
+      const token=auth.replace("Bearer ",""); const {data:claims}=await uc.auth.getClaims(token); const uid=claims?.claims?.sub as string|undefined;
+      if(uid){const ac=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);authorized=(await ac.rpc("is_admin",{_user_id:uid})).data===true;}
+    }
+    if(!authorized)return new Response(JSON.stringify({success:false,error:"Non autorisé"}),{headers:{...corsHeaders,"Content-Type":"application/json"},status:401});
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+    const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const body=await req.json().catch(()=>({})); const mode=body.mode||"both";
+    const today=new Date().toISOString().slice(0,10); const in3=new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+    const results={arrears:[] as any[],upcoming:[] as any[],errors:[] as string[]};
 
-  try {
-    // Authenticate caller and require admin or service role secret
-    const authHeader = req.headers.get("Authorization");
-    const cronSecret = req.headers.get("x-cron-secret");
-    const expectedCron = Deno.env.get("CRON_SECRET");
+    const {data:clients,error}=await supabase.from("clients").select("id,nom_complet,telephone,user_id,paiement_personnalise").eq("compte_actif",true).in("statut_global",["actif","active"]);
+    if(error)throw error;
 
-    let isAuthorized = false;
+    for(const client of clients||[]){
+      if(!client.telephone)continue;
+      const custom=client.paiement_personnalise||{}; const monthly=custom.mensualite||{}; const initial=custom.paiement_initial||{};
+      const customActive=custom.actif===true; const monthlyActive=monthly.active===true&&Number(monthly.montant||0)>0&&Number(monthly.nombre||0)>0;
+      const {data:pending}=await supabase.from("paiements").select("id,montant,date_echeance,statut,type_paiement,plantation_id").eq("client_id",client.id).eq("statut","en_attente").eq("type_paiement","REDEVANCE").order("date_echeance",{ascending:true});
+      const overdue=(pending||[]).filter(p=>p.date_echeance&&p.date_echeance<today); const upcoming=(pending||[]).filter(p=>p.date_echeance&&p.date_echeance>=today&&p.date_echeance<=in3);
+      const arrears=overdue.reduce((s,p)=>s+Number(p.montant||0),0); const firstDue=overdue[0]?.date_echeance; const daysLate=firstDue?Math.max(1,Math.floor((Date.now()-new Date(firstDue).getTime())/86400000)):0;
 
-    // Allow scheduled invocations with a shared secret
-    if (expectedCron && cronSecret && cronSecret === expectedCron) {
-      isAuthorized = true;
-    } else if (authHeader?.startsWith("Bearer ")) {
-      const userClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData } = await userClient.auth.getClaims(token);
-      const callerId = claimsData?.claims?.sub as string | undefined;
-      if (callerId) {
-        const adminCheck = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-        );
-        const { data: isAdminData } = await adminCheck.rpc("is_admin", { _user_id: callerId });
-        if (isAdminData === true) isAuthorized = true;
+      if((mode==="arrears"||mode==="both")&&monthlyActive&&arrears>0){
+        const text=`AgriCapital: Bonjour ${client.nom_complet||"cher client"}, votre arriéré est de ${formatMontant(arrears)} F CFA (${daysLate}j). Votre échéancier personnalisé est actif. Régularisez sur pay.agricapital.ci.`;
+        const sent=await sendSms(Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,text);
+        results.arrears.push({client_id:client.id,montant_arriere:arrears,jours_retard:daysLate,...sent});
       }
-    }
 
-    if (!isAuthorized) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Non autorisé" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
-      );
-    }
-
-    const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
-    const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
-    
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const body = await req.json().catch(() => ({}));
-    const mode = body.mode || 'arrears'; // 'arrears' | 'upcoming' | 'both'
-
-    const results = { arrears: [] as any[], upcoming: [] as any[], errors: [] as string[] };
-
-    // ===== 1. ARREARS NOTIFICATIONS =====
-    if (mode === 'arrears' || mode === 'both') {
-      // Get all active plantations with their souscripteur and offre
-      const { data: plantations, error: plantErr } = await supabase
-        .from('plantations')
-        .select('*, souscripteurs(id, nom_complet, telephone, offre_id, offres(contribution_mensuelle_par_ha))')
-        .in('statut_global', ['actif', 'active'])
-        .not('date_activation', 'is', null)
-        .gt('superficie_activee', 0);
-
-      if (plantErr) throw plantErr;
-
-      for (const plant of (plantations || [])) {
-        const souscripteur = plant.souscripteurs as any;
-        if (!souscripteur?.telephone) continue;
-
-        const offre = souscripteur.offres as any;
-        const tarifJour = offre ? Math.round((offre.contribution_mensuelle_par_ha || 0) / 30) : 65;
-        const superficie = plant.superficie_activee || 0;
-
-        // Calculate days since activation
-        const joursSinceActivation = Math.floor(
-          (Date.now() - new Date(plant.date_activation).getTime()) / 86400000
-        );
-        const montantAttendu = joursSinceActivation * tarifJour * superficie;
-
-        // Get total paid for redevances
-        const { data: paiementsData } = await supabase
-          .from('paiements')
-          .select('montant_paye')
-          .eq('plantation_id', plant.id)
-          .in('type_paiement', ['REDEVANCE', 'contribution'])
-          .eq('statut', 'valide');
-
-        const totalPaye = (paiementsData || []).reduce((s, p) => s + (p.montant_paye || 0), 0);
-        const arriere = montantAttendu - totalPaye;
-
-        if (arriere > 1000) { // Only notify if arrears > 1000 FCFA
-          const joursRetard = Math.floor(arriere / (tarifJour * superficie));
-          
-          const message = `AgriCapital: Bonjour ${souscripteur.nom_complet || 'cher client'}, vous avez un arriere de ${formatMontant(arriere)} F CFA (${joursRetard}j) sur ${plant.nom_plantation || plant.id_unique}. Regularisez sur pay.agricapital.ci ou appelez le 05 64 55 17 17.`;
-
-          if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
-            try {
-              const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `App ${INFOBIP_API_KEY}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  messages: [{
-                    destinations: [{ to: formatPhone(souscripteur.telephone) }],
-                    from: "AgriCapital",
-                    text: message,
-                  }]
-                }),
-              });
-              const smsData = await smsRes.json();
-              results.arrears.push({
-                souscripteur_id: souscripteur.id,
-                plantation_id: plant.id,
-                montant_arriere: arriere,
-                jours_retard: joursRetard,
-                sms_sent: smsRes.ok,
-                sms_response: smsData?.messages?.[0]?.status?.name || 'unknown'
-              });
-            } catch (e: any) {
-              results.errors.push(`SMS error for ${souscripteur.telephone}: ${e.message}`);
-            }
-          } else {
-            console.log(`[DEV] Arrears SMS for ${souscripteur.telephone}: ${message}`);
-            results.arrears.push({
-              souscripteur_id: souscripteur.id,
-              plantation_id: plant.id,
-              montant_arriere: arriere,
-              jours_retard: joursRetard,
-              sms_sent: false,
-              dev_mode: true
-            });
+      if(mode==="upcoming"||mode==="both"){
+        if(customActive&&Number(initial.solde||0)>0){
+          const solde=Number(initial.solde); const text=`AgriCapital: Bonjour ${client.nom_complet||"cher client"}, votre solde de Paiement Initial est de ${formatMontant(solde)} F CFA. Retrouvez votre situation sur pay.agricapital.ci.`;
+          const sent=await sendSms(Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,text);
+          results.upcoming.push({client_id:client.id,type:"solde_pi",montant:solde,...sent});
+        }
+        if(monthlyActive){
+          for(const payment of upcoming.slice(0,1)){
+            const text=`AgriCapital: Rappel — échéance personnalisée de ${formatMontant(Number(payment.montant))} F CFA le ${new Date(payment.date_echeance).toLocaleDateString("fr-FR")}.`;
+            const sent=await sendSms(Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,text);
+            results.upcoming.push({client_id:client.id,paiement_id:payment.id,montant:Number(payment.montant),...sent});
           }
-
-          // Create in-app notification
-          if (souscripteur.user_id) {
-            await supabase.from('notifications').insert({
-              user_id: souscripteur.user_id,
-              type: 'arrears_alert',
-              title: `Arriéré de ${formatMontant(arriere)} F CFA`,
-              message: `Vous avez ${joursRetard} jours de retard sur ${plant.nom_plantation || plant.id_unique}. Régularisez votre situation.`,
-              data: { plantation_id: plant.id, montant: arriere, jours: joursRetard }
-            });
+        }else if(!customActive){
+          for(const payment of upcoming.slice(0,1)){
+            const text=`AgriCapital: Rappel — échéance de ${formatMontant(Number(payment.montant))} F CFA le ${new Date(payment.date_echeance).toLocaleDateString("fr-FR")}.`;
+            const sent=await sendSms(Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,text);
+            results.upcoming.push({client_id:client.id,paiement_id:payment.id,montant:Number(payment.montant),...sent});
           }
         }
       }
     }
 
-    // ===== 2. UPCOMING PAYMENT REMINDERS =====
-    if (mode === 'upcoming' || mode === 'both') {
-      // Get payments with upcoming due dates (next 3 days)
-      const now = new Date();
-      const in3Days = new Date(Date.now() + 3 * 86400000);
-
-      const { data: upcomingPaiements } = await supabase
-        .from('paiements')
-        .select('*, souscripteurs(nom_complet, telephone, user_id), plantations(nom_plantation, id_unique)')
-        .eq('statut', 'en_attente')
-        .gte('date_echeance', now.toISOString().split('T')[0])
-        .lte('date_echeance', in3Days.toISOString().split('T')[0]);
-
-      for (const paiement of (upcomingPaiements || [])) {
-        const souscripteur = paiement.souscripteurs as any;
-        if (!souscripteur?.telephone) continue;
-
-        const plantation = paiement.plantations as any;
-        const daysUntil = Math.ceil(
-          (new Date(paiement.date_echeance!).getTime() - Date.now()) / 86400000
-        );
-
-        const message = `AgriCapital: Rappel - Echeance de ${formatMontant(paiement.montant)} F CFA dans ${daysUntil}j pour ${plantation?.nom_plantation || plantation?.id_unique || 'votre plantation'}. Payez sur pay.agricapital.ci`;
-
-        if (INFOBIP_API_KEY && INFOBIP_BASE_URL) {
-          try {
-            const smsRes = await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `App ${INFOBIP_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                messages: [{
-                  destinations: [{ to: formatPhone(souscripteur.telephone) }],
-                  from: "AgriCapital",
-                  text: message,
-                }]
-              }),
-            });
-            results.upcoming.push({
-              paiement_id: paiement.id,
-              montant: paiement.montant,
-              jours_restants: daysUntil,
-              sms_sent: smsRes.ok
-            });
-          } catch (e: any) {
-            results.errors.push(`Upcoming SMS error: ${e.message}`);
-          }
-        } else {
-          console.log(`[DEV] Upcoming SMS for ${souscripteur.telephone}: ${message}`);
-          results.upcoming.push({ paiement_id: paiement.id, montant: paiement.montant, jours_restants: daysUntil, dev_mode: true });
-        }
-
-        // In-app notification
-        if (souscripteur.user_id) {
-          await supabase.from('notifications').insert({
-            user_id: souscripteur.user_id,
-            type: 'payment_reminder',
-            title: `Échéance dans ${daysUntil} jour(s)`,
-            message: `${formatMontant(paiement.montant)} F CFA à régler pour ${plantation?.nom_plantation || 'votre plantation'}.`,
-            data: { paiement_id: paiement.id, montant: paiement.montant }
-          });
-        }
-      }
-    }
-
-    // Log activity
-    await supabase.from('historique_activites').insert({
-      table_name: 'sms_notifications',
-      action: 'SMS_BATCH_SENT',
-      details: `Arrears: ${results.arrears.length}, Upcoming: ${results.upcoming.length}, Errors: ${results.errors.length}`,
-    });
-
-    return new Response(
-      JSON.stringify({ success: true, results }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
-  } catch (error: any) {
-    console.error("SMS notification error:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
-  }
+    await supabase.from("historique_activites").insert({table_name:"sms_notifications",action:"SMS_BATCH_SENT",details:`Arrears: ${results.arrears.length}, Upcoming: ${results.upcoming.length}, Errors: ${results.errors.length}`});
+    return new Response(JSON.stringify({success:true,results}),{headers:{...corsHeaders,"Content-Type":"application/json"}});
+  }catch(e:any){console.error("SMS notification error:",e);return new Response(JSON.stringify({success:false,error:e.message}),{headers:{...corsHeaders,"Content-Type":"application/json"},status:500});}
 });

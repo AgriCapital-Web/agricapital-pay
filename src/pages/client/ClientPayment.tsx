@@ -25,7 +25,7 @@ import { ArrowLeft, CreditCard, MapPin, Check, AlertTriangle, Calculator, Loader
 
 interface ClientPaymentProps {
   souscripteur: any; plantations: any[]; paiements: any[]; onBack: () => void;
-  prefillAmount?: number; prefillType?: 'arriere' | 'avance';
+  prefillAmount?: number; prefillType?: 'arriere' | 'avance' | 'solde_initial';
 }
 
 const STEPS = [
@@ -91,7 +91,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const [avancePeriodType, setAvancePeriodType] = useState<'jour' | 'semaine' | 'mois' | 'trimestre' | 'semestre' | 'annee' | 'jours'>('mois');
   const [avancePeriodCount, setAvancePeriodCount] = useState(1);
   const [joursDemandes, setJoursDemandes] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('momo');\n  const customPayment = souscripteur?.paiement_personnalise?.actif ? souscripteur.paiement_personnalise : null;\n  const customInitialBalance = Number(customPayment?.paiement_initial?.solde || 0);\n  const customMonthlyActive = customPayment?.mensualite?.active === true;
   const paymentContextRef = useRef<{
     reference: string;
     montantTotal: number;
@@ -99,7 +99,7 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   } | null>(null);
 
   useEffect(() => {
-    if (prefillType === 'arriere') {
+    if (prefillType === 'solde_initial') {\n      setTypePaiement('da'); setModeArriere(null);\n      const p = plantations.find((p: any) => p.superficie_ha > 0) || plantations[0];\n      if (p) setSelectedPlantation(p.id);\n      setStep('details');\n    } else if (prefillType === 'arriere') {
       setTypePaiement('redevance'); setModeArriere('only');
       const p = plantations.find((p: any) => p.superficie_activee > 0);
       if (p) setSelectedPlantation(p.id);
@@ -193,11 +193,18 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   const fmt = (m: number) => formatCFA(m);
 
   const calculerArrieres = (plant: any) => {
+    if (customPayment) {
+      if (!customMonthlyActive) return { montant: 0, jours: 0, enAvance: false };
+      const pending = paiements.filter((p: any) => p.plantation_id === plant?.id && p.type_paiement === 'REDEVANCE' && p.statut === 'en_attente' && p.date_echeance && new Date(p.date_echeance).getTime() < Date.now());
+      const montant = pending.reduce((s: number, p: any) => s + Number(p.montant || 0), 0);
+      const firstDue = pending.length ? new Date(pending[0].date_echeance).getTime() : 0;
+      const jours = firstDue ? Math.max(1, Math.floor((Date.now() - firstDue) / 86400000)) : 0;
+      return { montant, jours, enAvance: false };
+    }
     if (!plant?.date_activation || plant.statut_global === 'en_attente_da') return { montant: 0, jours: 0, enAvance: false };
     const jours = Math.floor((Date.now() - new Date(plant.date_activation).getTime()) / 86400000);
     const attendu = calculateProgressiveAmountByDays(souscripteur?.offres, 0, jours, plant.superficie_activee || 0).montant;
-    const paye = paiements.filter((p: any) => p.plantation_id === plant.id && (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide')
-      .reduce((s: number, p: any) => s + (p.montant_paye || 0), 0);
+    const paye = paiements.filter((p: any) => p.plantation_id === plant.id && (p.type_paiement === 'REDEVANCE' || p.type_paiement === 'contribution') && p.statut === 'valide').reduce((s: number, p: any) => s + (p.montant_paye || 0), 0);
     const diff = attendu - paye;
     const averageDaily = jours > 0 ? attendu / jours : ((plantationRate?.jour_par_ha || 0) * (plant.superficie_activee || 1));
     if (diff > 0) return { montant: diff, jours: averageDaily > 0 ? Math.floor(diff / averageDaily) : 0, enAvance: false };
@@ -224,12 +231,15 @@ const ClientPayment = ({ souscripteur, plantations, paiements, onBack, prefillAm
   }, [plantation, periodType, periodCount, joursDemandes, customAmount, souscripteur?.offres, activePromotion, souscripteur?.jours_payes]);
 
   const depotInitialDetails = useMemo(() => {
-    if (!plantation) return { montant: 0, brut: 0, economie: 0, promotionAppliquee: false };
+    if (customPayment && customInitialBalance > 0) {
+      return { montant: customInitialBalance, brut: customInitialBalance, economie: 0, promotionAppliquee: false, personnalise: true };
+    }
+    if (!plantation) return { montant: 0, brut: 0, economie: 0, promotionAppliquee: false, personnalise: false };
     const hectares = Math.max(0, (plantation.superficie_ha || 0) - (plantation.superficie_activee || 0));
     const brut = hectares * TARIFS.da_par_hectare;
     const promo = applyPromotion(brut, 'depot_initial');
-    return { montant: promo.amount, brut, economie: promo.savings, promotionAppliquee: promo.applied };
-  }, [plantation, TARIFS.da_par_hectare, activePromotion]);
+    return { montant: promo.amount, brut, economie: promo.savings, promotionAppliquee: promo.applied, personnalise: false };
+  }, [plantation, TARIFS.da_par_hectare, activePromotion, customPayment, customInitialBalance]);
 
   const calculerMontantRedevance = () => {
     if (!plantation) return 0;

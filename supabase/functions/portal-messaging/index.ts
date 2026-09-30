@@ -59,17 +59,23 @@ serve(async(req)=>{
 
     if(action==="list"){
       let query=supabase.from("portail_messages")
-        .select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at")
+        .select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at,piece_jointe_url,piece_jointe_nom,piece_jointe_type,piece_jointe_taille,piece_jointe_bucket")
         .eq("client_id",session.clientId).order("created_at",{ascending:true}).limit(500);
       if(body.plantation_id) query=query.eq("plantation_id",body.plantation_id);
       const {data,error}=await query;
       if(body.plantation_id) query = query.eq("plantation_id", body.plantation_id);
       if(error) throw error;
+
+      const messagesWithUrls = await Promise.all((data || []).map(async (m:any) => {
+        if (!m.piece_jointe_url || !m.piece_jointe_bucket) return m;
+        const { data: signed } = await supabase.storage.from(m.piece_jointe_bucket).createSignedUrl(m.piece_jointe_url, 60 * 60);
+        return { ...m, piece_jointe_url: signed?.signedUrl || null };
+      }));
       const {data:notifications}=await supabase.from("portail_notifications")
         .select("id,type,title,message,data,read,created_at")
         .eq("client_id",session.clientId).order("created_at",{ascending:false}).limit(50);
       return json({
-        success:true,messages:data||[],
+        success:true,messages:messagesWithUrls,
         notifications:notifications||[],
         unread_notifications:(notifications||[]).filter((n:any)=>!n.read).length,
         unread_messages:(data||[]).filter((m:any)=>m.auteur_type==="staff"&&!m.lu).length
@@ -104,13 +110,32 @@ serve(async(req)=>{
       if(plantationId&&!await canUsePlantation(supabase,session.clientId,plantationId))
         throw new Error("Plantation non autorisée.");
 
+      const attachment = body.attachment && typeof body.attachment === "object" ? body.attachment : null;
+      if (attachment) {
+        if (!attachment.path || !attachment.bucket || !attachment.name) throw new Error("Pièce jointe invalide.");
+        if (attachment.bucket !== "portail-messages" || !String(attachment.path).startsWith(session.clientId + "/")) {
+          throw new Error("Pièce jointe non autorisée.");
+        }
+        if (Number(attachment.size || 0) > 50 * 1024 * 1024) throw new Error("Pièce jointe trop volumineuse.");
+      }
+
       const {data:client}=await supabase.from("clients").select("nom_complet").eq("id",session.clientId).maybeSingle();
       const {data,error}=await supabase.from("portail_messages").insert({
         client_id:session.clientId,plantation_id:plantationId,auteur_type:"client",
-        auteur_nom:client?.nom_complet||"Client",message,lu:false
-      }).select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at").single();
+        auteur_nom:client?.nom_complet||"Client",message,lu:false,
+        piece_jointe_url: attachment?.path || null,
+        piece_jointe_nom: attachment?.name || null,
+        piece_jointe_type: attachment?.type || null,
+        piece_jointe_taille: Number(attachment?.size || 0) || null,
+        piece_jointe_bucket: attachment?.bucket || null,
+      }).select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,created_at,piece_jointe_url,piece_jointe_nom,piece_jointe_type,piece_jointe_taille,piece_jointe_bucket").single();
       if(error) throw error;
-      return json({success:true,message:data});
+      let responseMessage:any = data;
+      if (data?.piece_jointe_url && data?.piece_jointe_bucket) {
+        const { data: signed } = await supabase.storage.from(data.piece_jointe_bucket).createSignedUrl(data.piece_jointe_url, 60 * 60);
+        responseMessage = { ...data, piece_jointe_url: signed?.signedUrl || null };
+      }
+      return json({success:true,message:responseMessage});
     }
 
     if(action==="mark_read"||action==="read"){

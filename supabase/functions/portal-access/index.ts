@@ -87,23 +87,18 @@ serve(async (req) => {
     const client = await findClient(supabase, phone);
 
     if (!client) {
-      // A normal client login must NEVER create a session, demo code or SMS
-      // for an unknown phone number. Demo is intentionally explicit only.
-      if (action === "demo") {
-        const demoCode = randomCode();
-        return json({
-          success: true,
-          demo: true,
-          needs_access_code_setup: false,
-          access_code: demoCode,
-          demo_token: await demoToken(phone, demoCode),
-        });
-      }
+      // PARCOURS DEMO :
+      // Un numéro absent du CRM ne reçoit JAMAIS de SMS/OTP.
+      // Il reçoit uniquement un code fictif affiché à l'écran et un jeton
+      // de démonstration vérifiable par subscriber-lookup.
+      const demoCode = randomCode();
       return json({
-        success: false,
-        demo: false,
-        error: "Aucun compte client AgriCapital n'est associé à ce numéro.",
-      }, 404);
+        success: true,
+        demo: true,
+        needs_access_code_setup: false,
+        access_code: demoCode,
+        demo_token: await demoToken(phone, demoCode),
+      });
     }
 
     if (!client.compte_actif || client.statut_global !== "actif") {

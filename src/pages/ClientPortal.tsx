@@ -19,7 +19,7 @@ type View = 'home' | 'dashboard' | 'payment' | 'portfolio' | 'history' | 'statis
 
 interface PaymentOptions {
   prefillAmount?: number;
-  prefillType?: 'arriere' | 'avance';
+  prefillType?: 'arriere' | 'avance' | 'solde_initial';
 }
 
 const ClientPortal = () => {

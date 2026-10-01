@@ -43,10 +43,6 @@ const ClientPortal = () => {
   useEffect(() => {
     if (view !== "home") return;
     const token = sessionStorage.getItem("agri_portal_access_token");
-    const savedClient = sessionStorage.getItem("agri_client") || sessionStorage.getItem("agri_souscripteur");
-    const savedPlantations = sessionStorage.getItem("agri_plantations");
-    const savedPaiements = sessionStorage.getItem("agri_paiements");
-
     const restore = async () => {
       if (!token) return;
       const { data, error } = await supabase.functions.invoke("client-portal-data", { body: { access_token: token } });

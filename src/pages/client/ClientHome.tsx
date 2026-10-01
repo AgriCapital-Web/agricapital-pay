@@ -46,7 +46,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const loadRealClient = async (token: string) => {
     const { data, error } = await supabase.functions.invoke("client-portal-data", { body: { access_token: token } });
     if (error || !data?.success) throw new Error(data?.error || error?.message || "Impossible de charger votre espace client.");
-    saveSession(data, token, false);
+    saveSession(data, token);
   };
 
   const handlePhoneContinue = async () => {

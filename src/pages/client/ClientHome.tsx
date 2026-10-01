@@ -7,6 +7,7 @@ import logoWhiteBg from "@/assets/logo-white-bg.png";
 import { Loader2, ArrowRight, MessageCircle, ShieldCheck, KeyRound, ArrowLeft, Lock, Sparkles, CheckCircle2, Copy } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PortalAccessSupportDialog from "@/components/client/PortalAccessSupportDialog";
 
 interface ClientHomeProps { onLogin: (client: any, plantations: any[], paiements: any[]) => void; }
 type Step = "phone" | "setup" | "login" | "demo";
@@ -21,6 +22,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
   const [demoCode, setDemoCode] = useState<string | null>(null);
   const [demoToken, setDemoToken] = useState<string | null>(null);
   const [clientName, setClientName] = useState<string>("");
+  const [supportOpen, setSupportOpen] = useState(false);
 
   useEffect(() => { document.title = "Portail Client | AgriCapital"; }, []);
 
@@ -226,7 +228,7 @@ const ClientHome = ({ onLogin }: ClientHomeProps) => {
                   </div>
 
                   <button
-                    onClick={handleWhatsApp}
+                    onClick={() => setSupportOpen(true)}
                     className="w-full h-12 rounded-xl border border-[#E5E7E3] bg-white hover:bg-[#FAFAF7] hover:border-[#00643C]/30 transition-all flex items-center justify-center gap-2.5 text-sm font-medium text-[#1A1A1A]"
                   >
                     <MessageCircle className="h-4 w-4 text-[#22C55E]" />

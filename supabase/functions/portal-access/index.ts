@@ -87,20 +87,12 @@ serve(async (req) => {
     const client = await findClient(supabase, phone);
 
     if (!client) {
-      // PARCOURS DEMO :
-      // Un numéro absent du CRM ne reçoit JAMAIS de SMS/OTP.
-      // Il reçoit uniquement un code fictif affiché à l'écran et un jeton
-      // de démonstration vérifiable par subscriber-lookup.
-      const demoCode = randomCode();
       return json({
-        success: true,
-        demo: true,
-        needs_access_code_setup: false,
-        access_code: demoCode,
-        demo_token: await demoToken(phone, demoCode),
-      });
+        success: false,
+        code: "CLIENT_NOT_FOUND",
+        error: "Ce numéro n'est pas enregistré dans votre dossier client AgriCapital. Si vous avez déjà contractualisé, utilisez le numéro fourni lors de votre contractualisation ou contactez-nous.",
+      }, 404);
     }
-
     if (!client.compte_actif || client.statut_global !== "actif") {
       return json({ success: false, error: "Votre compte client n'est pas encore activé. Veuillez contacter AgriCapital." }, 403);
     }

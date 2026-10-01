@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.portal-messages]
 verify_jwt = false
+
+[functions.portal-access]
+verify_jwt = false

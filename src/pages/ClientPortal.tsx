@@ -43,23 +43,11 @@ const ClientPortal = () => {
   useEffect(() => {
     if (view !== "home") return;
     const token = sessionStorage.getItem("agri_portal_access_token");
-    const isDemo = sessionStorage.getItem("agri_demo") === "1";
     const savedClient = sessionStorage.getItem("agri_client") || sessionStorage.getItem("agri_souscripteur");
     const savedPlantations = sessionStorage.getItem("agri_plantations");
     const savedPaiements = sessionStorage.getItem("agri_paiements");
 
     const restore = async () => {
-      if (isDemo && savedClient) {
-        try {
-          setSouscripteur(JSON.parse(savedClient));
-          setPlantations(JSON.parse(savedPlantations || "[]"));
-          setPaiements(JSON.parse(savedPaiements || "[]"));
-          setView("dashboard");
-        } catch { sessionStorage.removeItem("agri_client"); sessionStorage.removeItem("agri_souscripteur"); sessionStorage.removeItem("agri_plantations"); sessionStorage.removeItem("agri_paiements"); sessionStorage.removeItem("agri_demo");
-    sessionStorage.removeItem("agri_demo_token");
-    sessionStorage.removeItem("agri_demo_code"); }
-        return;
-      }
       if (!token) return;
       const { data, error } = await supabase.functions.invoke("client-portal-data", { body: { access_token: token } });
       if (!error && data?.success) {

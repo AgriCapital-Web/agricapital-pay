@@ -57,13 +57,6 @@ serve(async(req)=>{
 
     const isOwner=Boolean(client.proprietaire_id);
     const isBeneficiary=client.type_client==="beneficiaire_particulier";
-    const isStakeholder=isOwner||isBeneficiary;
-
-    const portalRoles=[
-      ...(isOwner?["proprietaire_foncier"]:[]),
-      ...(isBeneficiary?["beneficiaire_particulier"]:[]),
-      ...(!isOwner&&!isBeneficiary?["client"]:[])
-    ];
 
     const [ownerRes, attributionRes, directPlantationRes, payRes, commercialRes, notificationRes] = await Promise.all([
       client.proprietaire_id
@@ -88,6 +81,28 @@ serve(async(req)=>{
     const directPlantations=directPlantationRes.data||[];
     const paiements=payRes.data||[];
     const notificationRows=notificationRes.data||[];
+
+    // Un type_client « beneficiaire_particulier » ne signifie pas automatiquement
+    // que la personne doit recevoir le portail foncier. Un bénéficiaire peut aussi
+    // être un client contractualisé avec une offre (ex. PalmTerroir Essentielle).
+    // L'espace principal dépend donc d'abord de la relation commerciale réelle.
+    const hasOffer=Boolean(client.offre_id);
+    const hasPayments=paiements.length>0;
+    const hasDirectPlantation=directPlantations.length>0;
+    const hasSignedContract=[
+      client.contrat_acquisition_statut,
+      client.contrat_accompagnement_statut,
+    ].some((status:any)=>["signe","actif","en_cours","valide"].includes(String(status||"").toLowerCase()));
+    const isContractualClient=hasOffer||hasPayments||hasDirectPlantation||hasSignedContract;
+    const isStakeholder=!isContractualClient && (isOwner||isBeneficiary);
+
+    const portalRoles=[
+      ...(isContractualClient?["client"]:[]),
+      ...(isOwner?["proprietaire_foncier"]:[]),
+      ...(isBeneficiary?["beneficiaire_particulier"]:[]),
+      ...(!isContractualClient&&!isOwner&&!isBeneficiary?["client"]:[])
+    ];
+    const portalPrimaryRole=portalRoles[0]||"client";
 
     let parcelleIds:string[]=[];
     let parcelles:any[]=[];

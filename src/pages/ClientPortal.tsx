@@ -8,8 +8,6 @@ import ClientPaymentHistory from "./client/ClientPaymentHistory";
 import ClientStatistics from "./client/ClientStatistics";
 import PaymentReturn from "./client/PaymentReturn";
 import ClientPlantationHub from "./client/ClientPlantationHub";
-import StakeholderDashboard from "./client/StakeholderDashboard";
-import PortalNotificationCenter from "@/components/client/PortalNotificationCenter";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,23 +43,7 @@ const ClientPortal = () => {
   useEffect(() => {
     if (view !== "home") return;
     const token = sessionStorage.getItem("agri_portal_access_token");
-    const isDemo = sessionStorage.getItem("agri_demo") === "1";
-    const savedClient = sessionStorage.getItem("agri_client") || sessionStorage.getItem("agri_souscripteur");
-    const savedPlantations = sessionStorage.getItem("agri_plantations");
-    const savedPaiements = sessionStorage.getItem("agri_paiements");
-
     const restore = async () => {
-      if (isDemo && savedClient) {
-        try {
-          setSouscripteur(JSON.parse(savedClient));
-          setPlantations(JSON.parse(savedPlantations || "[]"));
-          setPaiements(JSON.parse(savedPaiements || "[]"));
-          setView("dashboard");
-        } catch { sessionStorage.removeItem("agri_client"); sessionStorage.removeItem("agri_souscripteur"); sessionStorage.removeItem("agri_plantations"); sessionStorage.removeItem("agri_paiements"); sessionStorage.removeItem("agri_demo");
-    sessionStorage.removeItem("agri_demo_token");
-    sessionStorage.removeItem("agri_demo_code"); }
-        return;
-      }
       if (!token) return;
       const { data, error } = await supabase.functions.invoke("client-portal-data", { body: { access_token: token } });
       if (!error && data?.success) {
@@ -161,23 +143,11 @@ const ClientPortal = () => {
       <InstallPrompt />
 
       {souscripteur && <SyncStatusBanner status={status} lastSync={lastSync} />}
-      {souscripteur && view !== "home" && (
-        <div className="fixed right-3 top-3 z-[70] md:right-5 md:top-5">
-          <PortalNotificationCenter compact />
-        </div>
-      )}
 
       
       {view === 'home' && <ClientHome onLogin={handleLogin} />}
       
-      {view === 'dashboard' && souscripteur?.portal_primary_role !== "client" ? (
-        <StakeholderDashboard
-          souscripteur={souscripteur}
-          plantations={plantations}
-          onPlantationHub={() => setView('plantation-hub')}
-          onLogout={handleLogout}
-        />
-      ) : view === 'dashboard' && (
+      {view === 'dashboard' && (
         <ClientDashboard
           souscripteur={souscripteur}
           plantations={plantations}
